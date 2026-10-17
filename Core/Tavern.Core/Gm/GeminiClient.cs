@@ -61,7 +61,7 @@ namespace Tavern.Core.Gm
                 var sw = System.Diagnostics.Stopwatch.StartNew();
                 using var res = await _http.SendAsync(req, ct).ConfigureAwait(false);
                 var text = await res.Content.ReadAsStringAsync().ConfigureAwait(false);
-                Trace?.Invoke($"[{_model}] {(int)res.StatusCode} {sw.Elapsed.TotalSeconds:0.0}s" + ((int)res.StatusCode == 200 ? "" : " " + Trim(text)));
+                Trace?.Invoke($"[{_model}] {(int)res.StatusCode} {sw.Elapsed.TotalSeconds:0.0}s " + ((int)res.StatusCode == 200 ? Usage(text) : Trim(text)));
                 if ((int)res.StatusCode == 429)
                 {
                     // The free tier has a small per-minute quota: wait as told and try again; a daily quota gives up.
@@ -203,6 +203,17 @@ namespace Tavern.Core.Gm
                 if (p["functionCall"] is JObject fc) calls.Add(new ToolCall((string?)fc["name"] ?? "", fc["args"] as JObject ?? new JObject()));
             }
             return new LlmReply(text.ToString().Trim(), calls, parts);
+        }
+
+        /// <summary>"in 1234 out 56 think 7" from a reply's usageMetadata (for the trace).</summary>
+        static string Usage(string reply)
+        {
+            try
+            {
+                var u = JObject.Parse(reply)["usageMetadata"];
+                return $"in {(int?)u?["promptTokenCount"] ?? 0} out {(int?)u?["candidatesTokenCount"] ?? 0} think {(int?)u?["thoughtsTokenCount"] ?? 0}";
+            }
+            catch (JsonException) { return ""; }
         }
 
         static string Trim(string s) => s.Length > 400 ? s.Substring(0, 400) : s;
