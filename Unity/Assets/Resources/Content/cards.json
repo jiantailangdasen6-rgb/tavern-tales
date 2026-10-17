@@ -1,0 +1,31 @@
+{
+  "cards": [
+    { "id": "guard", "classId": "warrior", "name": "かばう", "cost": 1, "kind": "guard", "target": "ally",
+      "text": "この手番、仲間 1 人への攻撃を代わりに受ける（受けるダメージ -1）。" },
+    { "id": "sweep", "classId": "warrior", "name": "なぎ払い", "cost": 2, "kind": "attack", "target": "all", "stat": "力", "damage": 2,
+      "text": "敵全員に攻撃。当たった敵に 2 ダメージ。" },
+    { "id": "warcry", "classId": "warrior", "name": "ウォークライ", "cost": 2, "kind": "bless", "target": "party", "bonus": 2,
+      "text": "仲間全員の次の判定 +2。" },
+
+    { "id": "fireball", "classId": "mage", "name": "ファイアボール", "cost": 3, "kind": "attack", "target": "all", "stat": "知", "damage": 4, "autoHit": true,
+      "text": "敵全員に 4 ダメージ（判定なし）。" },
+    { "id": "detect", "classId": "mage", "name": "魔力感知", "cost": 1, "kind": "utility", "target": "none", "stat": "知",
+      "text": "隠されたものや魔法を見抜く（知の判定 +3）。" },
+    { "id": "sleep", "classId": "mage", "name": "眠りの霧", "cost": 2, "kind": "stun", "target": "enemy", "stat": "知",
+      "text": "敵 1 体を眠らせ、1 手番動けなくする（ボスには効かない）。" },
+
+    { "id": "backstab", "classId": "thief", "name": "急所狙い", "cost": 2, "kind": "attack", "target": "enemy", "stat": "技", "damage": 5,
+      "text": "敵 1 体に攻撃。当たれば 5 ダメージ。" },
+    { "id": "lockpick", "classId": "thief", "name": "鍵開け", "cost": 1, "kind": "utility", "target": "none", "stat": "技",
+      "text": "鍵や罠を外す（技の判定 +3）。" },
+    { "id": "smoke", "classId": "thief", "name": "煙玉", "cost": 2, "kind": "smoke", "target": "party",
+      "text": "この手番、敵の攻撃をかわす判定 +4。戦いから逃げるときも +4。" },
+
+    { "id": "heal", "classId": "priest", "name": "癒しの祈り", "cost": 2, "kind": "heal", "target": "ally", "amount": 5,
+      "text": "仲間 1 人の HP を 5 回復。倒れた仲間も起こせる。" },
+    { "id": "holylight", "classId": "priest", "name": "ホーリーライト", "cost": 2, "kind": "attack", "target": "enemy", "stat": "心", "damage": 3, "undeadBonus": 3,
+      "text": "敵 1 体に攻撃。3 ダメージ、不死の者には +3。" },
+    { "id": "bless", "classId": "priest", "name": "祝福", "cost": 1, "kind": "bless", "target": "ally", "bonus": 3,
+      "text": "仲間 1 人の次の判定 +3。" }
+  ]
+}

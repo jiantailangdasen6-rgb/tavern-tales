@@ -27,13 +27,14 @@ namespace Tavern.Core.Rules
         public int Modifier { get; }
         public int HelpBonus { get; }
         public int Total => Natural + Modifier + HelpBonus;
-        public int Dc => (int)Request.Difficulty;
+        public int Dc { get; }
         public Outcome Outcome { get; }
         public bool Rerolled { get; }
 
-        public CheckResult(CheckRequest request, int natural, int modifier, int helpBonus, bool rerolled)
+        public CheckResult(CheckRequest request, int natural, int modifier, int helpBonus, bool rerolled, int? dc = null)
         {
             Request = request; Natural = natural; Modifier = modifier; HelpBonus = helpBonus; Rerolled = rerolled;
+            Dc = dc ?? (int)request.Difficulty;
             // A natural 20 always succeeds brilliantly and a natural 1 always fails badly.
             Outcome = natural == 20 ? Outcome.Critical
                 : natural == 1 ? Outcome.Fumble
@@ -50,7 +51,7 @@ namespace Tavern.Core.Rules
             {
                 Outcome.Critical => "大成功", Outcome.Success => "成功", Outcome.Failure => "失敗", _ => "大失敗",
             };
-            return $"{Request.CharacterName} {Request.Stat.Label()}の判定 {Natural}{(bonus >= 0 ? "+" : "")}{bonus} = {Total}（難しさ {Dc}）{outcome}{(Rerolled ? "（振り直し）" : "")}";
+            return $"{Request.CharacterName} {Request.Stat.Label()}の判定 {Natural}{(bonus >= 0 ? "+" : "")}{bonus} = {Total}（目標 {Dc}）{outcome}{(Rerolled ? "（振り直し）" : "")}";
         }
     }
 
@@ -58,11 +59,20 @@ namespace Tavern.Core.Rules
     {
         public const int HelpBonusEach = 2;
 
-        public static CheckResult Roll(CheckRequest request, Character character, IRandom rng, bool rerolled = false)
-            => new CheckResult(request, Dice.D20(rng), character.Modifier(request.Stat), request.Helpers * HelpBonusEach, rerolled);
+        /// <summary>Rolls a check. The character's pending bonus (blessing, card, help) is added and used up.</summary>
+        public static CheckResult Roll(CheckRequest request, Character character, IRandom rng, bool rerolled = false, int extraBonus = 0)
+            => new CheckResult(request, Dice.D20(rng), character.Modifier(request.Stat),
+                request.Helpers * HelpBonusEach + character.ConsumeBonus() + extraBonus, rerolled);
+
+        /// <summary>A roll against a target number that is not a character check (attacks against an enemy's defense).</summary>
+        public static CheckResult RollAgainst(Character character, Stat stat, int dc, string reason, IRandom rng, int extraBonus = 0)
+            => new CheckResult(new CheckRequest(character.Name, stat, Difficulty.Normal, reason), Dice.D20(rng),
+                character.Modifier(stat), character.ConsumeBonus() + extraBonus, false, dc);
 
         /// <summary>Spends the character's fate coin to roll the same check again. Null when no coin is left.</summary>
         public static CheckResult? Reroll(CheckResult previous, Character character, IRandom rng)
-            => character.SpendFateCoin() ? Roll(previous.Request, character, rng, rerolled: true) : null;
+            => character.SpendFateCoin()
+                ? new CheckResult(previous.Request, Dice.D20(rng), previous.Modifier, previous.HelpBonus, true, previous.Dc)
+                : null;
     }
 }

@@ -1,0 +1,626 @@
+#nullable enable
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
+using Tavern.Core.Content;
+using Tavern.Core.Gm;
+using Tavern.Core.Rules;
+
+namespace Tavern.Core.Game
+{
+    /// <summary>What a player chose this turn: a card, a basic action, or free text (any combination with text).</summary>
+    public sealed class Declaration
+    {
+        public string Character = "";
+        public string Text = "";
+        public string? CardId;
+        /// <summary>attack / defend / help / revive / flee (combat), revive / help (outside combat).</summary>
+        public string? Basic;
+        /// <summary>Enemy uid or ally name.</summary>
+        public string? Target;
+    }
+
+    public sealed class TurnReport
+    {
+        public List<LogEntry> Entries { get; } = new List<LogEntry>();
+        public string Narration = "";
+        public List<string> Suggestions = new List<string>();
+        public string Model = "";
+    }
+
+    /// <summary>
+    /// One evening: the scenario, the party, the state and the AI game master. The UI calls OpenAsync once,
+    /// then SubmitAsync with everyone's declarations each turn. All rules run here; the AI narrates and proposes.
+    /// </summary>
+    public sealed class TavernGame
+    {
+        public ContentDb Db { get; }
+        public ScenarioDef Scenario { get; }
+        public Storyteller Teller { get; }
+        public List<Character> Party { get; }
+        public GameState State { get; }
+        public GmSession Gm { get; }
+        readonly IRandom _rng;
+
+        /// <summary>Raised for every new log line (the UI can animate dice for rolls).</summary>
+        public event Action<LogEntry>? Logged;
+
+        public bool InCombat => State.Combat != null;
+        public bool Ended => State.Ending != null;
+        public LocationDef Here => Scenario.Location(State.Location);
+
+        TavernGame(ContentDb db, ScenarioDef scenario, Storyteller teller, List<Character> party, GameState state, GmSession gm, IRandom rng)
+        {
+            Db = db; Scenario = scenario; Teller = teller; Party = party; State = state; Gm = gm; _rng = rng;
+            Gm.NarrateTool = GameTools.Narrate(scenario, db, party);
+        }
+
+        public static TavernGame New(ContentDb db, ScenarioDef scenario, Storyteller teller, List<Character> party,
+            ILlmClient llm, ILlmClient? highlightLlm, IRandom rng)
+        {
+            var state = new GameState { ScenarioId = scenario.Id, StorytellerId = teller.Id, Location = scenario.Start };
+            state.Visited.Add(scenario.Start);
+            var gm = new GmSession(llm, SystemPrompt(teller, party, scenario, db), party, rng, highlightLlm);
+            return new TavernGame(db, scenario, teller, party, state, gm, rng);
+        }
+
+        internal static TavernGame Restore(ContentDb db, ScenarioDef scenario, Storyteller teller, List<Character> party, GameState state,
+            IEnumerable<ChatMessage> history, ILlmClient llm, ILlmClient? highlightLlm, IRandom rng)
+        {
+            var gm = new GmSession(llm, SystemPrompt(teller, party, scenario, db), party, rng, highlightLlm, history);
+            return new TavernGame(db, scenario, teller, party, state, gm, rng);
+        }
+
+        static string SystemPrompt(Storyteller teller, List<Character> party, ScenarioDef s, ContentDb db)
+            => Prompts.System(teller, party, ScenarioPrompt.Describe(s, db));
+
+        /// <summary>Makes a new character from a class definition.</summary>
+        public static Character CreateCharacter(ContentDb db, string name, string classId, string background, string portrait = "")
+        {
+            var c = db.Classes[classId];
+            var ch = new Character(name, classId, c.Might, c.Skill, c.Wits, c.Spirit, c.Hp, c.Focus, background) { Portrait = portrait };
+            ch.Cards.AddRange(c.Cards);
+            return ch;
+        }
+
+        // ---------------------------------------------------------------- turns
+
+        /// <summary>The storyteller opens the evening (the strong model tells it).</summary>
+        public async Task<TurnReport> OpenAsync(CancellationToken ct = default)
+        {
+            var report = new TurnReport();
+            var turn = await Gm.NarrateAsync(Status() + "\n物語を始めてください。依頼が舞い込む最初の場面を、語り部らしく語ってください。", highlight: true, ct).ConfigureAwait(false);
+            Finish(report, turn);
+            return report;
+        }
+
+        public async Task<TurnReport> SubmitAsync(IReadOnlyList<Declaration> declarations, CancellationToken ct = default)
+        {
+            if (Ended) throw new InvalidOperationException("the story has ended");
+            State.Turn++;
+            var report = new TurnReport();
+            var acting = declarations.Where(d => Find(d.Character)?.CanAct == true || d.Basic == "revive").ToList();
+            foreach (var d in acting) Add(report, LogEntry.Line(LogKind.Declaration, d.Character, DescribeDeclaration(d)));
+            if (InCombat) await CombatRoundAsync(acting, report, ct).ConfigureAwait(false);
+            else await ExploreAsync(acting, report, ct).ConfigureAwait(false);
+            return report;
+        }
+
+        async Task ExploreAsync(List<Declaration> decls, TurnReport report, CancellationToken ct)
+        {
+            // Cards and basic actions that need no AI judgement are applied first.
+            var notes = new List<string>();
+            foreach (var d in decls) ApplyOutOfCombat(d, report, notes);
+            var text = new StringBuilder(Status());
+            text.AppendLine("【宣言】");
+            foreach (var d in decls) text.AppendLine($"{d.Character}: {DescribeDeclaration(d)}");
+            if (notes.Count > 0) { text.AppendLine("【ゲームが処理したこと】"); foreach (var n in notes) text.AppendLine(n); }
+
+            var turn = new GmTurn();
+            await Gm.PlanAsync(text.ToString(), entries => Gm.ResolveChecks(entries, turn), ct: ct).ConfigureAwait(false);
+            foreach (var r in turn.Checks) Add(report, RollEntry(r));
+            var narrated = await Gm.NarrateAsync(null, ct: ct).ConfigureAwait(false);
+            Finish(report, narrated);
+            await AfterNarrationAsync(report, narrated, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>Card and basic actions outside combat (healing, blessings, reviving, utility cards' +3).</summary>
+        void ApplyOutOfCombat(Declaration d, TurnReport report, List<string> notes)
+        {
+            var who = Find(d.Character);
+            if (who == null) return;
+            if (d.Basic == "revive") { Revive(who, d.Target, report, notes); return; }
+            if (d.CardId == null || !Db.Cards.TryGetValue(d.CardId, out var card)) return;
+            if (!who.SpendFocus(card.Cost)) { notes.Add($"{who.Name} は気力が足りず「{card.Name}」を使えなかった。"); return; }
+            switch (card.Kind)
+            {
+                case "heal":
+                {
+                    var target = Find(d.Target) ?? who;
+                    target.Heal(card.Amount);
+                    var line = $"{who.Name} の「{card.Name}」で {target.Name} の HP が {target.Hp}/{target.MaxHp} に。";
+                    notes.Add(line); Add(report, LogEntry.Line(LogKind.Event, who.Name, line));
+                    break;
+                }
+                case "bless":
+                    foreach (var t in card.Target == "party" ? Party.Where(p => p.CanAct) : new[] { Find(d.Target) ?? who }) t.NextCheckBonus += card.Bonus;
+                    notes.Add($"{who.Name} の「{card.Name}」: 次の判定 +{card.Bonus}。");
+                    break;
+                default:
+                    // Utility (and attack cards used outside a fight): the card's skill makes the related check easier.
+                    who.NextCheckBonus += 3;
+                    notes.Add($"{who.Name} は「{card.Name}」を使った（この手の判定 +3）。");
+                    break;
+            }
+        }
+
+        void Revive(Character who, string? targetName, TurnReport report, List<string> notes)
+        {
+            var target = Find(targetName) ?? Party.FirstOrDefault(p => p.State == LifeState.Down);
+            if (target == null || target.State != LifeState.Down || !who.CanAct) return;
+            target.Heal(1);
+            var line = $"{who.Name} が {target.Name} を助け起こした（HP 1）。";
+            notes.Add(line); Add(report, LogEntry.Line(LogKind.Event, who.Name, line));
+        }
+
+        // ---------------------------------------------------------------- narration effects
+
+        /// <summary>Applies the effects written in the narrate call (validated against the rules and the scenario).</summary>
+        async Task AfterNarrationAsync(TurnReport report, GmTurn turn, CancellationToken ct)
+        {
+            var a = turn.NarrateArgs;
+            foreach (var e in Entries(a, "damage"))
+                if (Find((string?)e["character"]) is Character c && c.State != LifeState.Dead)
+                {
+                    var n = GameTools.SizeValue((string?)e["size"]);
+                    c.TakeDamage(n);
+                    Add(report, LogEntry.Line(LogKind.Event, c.Name, $"{c.Name} は {n} の傷を負った（{(string?)e["cause"] ?? ""}）。HP {c.Hp}/{c.MaxHp}{(c.State == LifeState.Down ? "、倒れた" : "")}"));
+                }
+            foreach (var e in Entries(a, "heal"))
+                if (Find((string?)e["character"]) is Character c && c.State != LifeState.Dead)
+                {
+                    c.Heal(GameTools.SizeValue((string?)e["size"]));
+                    Add(report, LogEntry.Line(LogKind.Event, c.Name, $"{c.Name} の HP が {c.Hp}/{c.MaxHp} に回復した。"));
+                }
+            foreach (var e in Entries(a, "items_gained").Take(3))
+                if (Find((string?)e["character"]) is Character c && (string?)e["item"] is string item && item.Length > 0)
+                {
+                    c.Items.Add(item);
+                    Add(report, LogEntry.Line(LogKind.Event, c.Name, $"{c.Name} は「{item}」を手に入れた。"));
+                }
+            foreach (var e in Entries(a, "items_lost"))
+                if (Find((string?)e["character"]) is Character c && (string?)e["item"] is string item && c.Items.Remove(item))
+                    Add(report, LogEntry.Line(LogKind.Event, c.Name, $"{c.Name} は「{item}」を手放した。"));
+            foreach (var id in (a["clues_found"] as JArray)?.Select(x => (string?)x) ?? Enumerable.Empty<string?>())
+                if (id != null && Scenario.Clues.Any(c => c.Id == id) && !State.Clues.Contains(id))
+                {
+                    State.Clues.Add(id);
+                    Add(report, LogEntry.Line(LogKind.Event, "", "手がかり: " + Scenario.Clues.First(c => c.Id == id).Text));
+                }
+            // One act at most per turn: "next act" and "moved into the next act's place" usually mean the same step.
+            var actBefore = State.Act;
+            if (a["next_act"]?.Type == JTokenType.Boolean && (bool)a["next_act"]! && State.Act < Scenario.Acts.Count)
+                NextAct(report);
+            var move = (string?)a["move_to"];
+            if (move != null && move != "none" && move != State.Location && Scenario.Locations.Any(l => l.Id == move))
+                MoveTo(move, report, raiseAct: State.Act == actBefore);
+
+            var enemies = ((a["start_combat"] as JArray)?.Select(x => (string?)x).Where(x => x != null && Db.Enemies.ContainsKey(x!)).ToList()
+                ?? new List<string?>())!;
+            if (enemies.Count > 0 && !InCombat) await StartCombatAsync(enemies!, report, ct).ConfigureAwait(false);
+
+            var end = (string?)a["end_story"];
+            if (end == "success" || end == "bitter" || end == "failure") await EndAsync(end, report, ct).ConfigureAwait(false);
+            else if (Party.All(p => !p.CanAct)) await EndAsync("failure", report, ct).ConfigureAwait(false);
+        }
+
+        static IEnumerable<JObject> Entries(JObject args, string key) => (args[key] as JArray)?.OfType<JObject>() ?? Enumerable.Empty<JObject>();
+
+        void MoveTo(string id, TurnReport report, bool raiseAct = true)
+        {
+            State.Location = id;
+            if (!State.Visited.Contains(id)) State.Visited.Add(id);
+            var loc = Here;
+            Add(report, LogEntry.Line(LogKind.Event, "", $"場所: {loc.Name}"));
+            if (raiseAct && loc.Act > State.Act) NextAct(report);
+        }
+
+        void NextAct(TurnReport report)
+        {
+            State.Act++;
+            State.ActStartedAt = State.PlayMinutes;
+            foreach (var p in Party.Where(p => p.CanAct)) p.RestoreFocus(p.MaxFocus);
+            var act = Scenario.Acts.FirstOrDefault(x => x.N == State.Act);
+            Add(report, LogEntry.Line(LogKind.Event, "", $"第{State.Act}幕「{act?.Title}」（気力が回復した）"));
+        }
+
+        async Task EndAsync(string ending, TurnReport report, CancellationToken ct)
+        {
+            if (Ended) return;
+            State.Ending = ending;
+            State.Combat = null;
+            var label = ending == "success" ? "成功" : ending == "bitter" ? "苦い成功" : "失敗";
+            Add(report, LogEntry.Line(LogKind.Event, "", $"物語の結末: {label}"));
+            var text = ending == "success" ? Scenario.Endings.Success : ending == "bitter" ? Scenario.Endings.Bitter : Scenario.Endings.Failure;
+            var final = await Gm.NarrateAsync(Status() + $"\n物語は「{label}」の結末を迎えた（{text}）。冒険者一人ひとりの行いに触れながら、" +
+                "この夜の物語の締めくくりを語り部として 6〜8 文で語ってください。行動案は空でよい。", highlight: true, ct).ConfigureAwait(false);
+            Finish(report, final);
+        }
+
+        // ---------------------------------------------------------------- combat
+
+        async Task StartCombatAsync(List<string> enemyIds, TurnReport report, CancellationToken ct)
+        {
+            var combat = new CombatState { FleeTo = State.Visited.Count > 1 ? State.Visited[State.Visited.Count - 2] : State.Location };
+            foreach (var group in enemyIds.Take(4).GroupBy(id => id))
+            {
+                int i = 0, count = group.Count();
+                foreach (var id in group)
+                {
+                    var d = Db.Enemies[id];
+                    i++;
+                    combat.Enemies.Add(new EnemyInstance
+                    {
+                        Uid = id + i, DefId = id, Name = count > 1 ? $"{d.Name}{(char)('A' + i - 1)}" : d.Name, Art = d.Art,
+                        Hp = d.Hp, MaxHp = d.Hp, Defense = d.Defense, Boss = d.Boss, Undead = d.Undead,
+                    });
+                }
+            }
+            State.Combat = combat;
+            Add(report, LogEntry.Line(LogKind.Event, "", "戦闘開始: " + string.Join("・", combat.Enemies.Select(e => e.Name))));
+            if (combat.Enemies.Any(e => e.Boss))
+            {
+                // The boss's entrance is a big moment: the strong model describes it.
+                var entrance = await Gm.NarrateAsync(Status() + "\nボスが姿を現した。その登場を、語り部として 4〜6 文で迫力をもって語ってください。", highlight: true, ct).ConfigureAwait(false);
+                Finish(report, entrance);
+            }
+        }
+
+        async Task CombatRoundAsync(List<Declaration> decls, TurnReport report, CancellationToken ct)
+        {
+            var combat = State.Combat!;
+            var summary = new List<string>();
+            var dodgeBonus = new Dictionary<string, int>();
+            var guards = new Dictionary<string, string>();   // protected name -> guardian name
+
+            // Downed characters roll to stay alive.
+            foreach (var c in Party.Where(p => p.State == LifeState.Down))
+            {
+                var outcome = DeathSaves.Roll(c, _rng, out var face);
+                var text = outcome switch
+                {
+                    DeathSaveOutcome.StandsUp => "自力で立ち上がった（HP 1）",
+                    DeathSaveOutcome.Holds => "持ちこたえた",
+                    DeathSaveOutcome.Died => "息絶えた",
+                    _ => $"失敗（{c.DeathSaveFailures}/3）",
+                };
+                Add(report, new LogEntry { Kind = LogKind.Roll, Who = c.Name, Text = $"{c.Name} 死のサイコロ {face} — {text}", Natural = face, Total = face, Target = DeathSaves.HoldOn, Outcome = text });
+                summary.Add($"{c.Name} は倒れたまま死のサイコロを振り、{text}。");
+            }
+
+            // Free-text actions go through the AI (check + effect size); cards and basic actions are pure rules.
+            var free = decls.Where(d => d.CardId == null && d.Basic == null && d.Text.Trim().Length > 0).ToList();
+            if (free.Count > 0)
+            {
+                Gm.PlanTool = GameTools.CombatPlan(Party, combat.Enemies.Where(e => e.Alive).Select(e => e.Uid));
+                var text = new StringBuilder(Status());
+                text.AppendLine("【戦闘中の自由な行動】");
+                foreach (var d in free) text.AppendLine($"{d.Character}: {d.Text}");
+                await Gm.PlanAsync(text.ToString(), entries => ResolveFreeCombat(entries, report, summary), ct: ct).ConfigureAwait(false);
+                Gm.PlanTool = GmTools.PlanChecksTool(Party);
+            }
+
+            foreach (var d in decls.Where(d => !free.Contains(d)).OrderByDescending(d => Find(d.Character)?.Modifier(Stat.Skill) ?? 0))
+            {
+                var who = Find(d.Character);
+                if (who == null) continue;
+                if (d.Basic == "revive") { var notes = new List<string>(); Revive(who, d.Target, report, notes); summary.AddRange(notes); continue; }
+                if (!who.CanAct) continue;
+                if (d.Basic == "flee")
+                {
+                    var r = Checks.RollAgainst(who, Stat.Skill, 13, "逃げる", _rng, dodgeBonus.TryGetValue(who.Name, out var sb) ? sb : 0);
+                    Add(report, RollEntry(r));
+                    if (r.Succeeded)
+                    {
+                        summary.Add($"{who.Name} の合図で一行は戦いから逃げ出した（{Scenario.Location(combat.FleeTo).Name}へ）。");
+                        State.Combat = null;
+                        MoveTo(combat.FleeTo, report);
+                        break;
+                    }
+                    summary.Add($"{who.Name} は逃げ道を探したが、敵に回り込まれた。");
+                    continue;
+                }
+                if (d.CardId != null && Db.Cards.TryGetValue(d.CardId, out var card)) UseCombatCard(who, card, d.Target, report, summary, dodgeBonus, guards);
+                else if (d.Basic == "defend") { dodgeBonus[who.Name] = (dodgeBonus.TryGetValue(who.Name, out var b) ? b : 0) + 3; summary.Add($"{who.Name} は身構えた（かわす +3）。"); }
+                else if (d.Basic == "help" && Find(d.Target) is Character ally) { ally.NextCheckBonus += Checks.HelpBonusEach; summary.Add($"{who.Name} は {ally.Name} を援護した（次の判定 +2）。"); }
+                else Attack(who, d.Target, report, summary);
+            }
+
+            if (State.Combat == null) { await NarrateRoundAsync(summary, report, ct).ConfigureAwait(false); return; }
+            if (combat.Enemies.All(e => !e.Alive)) { await WinAsync(summary, report, ct).ConfigureAwait(false); return; }
+
+            EnemyPhase(combat, report, summary, dodgeBonus, guards);
+            combat.Round++;
+            await NarrateRoundAsync(summary, report, ct).ConfigureAwait(false);
+            if (Party.All(p => !p.CanAct)) await EndAsync("failure", report, ct).ConfigureAwait(false);
+        }
+
+        string ResolveFreeCombat(IReadOnlyList<JObject> entries, TurnReport report, List<string> summary)
+        {
+            var combat = State.Combat!;
+            var lines = new List<string>();
+            foreach (var e in entries.Take(Party.Count))
+            {
+                var who = Find((string?)e["character"]);
+                if (who == null || !who.CanAct) continue;
+                bool success = true;
+                if (!(e["needs_check"]?.Type == JTokenType.Boolean && !(bool)e["needs_check"]!))
+                {
+                    if (!RuleNames.TryParseStat((string?)e["stat"], out var stat)) stat = Stat.Skill;
+                    RuleNames.TryParseDifficulty((string?)e["difficulty"], out var diff);
+                    var r = Checks.Roll(new CheckRequest(who.Name, stat, diff, (string?)e["reason"] ?? ""), who, _rng);
+                    Add(report, RollEntry(r));
+                    success = r.Succeeded;
+                    lines.Add($"- {r.Describe()}");
+                }
+                var target = combat.Enemies.FirstOrDefault(x => x.Uid == (string?)e["target"] && x.Alive);
+                var effect = (string?)e["effect"];
+                if (!success || target == null || effect == null || effect == "none")
+                {
+                    summary.Add($"{who.Name} の「{(string?)e["reason"]}」は{(success ? "成功した" : "うまくいかなかった")}。");
+                    continue;
+                }
+                if (effect == "damage")
+                {
+                    var n = GameTools.SizeValue((string?)e["size"]);
+                    Hurt(target, n);
+                    summary.Add($"{who.Name} の「{(string?)e["reason"]}」で {target.Name} に {n} ダメージ（{HpText(target)}）。");
+                }
+                else if (effect == "stun")
+                {
+                    if (target.Boss && combat.WeaknessUsed) summary.Add($"{target.Name} はもう同じ手には乗らない。");
+                    else
+                    {
+                        if (target.Boss) combat.WeaknessUsed = true;
+                        target.Stunned = 1;
+                        summary.Add($"{who.Name} の「{(string?)e["reason"]}」で {target.Name} の動きが止まった（1 手番）。");
+                    }
+                }
+            }
+            return lines.Count == 0 ? "判定なし。" : "判定の結果:\n" + string.Join("\n", lines);
+        }
+
+        void UseCombatCard(Character who, CardDef card, string? target, TurnReport report, List<string> summary,
+            Dictionary<string, int> dodgeBonus, Dictionary<string, string> guards)
+        {
+            if (!who.SpendFocus(card.Cost)) { summary.Add($"{who.Name} は気力が足りず「{card.Name}」を使えなかった。代わりに{Weapon(who)}で攻撃する。"); Attack(who, target, report, summary); return; }
+            var combat = State.Combat!;
+            switch (card.Kind)
+            {
+                case "attack":
+                {
+                    var targets = card.Target == "all" ? combat.Enemies.Where(e => e.Alive).ToList()
+                        : new List<EnemyInstance> { PickEnemy(target) }.Where(e => e != null).Select(e => e!).ToList();
+                    foreach (var e in targets)
+                    {
+                        bool hit = card.AutoHit, crit = false;
+                        if (!hit)
+                        {
+                            RuleNames.TryParseStat(card.Stat, out var st);
+                            var r = Checks.RollAgainst(who, st, e.Defense, $"{card.Name} → {e.Name}", _rng);
+                            Add(report, RollEntry(r));
+                            hit = r.Succeeded; crit = r.Outcome == Outcome.Critical;
+                        }
+                        if (!hit) { summary.Add($"{who.Name} の「{card.Name}」は {e.Name} に当たらなかった。"); continue; }
+                        var dmg = (card.Damage + (e.Undead ? card.UndeadBonus : 0)) * (crit ? 2 : 1);
+                        Hurt(e, dmg);
+                        summary.Add($"{who.Name} の「{card.Name}」が {e.Name} に {dmg} ダメージ{(crit ? "（大成功）" : "")}（{HpText(e)}）。");
+                    }
+                    break;
+                }
+                case "heal":
+                {
+                    var ally = Find(target) ?? who;
+                    ally.Heal(card.Amount);
+                    summary.Add($"{who.Name} の「{card.Name}」で {ally.Name} の HP が {ally.Hp}/{ally.MaxHp} に。");
+                    break;
+                }
+                case "guard":
+                {
+                    var ally = Find(target);
+                    if (ally != null && ally != who) { guards[ally.Name] = who.Name; summary.Add($"{who.Name} は {ally.Name} の前に立ちはだかった。"); }
+                    else { dodgeBonus[who.Name] = (dodgeBonus.TryGetValue(who.Name, out var b) ? b : 0) + 3; summary.Add($"{who.Name} は盾を構えた（かわす +3）。"); }
+                    break;
+                }
+                case "bless":
+                    foreach (var t in card.Target == "party" ? Party.Where(p => p.CanAct) : new[] { Find(target) ?? who }) t.NextCheckBonus += card.Bonus;
+                    summary.Add($"{who.Name} の「{card.Name}」: {(card.Target == "party" ? "仲間全員" : (Find(target) ?? who).Name)}の次の判定 +{card.Bonus}。");
+                    break;
+                case "stun":
+                {
+                    var e = PickEnemy(target);
+                    if (e == null) break;
+                    if (e.Boss) { summary.Add($"{who.Name} の「{card.Name}」は {e.Name} には効かなかった。"); break; }
+                    RuleNames.TryParseStat(card.Stat, out var st);
+                    var r = Checks.RollAgainst(who, st, e.Defense, $"{card.Name} → {e.Name}", _rng);
+                    Add(report, RollEntry(r));
+                    if (r.Succeeded) { e.Stunned = 1; summary.Add($"{who.Name} の「{card.Name}」で {e.Name} は眠りに落ちた。"); }
+                    else summary.Add($"{e.Name} は「{card.Name}」を振り払った。");
+                    break;
+                }
+                case "smoke":
+                    foreach (var p in Party.Where(p => p.CanAct)) dodgeBonus[p.Name] = (dodgeBonus.TryGetValue(p.Name, out var b) ? b : 0) + 4;
+                    summary.Add($"{who.Name} の「{card.Name}」で辺りが煙に包まれた（仲間全員かわす +4）。");
+                    break;
+                default:
+                    who.NextCheckBonus += 3;
+                    summary.Add($"{who.Name} は「{card.Name}」を使った。");
+                    break;
+            }
+        }
+
+        void Attack(Character who, string? target, TurnReport report, List<string> summary)
+        {
+            var e = PickEnemy(target);
+            if (e == null) return;
+            var cls = Db.Classes[who.ClassId];
+            RuleNames.TryParseStat(cls.AttackStat, out var stat);
+            var r = Checks.RollAgainst(who, stat, e.Defense, $"{Weapon(who)} → {e.Name}", _rng);
+            Add(report, RollEntry(r));
+            if (!r.Succeeded) { summary.Add($"{who.Name} の{Weapon(who)}は {e.Name} に{(r.Outcome == Outcome.Fumble ? "大きく空を切った" : "かわされた")}。"); return; }
+            var dmg = cls.WeaponDamage * (r.Outcome == Outcome.Critical ? 2 : 1);
+            Hurt(e, dmg);
+            summary.Add($"{who.Name} の{Weapon(who)}が {e.Name} に {dmg} ダメージ{(r.Outcome == Outcome.Critical ? "（大成功）" : "")}（{HpText(e)}）。");
+        }
+
+        void EnemyPhase(CombatState combat, TurnReport report, List<string> summary, Dictionary<string, int> dodgeBonus, Dictionary<string, string> guards)
+        {
+            foreach (var e in combat.Enemies.Where(e => e.Alive).ToList())
+            {
+                if (e.Stunned > 0) { e.Stunned--; summary.Add($"{e.Name} は動けない。"); continue; }
+                var def = Db.Enemies[e.DefId];
+                var big = def.BigMove;
+                if (big != null && combat.BigMovePending == e.Uid)
+                {
+                    combat.BigMovePending = null;
+                    summary.Add($"{e.Name} の「{big.Name}」！");
+                    foreach (var p in Party.Where(p => p.CanAct).ToList()) EnemyHits(e, big.Name, big.Dc, big.Damage, p, report, summary, dodgeBonus, guards);
+                    continue;
+                }
+                var attack = def.Attacks.Count == 1 ? def.Attacks[0] : def.Attacks[_rng.Next(0, def.Attacks.Count)];
+                var target = PickTarget(def.Pattern);
+                if (target != null) EnemyHits(e, attack.Name, attack.Dc, attack.Damage, target, report, summary, dodgeBonus, guards);
+                if (big != null && big.Every > 0 && (combat.Round + 1) % big.Every == 0)
+                {
+                    combat.BigMovePending = e.Uid;
+                    Add(report, LogEntry.Line(LogKind.Warning, e.Name, big.Warning + "（次の手番に大技）"));
+                    summary.Add(big.Warning + "（次の手番に大技「" + big.Name + "」が来る。全員を狙う）");
+                }
+            }
+        }
+
+        void EnemyHits(EnemyInstance e, string attack, int dc, int damage, Character target, TurnReport report, List<string> summary,
+            Dictionary<string, int> dodgeBonus, Dictionary<string, string> guards)
+        {
+            // A guardian steps in front and takes the blow (1 less damage), but cannot dodge for the protected one.
+            if (guards.TryGetValue(target.Name, out var gName) && Find(gName) is Character guardian && guardian.CanAct)
+            {
+                guardian.TakeDamage(Math.Max(0, damage - 1));
+                summary.Add($"{e.Name} の{attack}を {guardian.Name} が {target.Name} の代わりに受けた（{damage - 1} ダメージ、HP {guardian.Hp}/{guardian.MaxHp}）。");
+                return;
+            }
+            var r = Checks.RollAgainst(target, Stat.Skill, dc, $"{e.Name}の{attack}をかわす", _rng, dodgeBonus.TryGetValue(target.Name, out var b) ? b : 0);
+            Add(report, RollEntry(r));
+            if (r.Succeeded) { summary.Add($"{target.Name} は {e.Name} の{attack}をかわした。"); return; }
+            var dmg = damage * (r.Outcome == Outcome.Fumble ? 2 : 1);
+            target.TakeDamage(dmg);
+            summary.Add($"{e.Name} の{attack}が {target.Name} に {dmg} ダメージ（HP {target.Hp}/{target.MaxHp}{(target.State == LifeState.Down ? "、倒れた" : "")}）。");
+        }
+
+        async Task WinAsync(List<string> summary, TurnReport report, CancellationToken ct)
+        {
+            var bossDown = State.Combat!.Enemies.Any(e => e.Boss);
+            State.Combat = null;
+            summary.Add(bossDown ? "ボスを倒した。戦いは終わった。" : "敵をすべて倒した。戦いは終わった。");
+            Add(report, LogEntry.Line(LogKind.Event, "", "勝利"));
+            await NarrateRoundAsync(summary, report, ct, highlight: bossDown).ConfigureAwait(false);
+        }
+
+        async Task NarrateRoundAsync(List<string> summary, TurnReport report, CancellationToken ct, bool highlight = false)
+        {
+            var text = Status() + "\n【この手番に起きたこと（ゲームが決めた結果）】\n" + string.Join("\n", summary) +
+                "\nこの結果のとおりに、戦いの一手番を短く迫力をもって語ってください（数字は書かない）。";
+            var turn = await Gm.NarrateAsync(text, highlight, ct).ConfigureAwait(false);
+            Finish(report, turn);
+            // Effects other than combat (an ending, items) still apply after a fight.
+            if (!InCombat) await AfterNarrationAsync(report, turn, ct).ConfigureAwait(false);
+        }
+
+        // ---------------------------------------------------------------- helpers
+
+        EnemyInstance? PickEnemy(string? uid)
+        {
+            var alive = State.Combat?.Enemies.Where(e => e.Alive).ToList() ?? new List<EnemyInstance>();
+            return alive.FirstOrDefault(e => e.Uid == uid) ?? alive.FirstOrDefault();
+        }
+
+        Character? PickTarget(string pattern)
+        {
+            var targets = Party.Where(p => p.CanAct).ToList();
+            if (targets.Count <= 1) return targets.FirstOrDefault();
+            return pattern switch
+            {
+                "weakest" => targets.OrderBy(p => p.Hp).First(),
+                "strongest" => targets.OrderByDescending(p => p.Hp).First(),
+                _ => targets[_rng.Next(0, targets.Count)],
+            };
+        }
+
+        static void Hurt(EnemyInstance e, int n) { e.Hp = Math.Max(0, e.Hp - n); }
+        static string HpText(EnemyInstance e) => e.Alive ? $"残り {e.Hp}/{e.MaxHp}" : "倒れた";
+        string Weapon(Character c) => Db.Classes[c.ClassId].Weapon;
+
+        public Character? Find(string? name) => name == null ? null : Party.FirstOrDefault(p => p.Name == name);
+
+        string DescribeDeclaration(Declaration d)
+        {
+            var parts = new List<string>();
+            if (d.CardId != null && Db.Cards.TryGetValue(d.CardId, out var card)) parts.Add($"「{card.Name}」を使う");
+            if (d.Basic != null) parts.Add(d.Basic switch
+            {
+                "attack" => $"{(Find(d.Character) is Character c ? Weapon(c) : "武器")}で攻撃", "defend" => "身を守る", "help" => "仲間を援護",
+                "revive" => "倒れた仲間を起こす", "flee" => "逃げる", _ => d.Basic,
+            });
+            var target = State.Combat?.Enemies.FirstOrDefault(e => e.Uid == d.Target)?.Name ?? (Find(d.Target)?.Name);
+            if (target != null && parts.Count > 0) parts[parts.Count - 1] += $"（{target}）";
+            if (d.Text.Trim().Length > 0) parts.Add(d.Text.Trim());
+            return string.Join("。", parts);
+        }
+
+        LogEntry RollEntry(CheckResult r) => new LogEntry
+        {
+            Kind = LogKind.Roll, Who = r.Request.CharacterName, Text = r.Describe(), Natural = r.Natural, Total = r.Total, Target = r.Dc,
+            Outcome = r.Outcome switch { Outcome.Critical => "大成功", Outcome.Success => "成功", Outcome.Failure => "失敗", _ => "大失敗" },
+        };
+
+        void Add(TurnReport report, LogEntry e)
+        {
+            State.Log.Add(e);
+            report.Entries.Add(e);
+            Logged?.Invoke(e);
+        }
+
+        void Finish(TurnReport report, GmTurn turn)
+        {
+            if (turn.Narration.Length > 0) Add(report, LogEntry.Line(LogKind.Narration, Teller.Name, turn.Narration));
+            report.Narration = turn.Narration;
+            report.Model = turn.Model;
+            if (turn.Suggestions.Count > 0) { report.Suggestions = turn.Suggestions; State.Suggestions = turn.Suggestions.ToList(); }
+        }
+
+        /// <summary>The compact state the AI sees at the top of each request.</summary>
+        public string Status()
+        {
+            var sb = new StringBuilder();
+            var act = Scenario.Acts.FirstOrDefault(a => a.N == State.Act);
+            var inAct = State.PlayMinutes - State.ActStartedAt;
+            sb.AppendLine($"【状況】第{State.Act}幕「{act?.Title}」目標: {act?.Goal}。この幕 {inAct:0} 分経過（目安 {act?.Minutes} 分）、全体 {State.PlayMinutes:0} 分。");
+            if (act != null && inAct > act.Minutes) sb.AppendLine("時間が押している。この幕の目標に向かう展開へ寄せ、ほどよいところで次の幕へ進めること。");
+            var here = Here;
+            sb.AppendLine($"場所: {here.Name}（{here.Id}）。行き先: {string.Join("・", here.Exits.Select(x => $"{Scenario.Location(x).Name}（{x}）"))}");
+            sb.AppendLine("見つけた手がかり: " + (State.Clues.Count == 0 ? "なし" : string.Join(" / ", State.Clues.Select(id => Scenario.Clues.First(c => c.Id == id).Text))));
+            foreach (var p in Party)
+            {
+                var st = p.State == LifeState.Dead ? "【死亡】" : p.State == LifeState.Down ? "【倒れている】" : "";
+                sb.AppendLine($"{p.Name}（{Prompts.ClassLabel(p.ClassId)}）HP {p.Hp}/{p.MaxHp} 気力 {p.Focus}/{p.MaxFocus}{st}{(p.Items.Count > 0 ? " 持ち物: " + string.Join("・", p.Items) : "")}");
+            }
+            if (State.Combat != null)
+                sb.AppendLine("戦闘中（第" + State.Combat.Round + "手番）: " + string.Join("・", State.Combat.Enemies.Select(e => $"{e.Name}({e.Uid}) {(e.Alive ? $"HP {e.Hp}/{e.MaxHp}" : "倒れた")}")));
+            return sb.ToString();
+        }
+    }
+}

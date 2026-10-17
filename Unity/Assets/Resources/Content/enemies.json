@@ -1,0 +1,15 @@
+{
+  "enemies": [
+    { "id": "wolf", "name": "灰色狼", "art": "en_wolf", "hp": 6, "defense": 11, "undead": false,
+      "attacks": [ { "name": "噛みつき", "dc": 12, "damage": 2 } ], "pattern": "weakest" },
+    { "id": "goblin", "name": "沼のゴブリン", "art": "en_goblin", "hp": 5, "defense": 11, "undead": false,
+      "attacks": [ { "name": "錆びた槍", "dc": 12, "damage": 2 } ], "pattern": "random" },
+    { "id": "skeleton", "name": "骨の兵士", "art": "en_skeleton", "hp": 7, "defense": 13, "undead": true,
+      "attacks": [ { "name": "刃こぼれした剣", "dc": 13, "damage": 3 } ], "pattern": "random" },
+    { "id": "drowned", "name": "溺れた屍", "art": "en_drowned", "hp": 9, "defense": 10, "undead": true,
+      "attacks": [ { "name": "水底へ引く爪", "dc": 13, "damage": 3 } ], "pattern": "weakest" },
+    { "id": "boneknight", "name": "骨の騎士", "art": "en_boneknight", "hp": 30, "defense": 14, "undead": true, "boss": true,
+      "attacks": [ { "name": "大剣の振り下ろし", "dc": 14, "damage": 4 } ], "pattern": "strongest",
+      "bigMove": { "name": "死者の大旋風", "every": 3, "dc": 15, "damage": 5, "warning": "骨の騎士が大剣を高く掲げた……" } }
+  ]
+}

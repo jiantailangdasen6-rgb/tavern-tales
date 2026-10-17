@@ -14,6 +14,8 @@ namespace Tavern.Core.Rules
         public string ClassId { get; }
         /// <summary>Free-text background and personality written by the player.</summary>
         public string Background { get; set; }
+        /// <summary>Portrait art id (e.g. pc_warrior_f).</summary>
+        public string Portrait { get; set; } = "";
         readonly Dictionary<Stat, int> _stats = new Dictionary<Stat, int>();
 
         public int MaxHp { get; }
@@ -23,6 +25,10 @@ namespace Tavern.Core.Rules
         public int FateCoins { get; private set; } = 1;
         public LifeState State { get; private set; } = LifeState.Active;
         public int DeathSaveFailures { get; private set; }
+        /// <summary>Added to this character's next check, then cleared (blessings, utility cards, help).</summary>
+        public int NextCheckBonus { get; set; }
+        public List<string> Cards { get; } = new List<string>();
+        public List<string> Items { get; } = new List<string>();
 
         public Character(string name, string classId, int might, int skill, int wits, int spirit, int maxHp, int maxFocus, string background = "")
         {
@@ -32,6 +38,7 @@ namespace Tavern.Core.Rules
         }
 
         public int Modifier(Stat stat) => _stats[stat];
+        public bool CanAct => State == LifeState.Active;
 
         public void TakeDamage(int amount)
         {
@@ -54,12 +61,17 @@ namespace Tavern.Core.Rules
             return true;
         }
 
+        public void RestoreFocus(int amount) { Focus = Math.Min(MaxFocus, Focus + Math.Max(0, amount)); }
+
         public bool SpendFateCoin()
         {
             if (FateCoins <= 0) return false;
             FateCoins--;
             return true;
         }
+
+        /// <summary>Takes and clears the pending bonus.</summary>
+        public int ConsumeBonus() { var b = NextCheckBonus; NextCheckBonus = 0; return b; }
 
         internal void AddDeathSaveFailure()
         {
@@ -68,5 +80,12 @@ namespace Tavern.Core.Rules
         }
 
         internal void StandUp() { Heal(1); }
+
+        /// <summary>Puts saved numbers back (load game).</summary>
+        public void Restore(int hp, int focus, int fateCoins, LifeState state, int deathSaveFailures, int nextBonus)
+        {
+            Hp = Math.Max(0, Math.Min(MaxHp, hp)); Focus = Math.Max(0, Math.Min(MaxFocus, focus));
+            FateCoins = fateCoins; State = state; DeathSaveFailures = deathSaveFailures; NextCheckBonus = nextBonus;
+        }
     }
 }
