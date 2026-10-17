@@ -1,0 +1,16 @@
+<Project>
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!--
+    Tavern.Core is also a Unity local package, so its build output goes to bin~ / obj~ (folders ending in ~ are ignored by Unity).
+    BaseIntermediateOutputPath has to be set here, before Microsoft.Common.props.
+  -->
+  <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Tavern.Core'">
+    <BaseOutputPath>bin~/</BaseOutputPath>
+    <BaseIntermediateOutputPath>obj~/</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>obj~/</MSBuildProjectExtensionsPath>
+  </PropertyGroup>
+</Project>

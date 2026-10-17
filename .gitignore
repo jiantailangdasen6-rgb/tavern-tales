@@ -30,3 +30,4 @@ TestResults/
 *.key
 .env
 secrets.json
+/Unity/.vscode/
