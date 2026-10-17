@@ -1,5 +1,6 @@
 #nullable enable
 using System.IO;
+using Tavern.Unity.App;
 using Tavern.Unity.Boot;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -33,6 +34,8 @@ namespace Tavern.Unity.Editor
             PlayerSettings.SplashScreen.showUnityLogo = false;
 
             SetupUrp();
+            SetupMaterials();
+            SetupArtImport();
             SetupScene();
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             AssetDatabase.SaveAssets();
@@ -58,6 +61,41 @@ namespace Tavern.Unity.Editor
             }
         }
 
+        /// <summary>Materials made from code at runtime would lose their shader in a build; make them assets here.</summary>
+        static void SetupMaterials()
+        {
+            Directory.CreateDirectory("Assets/Resources/Materials");
+            const string path = "Assets/Resources/Materials/DiceBody.mat";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat == null)
+            {
+                mat = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+                AssetDatabase.CreateAsset(mat, path);
+            }
+            mat.SetColor("_BaseColor", new Color(0.93f, 0.85f, 0.66f));
+            mat.SetFloat("_Smoothness", 0.55f);
+            EditorUtility.SetDirty(mat);
+        }
+
+        /// <summary>Pictures in Resources/Art: no mipmaps blur, sensible sizes, compressed.</summary>
+        static void SetupArtImport()
+        {
+            if (!AssetDatabase.IsValidFolder("Assets/Resources/Art")) return;
+            foreach (var guid in AssetDatabase.FindAssets("t:Texture2D", new[] { "Assets/Resources/Art" }))
+            {
+                var p = AssetDatabase.GUIDToAssetPath(guid);
+                if (!(AssetImporter.GetAtPath(p) is TextureImporter ti)) continue;
+                var max = Path.GetFileName(p).StartsWith("bg_") ? 2048 : 1024;
+                if (ti.maxTextureSize == max && !ti.mipmapEnabled && ti.textureCompression == TextureImporterCompression.CompressedHQ) continue;
+                ti.textureType = TextureImporterType.Default;
+                ti.mipmapEnabled = false;
+                ti.maxTextureSize = max;
+                ti.textureCompression = TextureImporterCompression.CompressedHQ;
+                ti.wrapMode = TextureWrapMode.Clamp;
+                ti.SaveAndReimport();
+            }
+        }
+
         static void SetupScene()
         {
             Directory.CreateDirectory("Assets/Scenes");
@@ -67,8 +105,9 @@ namespace Tavern.Unity.Editor
             var c = cam.GetComponent<Camera>();
             c.clearFlags = CameraClearFlags.SolidColor;
             c.backgroundColor = new Color32(0x14, 0x10, 0x0c, 0xff);
+            c.cullingMask = ~(1 << 30);   // layer 30 is the dice, drawn by its own camera
             cam.transform.position = new Vector3(0, 0, -10);
-            new GameObject("Boot", typeof(BootView), typeof(DevShot));
+            new GameObject("App", typeof(AppMain), typeof(DevShot));
             EditorSceneManager.SaveScene(scene, ScenePath);
         }
     }

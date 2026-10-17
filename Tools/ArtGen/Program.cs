@@ -12,6 +12,28 @@ using System.Text.Json.Nodes;
 
 var a = args.ToList();
 string? Opt(string n) { int i = a.IndexOf(n); return i >= 0 && i + 1 < a.Count ? a[i + 1] : null; }
+
+// import <srcDir> <destDir> [--engine sdxl] [--pick id=2,id=1]: copy the chosen candidate of each id as a JPEG
+// (backgrounds 1344 wide, the rest 512x768) into Unity/Assets/Resources/Art.
+if (a.Count > 0 && a[0] == "import")
+{
+    var src = a[1]; var dest = a[2];
+    var eng = Opt("--engine") ?? "sdxl";
+    var picks = (Opt("--pick") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries)
+        .Select(p => p.Split('=')).ToDictionary(p => p[0], p => p[1]);
+    Directory.CreateDirectory(dest);
+    var ids = Directory.GetFiles(src, $"*_{eng}_*.png").Select(f => Path.GetFileNameWithoutExtension(f))
+        .Select(n => n[..n.LastIndexOf($"_{eng}_", StringComparison.Ordinal)]).Distinct().OrderBy(x => x).ToList();
+    foreach (var id in ids)
+    {
+        var seed = picks.TryGetValue(id, out var sp) ? sp : "1";
+        var file = Path.Combine(src, $"{id}_{eng}_{seed}.png");
+        if (!File.Exists(file)) { Console.WriteLine($"{id}: missing {file}"); continue; }
+        ImageTools.SaveJpeg(file, Path.Combine(dest, id + ".jpg"), id.StartsWith("bg_") ? 1344 : 512, id.StartsWith("bg_") ? 768 : 768);
+        Console.WriteLine($"{id} <- seed {seed}");
+    }
+    return 0;
+}
 var jobsPath = a.Count > 0 ? a[0] : throw new Exception("jobs.json is required");
 var engine = Opt("--engine") ?? "fal";
 var outDir = Opt("--out") ?? throw new Exception("--out DIR is required");

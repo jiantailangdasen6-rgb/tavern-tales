@@ -49,6 +49,9 @@ namespace Tavern.Core.Game
         /// <summary>Raised for every new log line (the UI can animate dice for rolls).</summary>
         public event Action<LogEntry>? Logged;
 
+        /// <summary>A note to the storyteller from outside the story ("shorter", "scarier"); sent with the next turn.</summary>
+        public string? StorytellerRequest { get; set; }
+
         public bool InCombat => State.Combat != null;
         public bool Ended => State.Ending != null;
         public LocationDef Here => Scenario.Location(State.Location);
@@ -620,6 +623,11 @@ namespace Tavern.Core.Game
             }
             if (State.Combat != null)
                 sb.AppendLine("戦闘中（第" + State.Combat.Round + "手番）: " + string.Join("・", State.Combat.Enemies.Select(e => $"{e.Name}({e.Uid}) {(e.Alive ? $"HP {e.Hp}/{e.MaxHp}" : "倒れた")}")));
+            if (!string.IsNullOrWhiteSpace(StorytellerRequest))
+            {
+                sb.AppendLine($"【語り部への注文（物語の外からの頼み。これからの語りに反映する）】{StorytellerRequest}");
+                StorytellerRequest = null;
+            }
             return sb.ToString();
         }
     }
