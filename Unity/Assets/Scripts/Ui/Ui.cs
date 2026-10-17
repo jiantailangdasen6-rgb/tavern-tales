@@ -109,6 +109,7 @@ namespace Tavern.Unity.Ui
             colors.normalColor = Color.white; colors.highlightedColor = new Color(1.25f, 1.15f, 0.95f); colors.pressedColor = new Color(0.8f, 0.75f, 0.7f);
             colors.disabledColor = new Color(0.5f, 0.5f, 0.5f, 0.7f);
             b.colors = colors;
+            b.onClick.AddListener(() => Tavern.Unity.App.AudioDirector.Play("click", 0.6f));
             b.onClick.AddListener(onClick);
             var t = Label(img.transform, text, size, gold ? Theme.GoldLight : Theme.Ink, align: TextAnchor.MiddleCenter);
             t.rectTransform.Fill(6);

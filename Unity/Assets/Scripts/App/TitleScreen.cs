@@ -14,6 +14,7 @@ namespace Tavern.Unity.App
 
         public void Build(Transform root)
         {
+            AudioDirector.Music("tavern");
             var bg = ArtLibrary.Get("bg_tavern");
             var pic = UiKit.Picture(root, bg, 0, 0, 1920, 1080);
             pic.uvRect = ArtLibrary.Cover(bg, 1920, 1080);

@@ -80,6 +80,7 @@ namespace Tavern.Unity.App
             canvasGo.AddComponent<StageFitter>().Stage = stage;
             Root = stage;
             Dice = DiceRoller.Create(transform);
+            AudioDirector.Create(transform);
 
             if (Flag("-onlinehost") || Arg("-onlinejoinfile") != null) StartCoroutine(AutoOnline());
             else if (Flag("-continue") && File.Exists(SavePath)) ContinueEvening();

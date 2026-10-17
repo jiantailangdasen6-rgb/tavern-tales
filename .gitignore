@@ -31,3 +31,7 @@ TestResults/
 .env
 secrets.json
 /Unity/.vscode/
+
+# Synthesized audio (run Tools/AudioGen once after cloning)
+/Unity/Assets/Resources/Audio/
+/Unity/Assets/Resources/Audio.meta

@@ -36,6 +36,7 @@ namespace Tavern.Unity.Editor
             SetupUrp();
             SetupMaterials();
             SetupArtImport();
+            SetupAudioImport();
             SetupScene();
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             AssetDatabase.SaveAssets();
@@ -93,6 +94,24 @@ namespace Tavern.Unity.Editor
                 ti.textureCompression = TextureImporterCompression.CompressedHQ;
                 ti.wrapMode = TextureWrapMode.Clamp;
                 ti.SaveAndReimport();
+            }
+        }
+
+        /// <summary>Synthesized audio (Tools/AudioGen): music streams, effects stay in memory; both Vorbis.</summary>
+        static void SetupAudioImport()
+        {
+            if (!AssetDatabase.IsValidFolder("Assets/Resources/Audio")) return;
+            foreach (var guid in AssetDatabase.FindAssets("t:AudioClip", new[] { "Assets/Resources/Audio" }))
+            {
+                var p = AssetDatabase.GUIDToAssetPath(guid);
+                if (!(AssetImporter.GetAtPath(p) is AudioImporter ai)) continue;
+                var music = p.Contains("/bgm/");
+                var s = ai.defaultSampleSettings;
+                var load = music ? AudioClipLoadType.Streaming : AudioClipLoadType.CompressedInMemory;
+                if (s.loadType == load && s.compressionFormat == AudioCompressionFormat.Vorbis) continue;
+                s.loadType = load; s.compressionFormat = AudioCompressionFormat.Vorbis; s.quality = music ? 0.5f : 0.7f;
+                ai.defaultSampleSettings = s;
+                ai.SaveAndReimport();
             }
         }
 

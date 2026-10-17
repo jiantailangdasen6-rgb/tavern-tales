@@ -135,9 +135,13 @@ namespace Tavern.Unity.App
         {
             var top = UiKit.Panel(root, "Top", 14, 12, 1892, 54).transform;
             UiKit.Label(top, "酒場の語り部", 26, Theme.Gold, 18, 9, 240, 40, serif: true);
-            _actText = UiKit.Label(top, "", 21, Theme.Ink, 250, 13, 900, 34, serif: true);
-            _timeText = UiKit.Label(top, "", 17, Theme.Dim, 1060, 16, 160, 30, align: TextAnchor.UpperRight);
+            _actText = UiKit.Label(top, "", 21, Theme.Ink, 250, 13, 680, 34, serif: true);
+            _actText.resizeTextForBestFit = true; _actText.resizeTextMinSize = 13; _actText.resizeTextMaxSize = 21;
+            _actText.verticalOverflow = VerticalWrapMode.Truncate;
+            _timeText = UiKit.Label(top, "", 17, Theme.Dim, 940, 16, 160, 30, align: TextAnchor.UpperRight);
             UiKit.Button(top, "地図", ShowMap, 1236, 8, 110, 38, 18);
+            Button vol = null!;
+            vol = UiKit.Button(top, VolumeLabel(), () => { AudioDirector.Level = (AudioDirector.Level + 1) % 4; vol.SetText(VolumeLabel()); }, 1110, 8, 116, 38, 16);
             UiKit.Button(top, "語り部への注文", ShowOrder, 1356, 8, 230, 38, 18, gold: true);
             UiKit.Button(top, _role == NetRole.Client ? "部屋を出る" : "保存して酒場を出る", () => { if (_role != NetRole.Client) _app.Save(_game); LeaveRoom(); _app.ShowTitle(); }, 1596, 8, 284, 38, 18);
         }
@@ -274,6 +278,7 @@ namespace Tavern.Unity.App
         void RefreshScene()
         {
             var tex = ArtLibrary.Get(_game.Here.Art);
+            AudioDirector.Music(_game.Ended ? "ending" : _game.InCombat ? (_game.State.Combat!.Enemies.Any(e => e.Boss && e.Alive) ? "boss" : "battle") : _game.State.Location == "tavern" ? "tavern" : "explore", loop: !_game.Ended);
             _sceneBg.texture = tex;
             _sceneBg.uvRect = ArtLibrary.Cover(tex, 1008, 672);
             _placeText.text = _game.Here.Name;
@@ -543,9 +548,12 @@ namespace Tavern.Unity.App
                 _diceImage.gameObject.SetActive(true);
                 _diceCaption.transform.parent.gameObject.SetActive(true);
                 _diceCaption.text = e.Who + "　" + (e.Text.Contains("死のサイコロ") ? "死のサイコロ" : "判定") + "…";
+                AudioDirector.Play("dice_roll");
                 _app.Dice.Roll(e.Natural, 1.1f / speed, () =>
                 {
                     _diceRolling = false;
+                    AudioDirector.Play("dice_land");
+                    if (e.Natural == 20) AudioDirector.Play("crit"); else if (e.Natural == 1) AudioDirector.Play("fumble");
                     _diceCaption.text = $"{e.Text}";
                     _holdUntil = Time.time + 0.9f / speed;
                     AppendLog(e, instant: true);
@@ -565,8 +573,26 @@ namespace Tavern.Unity.App
             _diceCaption.transform.parent.gameObject.SetActive(false);
         }
 
+        /// <summary>The sound that goes with a new log line.</summary>
+        static void SoundFor(LogEntry e)
+        {
+            var t = e.Text;
+            if (e.Kind == LogKind.Narration) AudioDirector.Play("page", 0.5f);
+            else if (e.Kind == LogKind.Warning && e.Seq != 0) AudioDirector.Play("warn");
+            else if (e.Kind != LogKind.Event) return;
+            else if (t.StartsWith("戦闘開始")) AudioDirector.Play("enemy");
+            else if (t == "勝利") AudioDirector.Play("victory");
+            else if (t.Contains("物語の結末: 失敗")) AudioDirector.Play("defeat");
+            else if (t.Contains("成長した")) AudioDirector.Play("growth");
+            else if (t.Contains("ダメージ")) AudioDirector.Play("hit");
+            else if (t.Contains("当たらなかった") || t.Contains("かわされた") || t.Contains("かわした") || t.Contains("空を切った")) AudioDirector.Play("miss");
+            else if (t.Contains("HP が")) AudioDirector.Play("heal");
+            else if (t.Contains("動きが止まった") || t.Contains("眠りに落ちた") || t.Contains("煙に包まれた")) AudioDirector.Play("spell");
+        }
+
         void AppendLog(LogEntry e, bool instant)
         {
+            if (!instant) SoundFor(e);
             var row = UiKit.Rect("Entry", _logContent);
             row.gameObject.AddComponent<LayoutElement>();
             var fitter = row.gameObject.AddComponent<VerticalLayoutGroup>();
@@ -777,6 +803,7 @@ namespace Tavern.Unity.App
         {
             if (_role == NetRole.Client) { SendGrowth(name, choice); UiKit.Clear(_overlay.transform); return; }
             _game.Grow(name, choice);
+            AudioDirector.Play("growth");
             if (_role == NetRole.Host) BroadcastTurn();
             UiKit.Clear(_overlay.transform);
             _app.Save(_game);
