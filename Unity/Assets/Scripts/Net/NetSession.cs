@@ -99,16 +99,24 @@ namespace Tavern.Unity.Net
             if (!Available) throw new InvalidOperationException("オンラインの設定（Unity Cloud）が見つからない");
             code = code.Trim().ToUpperInvariant();
             await SignInAsync();
-            var nm = Manager();
-            var join = await RelayService.Instance.JoinAllocationAsync(code);
-            nm.GetComponent<UnityTransport>().SetRelayServerData(join.ToRelayServerData("dtls"));
-            var connected = new TaskCompletionSource<bool>();
-            void OnConnected(ulong id) { if (id == nm.LocalClientId) connected.TrySetResult(true); }
-            nm.OnClientConnectedCallback += OnConnected;
-            if (!nm.StartClient()) throw new InvalidOperationException("接続を始められなかった");
-            var done = await Task.WhenAny(connected.Task, Task.Delay(20000));
-            nm.OnClientConnectedCallback -= OnConnected;
-            if (done != connected.Task) { Leave(); throw new TimeoutException("部屋に入れなかった（コードを確かめてください）"); }
+            // Relay sometimes takes a while to let a second or third player in: try a few times with a fresh allocation.
+            for (int attempt = 1; ; attempt++)
+            {
+                var nm = Manager();
+                var join = await RelayService.Instance.JoinAllocationAsync(code);
+                nm.GetComponent<UnityTransport>().SetRelayServerData(join.ToRelayServerData("dtls"));
+                var connected = new TaskCompletionSource<bool>();
+                void OnConnected(ulong id) { if (id == nm.LocalClientId) connected.TrySetResult(true); }
+                nm.OnClientConnectedCallback += OnConnected;
+                if (!nm.StartClient()) throw new InvalidOperationException("接続を始められなかった");
+                var done = await Task.WhenAny(connected.Task, Task.Delay(25000));
+                nm.OnClientConnectedCallback -= OnConnected;
+                if (done == connected.Task) break;
+                Leave();
+                Debug.LogWarning($"[Online] join attempt {attempt} timed out");
+                if (attempt >= 3) throw new TimeoutException("部屋に入れなかった（コードを確かめてください）");
+                await Task.Delay(1500);
+            }
             RegisterHandlers();
             JoinCode = code;
         }
@@ -116,6 +124,7 @@ namespace Tavern.Unity.Net
         public static void Leave()
         {
             if (_nm != null && (_nm.IsHost || _nm.IsClient)) _nm.Shutdown();
+            Registered.Clear();   // a new session gets a new messaging manager
             JoinCode = null;
         }
 

@@ -40,7 +40,10 @@ namespace Tavern.Unity.App
             ("ロッコ", "thief", false, "港町の孤児。お調子者で、光る物を見るとつい手が伸びる"),
         };
 
-        public PartyScreen(AppMain app) { _app = app; }
+        readonly OnlineMode _mode;
+        InputField? _playerName, _code;
+
+        public PartyScreen(AppMain app, OnlineMode mode = OnlineMode.None) { _app = app; _mode = mode; }
 
         /// <summary>The sample party for -quickstart.</summary>
         public static List<Character> Preset(ContentDb db) => Samples
@@ -57,10 +60,11 @@ namespace Tavern.Unity.App
             UiKit.Label(root, "今宵の冒険者たち", 54, Theme.Gold, 0, 40, 1920, 80, serif: true, align: TextAnchor.MiddleCenter);
             UiKit.Label(root, "職業と見た目を選び、名前と生い立ちを書いてください（1〜3 人）", 22, Theme.Dim, 0, 118, 1920, 40, align: TextAnchor.MiddleCenter);
 
-            for (int i = 0; i < 3; i++) _slots.Add(BuildSlot(root, i, 90 + i * 590));
+            if (_mode == OnlineMode.None) for (int i = 0; i < 3; i++) _slots.Add(BuildSlot(root, i, 90 + i * 590));
+            else BuildOnline(root);
             UiKit.Button(root, "おまかせで埋める", FillSamples, 90, 980, 300, 64, 22);
             UiKit.Button(root, "もどる", _app.ShowTitle, 410, 980, 200, 64, 22);
-            _start = UiKit.Button(root, "この顔ぶれで酒場へ", Begin, 1430, 980, 400, 70, 28, gold: true);
+            _start = UiKit.Button(root, _mode == OnlineMode.Host ? "部屋を作る" : _mode == OnlineMode.Join ? "部屋に入る" : "この顔ぶれで酒場へ", Begin, 1430, 980, 400, 70, 28, gold: true);
             SetEnabled(_slots[0], true);
             Refresh();
         }
@@ -96,6 +100,23 @@ namespace Tavern.Unity.App
             s.ClassId = classes[index % 4];
             SetEnabled(s, false);
             return s;
+        }
+
+        /// <summary>Online: one adventurer per PC, plus the player's name (and the room code when joining).</summary>
+        void BuildOnline(Transform root)
+        {
+            _slots.Add(BuildSlot(root, 0, 90));
+            var panel = UiKit.Panel(root, "Online", 680, 180, 1150, 330).transform;
+            UiKit.Label(panel, _mode == OnlineMode.Host ? "友人と遊ぶ: 部屋を作る" : "友人の部屋に入る", 32, Theme.Gold, 30, 24, 900, 44, serif: true);
+            UiKit.Label(panel, "あなたの名前（友人に表示されます）", 18, Theme.Dim, 30, 90, 600, 28);
+            _playerName = UiKit.Input(panel, "例: たろう", 30, 120, 500, 50, 22);
+            if (AppMain.Arg("-playername") is string pn) _playerName.text = pn;
+            if (_mode == OnlineMode.Join)
+            {
+                UiKit.Label(panel, "部屋のコード（ホストから聞いた 6 文字）", 18, Theme.Dim, 30, 190, 600, 28);
+                _code = UiKit.Input(panel, "例: ABC123", 30, 220, 500, 60, 30);
+            }
+            UiKit.Label(panel, "一人一人が自分の冒険者を 1 人作って持ち寄ります。AI はホストの PC だけで動きます。", 17, Theme.Dim, 580, 120, 540, 120);
         }
 
         void SetEnabled(Slot s, bool on) { s.Enabled = on; s.Body.SetActive(on); s.Empty.SetActive(!on); }
@@ -138,7 +159,18 @@ namespace Tavern.Unity.App
                 while (!used.Add(name)) name += "二";
                 party.Add(TavernGame.CreateCharacter(_app.Db, name, s.ClassId, s.Background.text.Trim(), s.Art));
             }
-            if (party.Count > 0) _app.StartEvening(party);
+            if (party.Count == 0) return;
+            if (_mode == OnlineMode.None) { _app.StartEvening(party); return; }
+            var player = (_playerName?.text ?? "").Trim();
+            if (player.Length == 0) player = party[0].Name + "の中の人";
+            _start.interactable = false;
+            if (_mode == OnlineMode.Host) _app.HostOnline(player, party[0]);
+            else _app.JoinOnline((_code?.text ?? "").Trim(), player, party[0]);
         }
     }
+}
+
+namespace Tavern.Unity.App
+{
+    public enum OnlineMode { None, Host, Join }
 }

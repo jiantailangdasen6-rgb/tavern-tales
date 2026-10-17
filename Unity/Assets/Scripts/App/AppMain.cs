@@ -77,7 +77,8 @@ namespace Tavern.Unity.App
             Root = stage;
             Dice = DiceRoller.Create(transform);
 
-            if (Flag("-continue") && File.Exists(SavePath)) ContinueEvening();
+            if (Flag("-onlinehost") || Arg("-onlinejoinfile") != null) StartCoroutine(AutoOnline());
+            else if (Flag("-continue") && File.Exists(SavePath)) ContinueEvening();
             else if (Flag("-quickstart")) StartEvening(PartyScreen.Preset(Db));
             else if (Flag("-partyscreen")) ShowParty();
             else if (int.TryParse(Arg("-dicetest"), out var face))
@@ -98,11 +99,75 @@ namespace Tavern.Unity.App
             new TitleScreen(this).Build(Root);
         }
 
-        public void ShowParty()
+        public void ShowParty() => ShowParty(OnlineMode.None);
+
+        public void ShowParty(OnlineMode mode)
         {
             _table = null;
             UiKit.Clear(Root);
-            new PartyScreen(this).Build(Root);
+            new PartyScreen(this, mode).Build(Root);
+        }
+
+        // ---------------------------------------------------------------- online
+
+        public async void HostOnline(string playerName, Tavern.Core.Rules.Character character)
+        {
+            try
+            {
+                var code = await Tavern.Unity.Net.NetSession.HostAsync();
+                if (Arg("-codefile") is string file) File.WriteAllText(file, code);
+                UiKit.Clear(Root);
+                new LobbyScreen(this, true, playerName, CharacterSave.From(character)).Build(Root);
+            }
+            catch (Exception e) { ShowError("部屋を作れなかった: " + e.Message); }
+        }
+
+        public async void JoinOnline(string code, string playerName, Tavern.Core.Rules.Character character)
+        {
+            try
+            {
+                await Tavern.Unity.Net.NetSession.JoinAsync(code);
+                UiKit.Clear(Root);
+                new LobbyScreen(this, false, playerName, CharacterSave.From(character)).Build(Root);
+            }
+            catch (Exception e) { ShowError("部屋に入れなかった: " + e.Message); }
+        }
+
+        public void EnterAsHost(TavernGame game, string me, System.Collections.Generic.Dictionary<string, ulong> players)
+        {
+            UiKit.Clear(Root);
+            _table = new TableScreen(this, game, NetRole.Host, me);
+            _table.SetPlayers(players);
+            _table.Build(Root, opening: true);
+        }
+
+        public void EnterAsFriend(TurnMsg first, string me)
+        {
+            UiKit.Clear(Root);
+            _table = new TableScreen(this, Mirror.Build(first, Db, Scenario), NetRole.Client, me);
+            _table.Build(Root, opening: false);
+        }
+
+        void ShowError(string message)
+        {
+            ShowTitle();
+            var box = UiKit.Box(Root, "Error", new Color(0.24f, 0.04f, 0.03f, 0.9f), frame: true);
+            box.rectTransform.Place(460, 900, 1000, 60);
+            UiKit.Label(box.transform, message, 20, Theme.Hex("ffd9c9"), align: TextAnchor.MiddleCenter).rectTransform.Fill(6);
+            Debug.LogWarning("[Online] " + message);
+        }
+
+        /// <summary>Test flags: -onlinehost / -onlinejoinfile with a preset character (-presetchar N, -playername S).</summary>
+        System.Collections.IEnumerator AutoOnline()
+        {
+            var preset = PartyScreen.Preset(Db);
+            var index = int.TryParse(Arg("-presetchar"), out var n) ? Mathf.Clamp(n, 0, preset.Count - 1) : 0;
+            var name = Arg("-playername") ?? "旅人" + (index + 1);
+            if (Flag("-onlinehost")) { HostOnline(name, preset[index]); yield break; }
+            var file = Arg("-onlinejoinfile")!;
+            while (!File.Exists(file) || new FileInfo(file).Length == 0) yield return new WaitForSeconds(0.5f);
+            yield return new WaitForSeconds(0.5f);
+            JoinOnline(File.ReadAllText(file).Trim(), name, preset[index]);
         }
 
         public void StartEvening(System.Collections.Generic.List<Tavern.Core.Rules.Character> party)

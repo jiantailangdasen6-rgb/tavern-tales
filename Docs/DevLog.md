@@ -17,6 +17,16 @@
   成長で新しい技のカードを選べるようにする（職業ごとのカードが 3 枚しかないので M3 で 8 枚に増やしてから）。
 - 運命のコインは探索の判定・攻撃・かわす・死のサイコロのどれにも使える（失敗したときに振り直すかを聞く）。戦闘では、ルールの結果（誰が何点）もログに出る。
 
+## M2（オンライン）の途中（2026-10-18 未明）
+- 設計は `Docs/04_Online.md`。Relay のルームコード（前作の Unity Cloud プロジェクトを流用、`cloudProjectId` 設定済み）、
+  名前付きメッセージだけ（gzip した JSON、`ReliableFragmentedSequenced`）。ホストが本物のゲーム、友人は毎手番の状態から鏡のゲームを組み立てて同じ画面を描く。
+- できたもの: `NetSession`（Relay・送受信）、`NetProtocol`（Core。メッセージと鏡、テストあり）、ロビー（コード表示・顔ぶれ・開始）、
+  タイトルの「部屋を作る / 部屋に入る」、オンラインのキャラ作り（1 人 1 キャラ + プレイヤー名 + コード）、
+  テーブルのオンライン版（自分のキャラだけ操作、全員の宣言がそろったらホストが手番を進める、宣言済み表示、
+  運命のコインと成長は持ち主の PC で選ぶ、語り部への注文、友人の入り直し、切断の表示）。
+- 試験: `Tools/OnlineTest.ps1`（同じ PC でホスト + 友人 2 人、ボット、見本の AI）。旗: `-onlinehost -codefile F -startwhen N`、
+  `-onlinejoinfile F`、`-presetchar N`、`-playername S`、`-profile S`。
+
 ## M0（2026-10-17）
 - 企画の相談は完了。決定事項は `Docs/00_Decisions.md`、技術設計は `Docs/02_TechnicalDesign.md`、画風は `Docs/art/style-guide.md`。
 - **M0 完了**:

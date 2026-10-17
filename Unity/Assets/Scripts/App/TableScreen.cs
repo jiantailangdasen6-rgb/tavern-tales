@@ -17,10 +17,10 @@ namespace Tavern.Unity.App
     /// the storyteller's log on the right, and everyone's actions at the bottom. M1 is played alone: one person
     /// writes each character's action, then declares them all at once.
     /// </summary>
-    public sealed class TableScreen
+    public sealed partial class TableScreen
     {
         readonly AppMain _app;
-        readonly TavernGame _game;
+        TavernGame _game;
         Transform _root = null!;
 
         // top
@@ -66,23 +66,24 @@ namespace Tavern.Unity.App
             public Image HpBar = null!, FocusBar = null!;
         }
 
-        public TableScreen(AppMain app, TavernGame game)
+        public TableScreen(AppMain app, TavernGame game, NetRole role = NetRole.Solo, string me = "")
         {
-            _app = app; _game = game;
+            _app = app; _game = game; _role = role; _me = me;
             _autoTurns = int.TryParse(AppMain.Arg("-autoplay"), out var n) ? n : 0;
-            _game.ChooseRerolls = ChooseRerollsAsync;
+            _game.ChooseRerolls = role == NetRole.Host ? HostChooseRerollsAsync : (Func<IReadOnlyList<LogEntry>, Task<IReadOnlyList<LogEntry>>>)ChooseRerollsAsync;
+            SetupNet();
         }
 
         // ================================================================ fate coins
 
-        readonly HashSet<LogEntry> _shown = new HashSet<LogEntry>();
+        readonly HashSet<int> _shownSeq = new HashSet<int>();
         TaskCompletionSource<bool>? _drained;
         RectTransform? _rerollBox;
 
         /// <summary>Shows the dice of this turn, then lets the players spend fate coins on failed checks.</summary>
         async Task<IReadOnlyList<LogEntry>> ChooseRerollsAsync(IReadOnlyList<LogEntry> failed)
         {
-            foreach (var e in _game.State.Log.Where(e => e.Kind == LogKind.Roll && !_shown.Contains(e)).ToList()) { _shown.Add(e); _pending.Enqueue(e); }
+            EnqueueNew(_game.State.Log);
             _drained = new TaskCompletionSource<bool>();
             await _drained.Task;
 
@@ -121,9 +122,11 @@ namespace Tavern.Unity.App
             _overlay = UiKit.Rect("Overlay", root).Fill().gameObject;
 
             if (opening) _ = OpenAsync();
+            else if (_role == NetRole.Client && _game.State.Log.Count <= 12) { EnqueueNew(_game.State.Log); RefreshAll(); }
             else
             {
                 foreach (var e in _game.State.Log.Skip(Math.Max(0, _game.State.Log.Count - 30))) AppendLog(e, instant: true);
+                foreach (var e in _game.State.Log) _shownSeq.Add(e.Seq);
                 RefreshAll();
             }
         }
@@ -136,7 +139,7 @@ namespace Tavern.Unity.App
             _timeText = UiKit.Label(top, "", 17, Theme.Dim, 1060, 16, 160, 30, align: TextAnchor.UpperRight);
             UiKit.Button(top, "地図", ShowMap, 1236, 8, 110, 38, 18);
             UiKit.Button(top, "語り部への注文", ShowOrder, 1356, 8, 230, 38, 18, gold: true);
-            UiKit.Button(top, "保存して酒場を出る", () => { _app.Save(_game); _app.ShowTitle(); }, 1596, 8, 284, 38, 18);
+            UiKit.Button(top, _role == NetRole.Client ? "部屋を出る" : "保存して酒場を出る", () => { if (_role != NetRole.Client) _app.Save(_game); LeaveRoom(); _app.ShowTitle(); }, 1596, 8, 284, 38, 18);
         }
 
         void BuildParty(Transform root)
@@ -260,6 +263,8 @@ namespace Tavern.Unity.App
                 c.FocusBar.fillAmount = (float)p.Focus / p.MaxFocus;
                 c.Status.text = p.State == LifeState.Dead ? "<color=#c4553f>死亡</color>"
                     : p.State == LifeState.Down ? $"<color=#d88>倒れている　死のサイコロ {new string('●', p.DeathSaveFailures)}{new string('○', 3 - p.DeathSaveFailures)}</color>"
+                    : !IsMine(p) ? (_declared.Contains(p.Name) ? "<color=#9fd08a>宣言済み</color>" : $"考え中 <size=12>（{OwnerOf(p)}）</size>")
+                    : _declared.Contains(p.Name) ? "<color=#9fd08a>宣言済み</color>"
                     : (_drafts.TryGetValue(p.Name, out var d) && HasAction(d) ? "<color=#9fd08a>行動を決めた</color>" : "考え中");
                 c.Frame.GetComponent<Outline>().effectColor = i == _selected ? Theme.Gold : Theme.Edge;
                 c.Frame.GetComponent<Outline>().effectDistance = i == _selected ? new Vector2(2, -2) : new Vector2(1, -1);
@@ -436,6 +441,7 @@ namespace Tavern.Unity.App
 
         void Select(int index)
         {
+            if (index < 0 || index >= _game.Party.Count || !IsMine(_game.Party[index])) return;
             _selected = index;
             RefreshParty(); RefreshActions(); RefreshScene();
         }
@@ -451,6 +457,7 @@ namespace Tavern.Unity.App
         async Task SubmitAsync()
         {
             if (_busy || _game.Ended) return;
+            if (_role != NetRole.Solo) { DeclareOnline(); return; }
             var decls = _game.Party.Where(p => p.CanAct || (_drafts.TryGetValue(p.Name, out var d) && d.Basic == "revive"))
                 .Select(Draft).Where(HasAction).ToList();
             if (decls.Count == 0) { Flash("誰かの行動を決めてください（カード、基本の行動、または文章）"); return; }
@@ -463,13 +470,14 @@ namespace Tavern.Unity.App
             _busy = true;
             _busyText.text = "語り部が考えている…";
             _declare.interactable = false;
+            if (_role == NetRole.Host) BroadcastStatus();
             try
             {
                 var report = await step();
-                foreach (var e in report.Entries.Where(e => !_shown.Contains(e))) _pending.Enqueue(e);
-                _shown.Clear();
+                EnqueueNew(report.Entries);
                 _app.Save(_game);
                 if (_game.Ended) { try { System.IO.File.Delete(_app.SavePath); } catch { } }
+                AfterHostTurn();
                 return true;
             }
             catch (Exception ex)
@@ -483,6 +491,18 @@ namespace Tavern.Unity.App
                 _busy = false;
                 _busyText.text = "";
                 RefreshTop(); RefreshParty(); RefreshActions();
+                if (_role == NetRole.Host) BroadcastTurn();
+            }
+        }
+
+        /// <summary>Queues log lines not shown yet (by sequence number; game-less warnings have 0 and always show).</summary>
+        void EnqueueNew(IEnumerable<LogEntry> entries)
+        {
+            foreach (var e in entries)
+            {
+                if (e.Seq != 0 && !_shownSeq.Add(e.Seq)) continue;
+                _pending.Enqueue(e);
+                if (_autoTurns > 0) Debug.Log($"[Log] {e.Seq} {e.Kind} {e.Who}: {(e.Text.Length > 30 ? e.Text.Substring(0, 30) : e.Text)}");
             }
         }
 
@@ -491,7 +511,7 @@ namespace Tavern.Unity.App
         public void Update()
         {
             if (!_game.Ended) _game.State.PlayMinutes += Time.unscaledDeltaTime / 60f;
-            if (Time.frameCount % 30 == 0) RefreshTop();
+            if (Time.frameCount % 30 == 0) { RefreshTop(); if (_role == NetRole.Host && _pending.Count == 0 && _typing == null) TrySubmitHost(); }
             Playback();
             Autoplay();
         }
@@ -680,7 +700,7 @@ namespace Tavern.Unity.App
                 b.GetComponent<Image>().color = _game.State.NarrationLength == id ? Theme.Hex("6b4f24") : Theme.Hex("2e241a");
                 lengthButtons.Add(b);
             }
-            UiKit.Button(panel, "頼む", () => { _game.StorytellerRequest = field.text.Trim(); UiKit.Clear(_overlay.transform);
+            UiKit.Button(panel, "頼む", () => { SendOrder(field.text.Trim()); UiKit.Clear(_overlay.transform);
                 if (field.text.Trim().Length > 0) Flash("語り部への注文を伝えた: " + field.text.Trim()); }, 560, 362, 210, 52, 20, gold: true);
             UiKit.Button(panel, "閉じる", () => UiKit.Clear(_overlay.transform), 330, 362, 210, 52, 20);
         }
@@ -701,11 +721,12 @@ namespace Tavern.Unity.App
         void ShowGrowthIfDue()
         {
             if (_busy || _pending.Count > 0 || _typing != null || _diceRolling || _overlay.transform.childCount > 0) return;
-            var name = _game.State.PendingGrowth.FirstOrDefault();
+            AskRemoteGrowth();
+            var name = MyPendingGrowth();
             if (name == null) return;
             var who = _game.Find(name);
             if (who == null) { _game.State.PendingGrowth.Remove(name); return; }
-            if (_autoTurns > 0) { _game.Grow(name, _app.Db.Classes[who.ClassId].AttackStat); RefreshParty(); return; }
+            if (_autoTurns > 0) { Grow(name, _app.Db.Classes[who.ClassId].AttackStat); return; }
 
             var shade = UiKit.Box(_overlay.transform, "Shade", new Color(0, 0, 0, 0.55f));
             shade.rectTransform.Fill();
@@ -727,7 +748,9 @@ namespace Tavern.Unity.App
 
         void Grow(string name, string choice)
         {
+            if (_role == NetRole.Client) { SendGrowth(name, choice); UiKit.Clear(_overlay.transform); return; }
             _game.Grow(name, choice);
+            if (_role == NetRole.Host) BroadcastTurn();
             UiKit.Clear(_overlay.transform);
             _app.Save(_game);
             var last = _game.State.Log.LastOrDefault();
@@ -746,6 +769,8 @@ namespace Tavern.Unity.App
                 return;
             }
             if (_autoTurns <= 0 || _busy || _pending.Count > 0 || _typing != null || _diceRolling || _game.State.PendingGrowth.Count > 0) return;
+            // Online, the bot only plays this PC's characters, once per turn.
+            if (_role != NetRole.Solo && _game.Party.Where(IsMine).Where(p => p.CanAct).All(p => _declared.Contains(p.Name))) return;
             if (_autoWait <= 0) { _autoWait = Time.time + 1.2f; return; }
             if (Time.time < _autoWait) return;
             _autoWait = 0;
@@ -754,7 +779,7 @@ namespace Tavern.Unity.App
             for (int i = 0; i < _game.Party.Count; i++)
             {
                 var p = _game.Party[i];
-                if (!p.CanAct) continue;
+                if (!p.CanAct || !IsMine(p)) continue;
                 var d = Draft(p);
                 if (_game.InCombat)
                 {
@@ -766,7 +791,7 @@ namespace Tavern.Unity.App
                 }
                 else d.Text = sug.Count > 0 ? sug[i % sug.Count] : "辺りを調べる";
             }
-            Select(0);
+            Select(_game.Party.FindIndex(IsMine));
             _ = SubmitAsync();
         }
     }
