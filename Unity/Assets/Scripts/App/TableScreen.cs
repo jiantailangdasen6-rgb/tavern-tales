@@ -209,6 +209,8 @@ namespace Tavern.Unity.App
             UiKit.Label(panel, "語　り", 18, Theme.Gold, 18, 10, 300, 28, serif: true);
             UiKit.Box(panel, "Rule", Theme.Edge).rectTransform.Place(14, 42, 528, 1);
             _logContent = UiKit.Scroll(panel, 10, 50, 540, 930, out _logScroll, 12);
+            // Clicking the log shows the rest of the narration at once.
+            _logScroll.gameObject.AddComponent<Button>().onClick.AddListener(() => { if (_typing != null) _typingPos = _typingFull.Length; });
         }
 
         void BuildActions(Transform root)

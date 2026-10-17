@@ -336,9 +336,18 @@ namespace Tavern.Core.Game
             var guards = new Dictionary<string, string>();   // protected name -> guardian name
 
             // Downed characters roll to stay alive.
-            foreach (var c in Party.Where(p => p.State == LifeState.Down))
+            foreach (var c in Party.Where(p => p.State == LifeState.Down).ToList())
             {
-                var outcome = DeathSaves.Roll(c, _rng, out var face);
+                var face = Dice.D20(_rng);
+                if (face < DeathSaves.HoldOn && ChooseRerolls != null && c.FateCoins > 0)
+                {
+                    // A failing death roll may be rerolled with the fate coin, like any other roll.
+                    var first = new LogEntry { Kind = LogKind.Roll, Who = c.Name, Text = $"{c.Name} 死のサイコロ {face} — このままでは失敗", Natural = face, Total = face, Target = DeathSaves.HoldOn, Outcome = "失敗" };
+                    Add(report, first);
+                    var pick = await ChooseRerolls(new[] { first });
+                    if (pick.Contains(first) && c.SpendFateCoin()) face = Dice.D20(_rng);
+                }
+                var outcome = DeathSaves.Apply(c, face);
                 var text = outcome switch
                 {
                     DeathSaveOutcome.StandsUp => "自力で立ち上がった（HP 1）",
@@ -358,7 +367,8 @@ namespace Tavern.Core.Game
                 var text = new StringBuilder(Status());
                 text.AppendLine("【戦闘中の自由な行動】");
                 foreach (var d in free) text.AppendLine($"{d.Character}: {d.Text}");
-                await Gm.PlanAsync(text.ToString(), entries => ResolveFreeCombat(entries, report, summary), ct: ct);
+                var planned = await Gm.AskPlanAsync(text.ToString(), ct: ct);
+                Gm.AnswerPlan(await ResolveFreeCombat(planned, report, summary));
                 Gm.PlanTool = GmTools.PlanChecksTool(Party);
             }
 
@@ -370,8 +380,7 @@ namespace Tavern.Core.Game
                 if (!who.CanAct) continue;
                 if (d.Basic == "flee")
                 {
-                    var r = Checks.RollAgainst(who, Stat.Skill, 13, "逃げる", _rng, dodgeBonus.TryGetValue(who.Name, out var sb) ? sb : 0);
-                    Add(report, RollEntry(r));
+                    var r = await Shown(Checks.RollAgainst(who, Stat.Skill, 13, "逃げる", _rng, dodgeBonus.TryGetValue(who.Name, out var sb) ? sb : 0), report);
                     if (r.Succeeded)
                     {
                         summary.Add($"{who.Name} の合図で一行は戦いから逃げ出した（{Scenario.Location(combat.FleeTo).Name}へ）。");
@@ -382,22 +391,22 @@ namespace Tavern.Core.Game
                     summary.Add($"{who.Name} は逃げ道を探したが、敵に回り込まれた。");
                     continue;
                 }
-                if (d.CardId != null && Db.Cards.TryGetValue(d.CardId, out var card)) UseCombatCard(who, card, d.Target, report, summary, dodgeBonus, guards);
+                if (d.CardId != null && Db.Cards.TryGetValue(d.CardId, out var card)) await UseCombatCard(who, card, d.Target, report, summary, dodgeBonus, guards);
                 else if (d.Basic == "defend") { dodgeBonus[who.Name] = (dodgeBonus.TryGetValue(who.Name, out var b) ? b : 0) + 3; summary.Add($"{who.Name} は身構えた（かわす +3）。"); }
                 else if (d.Basic == "help" && Find(d.Target) is Character ally) { ally.NextCheckBonus += Checks.HelpBonusEach; summary.Add($"{who.Name} は {ally.Name} を援護した（次の判定 +2）。"); }
-                else Attack(who, d.Target, report, summary);
+                else await Attack(who, d.Target, report, summary);
             }
 
             if (State.Combat == null) { await NarrateRoundAsync(summary, report, ct); return; }
             if (combat.Enemies.All(e => !e.Alive)) { await WinAsync(summary, report, ct); return; }
 
-            EnemyPhase(combat, report, summary, dodgeBonus, guards);
+            await EnemyPhase(combat, report, summary, dodgeBonus, guards);
             combat.Round++;
             await NarrateRoundAsync(summary, report, ct);
             if (Party.All(p => !p.CanAct)) await EndAsync("failure", report, ct);
         }
 
-        string ResolveFreeCombat(IReadOnlyList<JObject> entries, TurnReport report, List<string> summary)
+        async Task<string> ResolveFreeCombat(IReadOnlyList<JObject> entries, TurnReport report, List<string> summary)
         {
             var combat = State.Combat!;
             var lines = new List<string>();
@@ -410,8 +419,7 @@ namespace Tavern.Core.Game
                 {
                     if (!RuleNames.TryParseStat((string?)e["stat"], out var stat)) stat = Stat.Skill;
                     RuleNames.TryParseDifficulty((string?)e["difficulty"], out var diff);
-                    var r = Checks.Roll(new CheckRequest(who.Name, stat, diff, (string?)e["reason"] ?? ""), who, _rng);
-                    Add(report, RollEntry(r));
+                    var r = await Shown(Checks.Roll(new CheckRequest(who.Name, stat, diff, (string?)e["reason"] ?? ""), who, _rng), report);
                     success = r.Succeeded;
                     lines.Add($"- {r.Describe()}");
                 }
@@ -442,10 +450,10 @@ namespace Tavern.Core.Game
             return lines.Count == 0 ? "判定なし。" : "判定の結果:\n" + string.Join("\n", lines);
         }
 
-        void UseCombatCard(Character who, CardDef card, string? target, TurnReport report, List<string> summary,
+        async Task UseCombatCard(Character who, CardDef card, string? target, TurnReport report, List<string> summary,
             Dictionary<string, int> dodgeBonus, Dictionary<string, string> guards)
         {
-            if (!who.SpendFocus(card.Cost)) { summary.Add($"{who.Name} は気力が足りず「{card.Name}」を使えなかった。代わりに{Weapon(who)}で攻撃する。"); Attack(who, target, report, summary); return; }
+            if (!who.SpendFocus(card.Cost)) { summary.Add($"{who.Name} は気力が足りず「{card.Name}」を使えなかった。代わりに{Weapon(who)}で攻撃する。"); await Attack(who, target, report, summary); return; }
             var combat = State.Combat!;
             switch (card.Kind)
             {
@@ -459,8 +467,7 @@ namespace Tavern.Core.Game
                         if (!hit)
                         {
                             RuleNames.TryParseStat(card.Stat, out var st);
-                            var r = Checks.RollAgainst(who, st, e.Defense, $"{card.Name} → {e.Name}", _rng);
-                            Add(report, RollEntry(r));
+                            var r = await Shown(Checks.RollAgainst(who, st, e.Defense, $"{card.Name} → {e.Name}", _rng), report);
                             hit = r.Succeeded; crit = r.Outcome == Outcome.Critical;
                         }
                         if (!hit) { summary.Add($"{who.Name} の「{card.Name}」は {e.Name} に当たらなかった。"); continue; }
@@ -494,8 +501,7 @@ namespace Tavern.Core.Game
                     if (e == null) break;
                     if (e.Boss) { summary.Add($"{who.Name} の「{card.Name}」は {e.Name} には効かなかった。"); break; }
                     RuleNames.TryParseStat(card.Stat, out var st);
-                    var r = Checks.RollAgainst(who, st, e.Defense, $"{card.Name} → {e.Name}", _rng);
-                    Add(report, RollEntry(r));
+                    var r = await Shown(Checks.RollAgainst(who, st, e.Defense, $"{card.Name} → {e.Name}", _rng), report);
                     if (r.Succeeded) { e.Stunned = 1; summary.Add($"{who.Name} の「{card.Name}」で {e.Name} は眠りに落ちた。"); }
                     else summary.Add($"{e.Name} は「{card.Name}」を振り払った。");
                     break;
@@ -511,21 +517,34 @@ namespace Tavern.Core.Game
             }
         }
 
-        void Attack(Character who, string? target, TurnReport report, List<string> summary)
+        /// <summary>Logs a roll; a failed one may be rerolled with the character's fate coin (the UI asks the players).</summary>
+        async Task<CheckResult> Shown(CheckResult r, TurnReport report)
+        {
+            var entry = RollEntry(r);
+            Add(report, entry);
+            if (ChooseRerolls == null || !CanReroll(r)) return r;
+            var pick = await ChooseRerolls(new[] { entry });
+            if (!pick.Contains(entry)) return r;
+            var again = Checks.Reroll(r, Find(r.Request.CharacterName)!, _rng);
+            if (again == null) return r;
+            Add(report, RollEntry(again));
+            return again;
+        }
+
+        async Task Attack(Character who, string? target, TurnReport report, List<string> summary)
         {
             var e = PickEnemy(target);
             if (e == null) return;
             var cls = Db.Classes[who.ClassId];
             RuleNames.TryParseStat(cls.AttackStat, out var stat);
-            var r = Checks.RollAgainst(who, stat, e.Defense, $"{Weapon(who)} → {e.Name}", _rng);
-            Add(report, RollEntry(r));
+            var r = await Shown(Checks.RollAgainst(who, stat, e.Defense, $"{Weapon(who)} → {e.Name}", _rng), report);
             if (!r.Succeeded) { summary.Add($"{who.Name} の{Weapon(who)}は {e.Name} に{(r.Outcome == Outcome.Fumble ? "大きく空を切った" : "かわされた")}。"); return; }
             var dmg = cls.WeaponDamage * (r.Outcome == Outcome.Critical ? 2 : 1);
             Hurt(e, dmg);
             summary.Add($"{who.Name} の{Weapon(who)}が {e.Name} に {dmg} ダメージ{(r.Outcome == Outcome.Critical ? "（大成功）" : "")}（{HpText(e)}）。");
         }
 
-        void EnemyPhase(CombatState combat, TurnReport report, List<string> summary, Dictionary<string, int> dodgeBonus, Dictionary<string, string> guards)
+        async Task EnemyPhase(CombatState combat, TurnReport report, List<string> summary, Dictionary<string, int> dodgeBonus, Dictionary<string, string> guards)
         {
             foreach (var e in combat.Enemies.Where(e => e.Alive).ToList())
             {
@@ -536,12 +555,12 @@ namespace Tavern.Core.Game
                 {
                     combat.BigMovePending = null;
                     summary.Add($"{e.Name} の「{big.Name}」！");
-                    foreach (var p in Party.Where(p => p.CanAct).ToList()) EnemyHits(e, big.Name, big.Dc, big.Damage, p, report, summary, dodgeBonus, guards);
+                    foreach (var p in Party.Where(p => p.CanAct).ToList()) await EnemyHits(e, big.Name, big.Dc, big.Damage, p, report, summary, dodgeBonus, guards);
                     continue;
                 }
                 var attack = def.Attacks.Count == 1 ? def.Attacks[0] : def.Attacks[_rng.Next(0, def.Attacks.Count)];
                 var target = PickTarget(def.Pattern);
-                if (target != null) EnemyHits(e, attack.Name, attack.Dc, attack.Damage, target, report, summary, dodgeBonus, guards);
+                if (target != null) await EnemyHits(e, attack.Name, attack.Dc, attack.Damage, target, report, summary, dodgeBonus, guards);
                 if (big != null && big.Every > 0 && (combat.Round + 1) % big.Every == 0)
                 {
                     combat.BigMovePending = e.Uid;
@@ -551,7 +570,7 @@ namespace Tavern.Core.Game
             }
         }
 
-        void EnemyHits(EnemyInstance e, string attack, int dc, int damage, Character target, TurnReport report, List<string> summary,
+        async Task EnemyHits(EnemyInstance e, string attack, int dc, int damage, Character target, TurnReport report, List<string> summary,
             Dictionary<string, int> dodgeBonus, Dictionary<string, string> guards)
         {
             // A guardian steps in front and takes the blow (1 less damage), but cannot dodge for the protected one.
@@ -561,8 +580,7 @@ namespace Tavern.Core.Game
                 summary.Add($"{e.Name} の{attack}を {guardian.Name} が {target.Name} の代わりに受けた（{damage - 1} ダメージ、HP {guardian.Hp}/{guardian.MaxHp}）。");
                 return;
             }
-            var r = Checks.RollAgainst(target, Stat.Skill, dc, $"{e.Name}の{attack}をかわす", _rng, dodgeBonus.TryGetValue(target.Name, out var b) ? b : 0);
-            Add(report, RollEntry(r));
+            var r = await Shown(Checks.RollAgainst(target, Stat.Skill, dc, $"{e.Name}の{attack}をかわす", _rng, dodgeBonus.TryGetValue(target.Name, out var b) ? b : 0), report);
             if (r.Succeeded) { summary.Add($"{target.Name} は {e.Name} の{attack}をかわした。"); return; }
             var dmg = damage * (r.Outcome == Outcome.Fumble ? 2 : 1);
             target.TakeDamage(dmg);

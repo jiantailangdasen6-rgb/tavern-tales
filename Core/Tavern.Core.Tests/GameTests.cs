@@ -157,6 +157,23 @@ namespace Tavern.Core.Tests
         }
 
         [Test]
+        public async Task FateCoin_InAFight_RerollsAFailedDodge()
+        {
+            var llm = new ScriptedLlm(
+                Plan(), Narr(new { text = "狼だ！", suggestions = new[] { "x" }, start_combat = new[] { "wolf" } }),
+                Narr(new { text = "…", suggestions = new[] { "x" } }));
+            // Gareth defends (no roll); the wolf bites: dodge 2+1+3 fails, the coin rerolls it to 19 -> no damage
+            var game = NewGame(llm, new FixedRandom(2, 19), "warrior");
+            game.ChooseRerolls = failed => Task.FromResult<IReadOnlyList<LogEntry>>(failed.ToList());
+            await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Text = "進む" } });
+
+            await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Basic = "defend" } });
+
+            Assert.That(game.Find("ガレス")!.Hp, Is.EqualTo(18));
+            Assert.That(game.Find("ガレス")!.FateCoins, Is.EqualTo(0));
+        }
+
+        [Test]
         public async Task NextAct_GivesEveryoneAGrowthChoice()
         {
             var llm = new ScriptedLlm(Plan(), Narr(new { text = "祠に着いた。", suggestions = new[] { "a" }, next_act = true, move_to = "shrine_front" }));
