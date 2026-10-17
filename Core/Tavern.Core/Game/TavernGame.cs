@@ -88,7 +88,7 @@ namespace Tavern.Core.Game
         }
 
         static string SystemPrompt(Storyteller teller, List<Character> party, ScenarioDef s, ContentDb db)
-            => Prompts.System(teller, party, ScenarioPrompt.Describe(s, db));
+            => Prompts.System(teller, party, ScenarioPrompt.Describe(s, db) + "\n" + ScenarioPrompt.TellerNotes(teller));
 
         /// <summary>Makes a new character from a class definition.</summary>
         public static Character CreateCharacter(ContentDb db, string name, string classId, string background, string portrait = "")

@@ -1,4 +1,5 @@
 #nullable enable
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Tavern.Core.Content;
@@ -10,6 +11,20 @@ namespace Tavern.Core.Game
     {
         /// <summary>The fixed world, given to the storyteller with every scenario (set once by the app).</summary>
         public static string World = "";
+
+        /// <summary>How many evenings each storyteller has told on this PC (from the chronicle); Veil reveals more each time.</summary>
+        public static Dictionary<string, int> NightsByTeller = new Dictionary<string, int>();
+
+        public static string TellerNotes(Gm.Storyteller t)
+        {
+            NightsByTeller.TryGetValue(t.Name, out var n);
+            if (t.Id != "veil") return n > 0 ? $"（この酒場であなたが語るのは {n + 1} 晩目。前の夜のことに軽く触れてもよい）" : "";
+            var stage = n == 0 ? "今夜はまだ何も明かさない。気配だけ。"
+                : n == 1 ? "今夜は、あなたが百年前の辺境戦争を見てきたかのような口ぶりを一度だけ見せる。"
+                : n == 2 ? "今夜は、あなたの指にある古い騎士団の指輪に冒険者が気づく場面を作ってよい。"
+                : "今夜は、あなたが灰の災いの日に何かを失い、ずっと語り続けている存在だと、ほのめかしてよい（はっきりとは言わない）。";
+            return $"（この酒場であなたが語るのは {n + 1} 晩目。{stage}）";
+        }
 
         public static string Describe(ScenarioDef s, ContentDb db)
         {

@@ -53,6 +53,7 @@ namespace Tavern.Unity.App
             ScenarioPrompt.World = Story.World.Describe();
             Ai = AiSetup.Create(Flag("-demo"));
             SavePath = Arg("-savefile") ?? Path.Combine(Application.persistentDataPath, "evening.json");
+            foreach (var g in LoadChronicle().Entries.GroupBy(e => e.Teller)) ScenarioPrompt.NightsByTeller[g.Key] = g.Count();
             AudioListener.volume = Flag("-autoquit") || Flag("-mute") ? 0f : 0.4f;
         }
 

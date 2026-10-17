@@ -87,7 +87,9 @@ namespace Tavern.Unity.App
             var fallen = roster.Fallen.Select(f => $"{f.Name}（{(_app.Db.Classes.TryGetValue(f.ClassId, out var c) ? c.Name : f.ClassId)}、{f.Nights} 晩）").ToList();
             var living = roster.Living.Select(f => $"{f.Name}{(f.Titles.Count > 0 ? "「" + f.Titles.Last() + "」" : "")}").ToList();
             UiKit.Label(panel, "生き延びた冒険者: " + (living.Count > 0 ? string.Join("・", living) : "まだいない"), 17, Theme.Dim, 620, 770, 860, 56);
-            UiKit.Label(panel, "墓碑: " + (fallen.Count > 0 ? string.Join("・", fallen) : "まだいない"), 17, Theme.Dim, 620, 830, 860, 56);
+            UiKit.Label(panel, "墓碑: " + (fallen.Count > 0 ? string.Join("・", fallen) : "まだいない"), 17, Theme.Dim, 620, 830, 860, 40);
+            var wall = chronicle.Entries.Where(e => e.Ending != "failure").Select(e => $"「{e.Scenario}」の記念品").ToList();
+            UiKit.Label(panel, "酒場の壁: " + (wall.Count > 0 ? string.Join("・", wall) : "まだ何も飾られていない"), 17, Theme.Dim, 620, 870, 860, 40);
         }
 
         static void ShowHelp(Transform root)
