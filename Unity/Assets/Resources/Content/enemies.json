@@ -8,8 +8,8 @@
       "attacks": [ { "name": "刃こぼれした剣", "dc": 13, "damage": 3 } ], "pattern": "random" },
     { "id": "drowned", "name": "溺れた屍", "art": "en_drowned", "hp": 9, "defense": 10, "undead": true,
       "attacks": [ { "name": "水底へ引く爪", "dc": 13, "damage": 3 } ], "pattern": "weakest" },
-    { "id": "boneknight", "name": "骨の騎士", "art": "en_boneknight", "hp": 30, "defense": 14, "undead": true, "boss": true,
+    { "id": "boneknight", "name": "骨の騎士", "art": "en_boneknight", "hp": 26, "defense": 14, "undead": true, "boss": true,
       "attacks": [ { "name": "大剣の振り下ろし", "dc": 14, "damage": 4 } ], "pattern": "strongest",
-      "bigMove": { "name": "死者の大旋風", "every": 3, "dc": 15, "damage": 5, "warning": "骨の騎士が大剣を高く掲げた……" } }
+      "bigMove": { "name": "死者の大旋風", "every": 3, "dc": 14, "damage": 4, "warning": "骨の騎士が大剣を高く掲げた……" } }
   ]
 }

@@ -134,7 +134,7 @@ namespace Tavern.Core.Tests
             Assert.That(r2.Entries.Any(e => e.Kind == LogKind.Warning));
             var r3 = await game.SubmitAsync(defend);
             Assert.That(r3.Entries.Count(e => e.Kind == LogKind.Roll), Is.EqualTo(2));
-            Assert.That(game.Find("ガレス")!.Hp, Is.EqualTo(18 - 10));   // fumbled dodge doubles the 5
+            Assert.That(game.Find("ガレス")!.Hp, Is.EqualTo(18 - 8));   // fumbled dodge doubles the 4
         }
 
         [Test]

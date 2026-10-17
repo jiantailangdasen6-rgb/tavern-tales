@@ -67,8 +67,33 @@ game.Logged += e =>
     }
 };
 
+// --auto N: a bot plays N turns (suggestions outside fights; cards, attacks and reviving inside), like Unity's -autoplay.
+string AutoLine()
+{
+    var parts = new List<string>();
+    var sug = game.State.Suggestions;
+    for (int i = 0; i < game.Party.Count; i++)
+    {
+        var p = game.Party[i];
+        if (!p.CanAct) continue;
+        if (!game.InCombat) { parts.Add($"{p.Name}: {(sug.Count > 0 ? sug[i % sug.Count] : "辺りを調べる")}"); continue; }
+        var downed = game.Party.FirstOrDefault(x => x.State == LifeState.Down);
+        var target = game.State.Combat!.Enemies.Where(e => e.Alive).OrderBy(e => e.Hp).FirstOrDefault()?.Uid;
+        var card = p.Cards.Select(id => db.Cards[id]).FirstOrDefault(c => c.Kind == "attack" && p.Focus >= c.Cost);
+        var heal = p.Cards.Select(id => db.Cards[id]).FirstOrDefault(c => c.Kind == "heal" && p.Focus >= c.Cost);
+        if (downed != null && heal != null) parts.Add($"{p.Name}: @card {heal.Id} >{downed.Name}");
+        else if (downed != null && i == game.Party.Count - 1) parts.Add($"{p.Name}: @revive >{downed.Name}");
+        else if (game.State.Combat.Enemies.Any(e => e.Boss && e.Alive) && !game.State.Combat.WeaknessUsed && (game.State.Clues.Contains("knight_name") || game.State.Clues.Contains("inscription")) && i == 2)
+            parts.Add($"{p.Name}: 「バルドリック！」と騎士の生前の名を叫ぶ");
+        else if (card != null && i % 2 == 0) parts.Add($"{p.Name}: @card {card.Id} >{target}");
+        else parts.Add($"{p.Name}: @attack >{target}");
+    }
+    return string.Join(" / ", parts);
+}
+
 IEnumerable<string> Inputs()
 {
+    if (int.TryParse(Opt("--auto"), out var autoTurns)) { for (int i = 0; i < autoTurns && !game.Ended; i++) yield return AutoLine(); yield break; }
     var script = Opt("--script");
     if (script != null) { foreach (var line in File.ReadAllLines(script, Encoding.UTF8)) if (line.Trim().Length > 0 && !line.StartsWith("#")) yield return line; yield break; }
     while (true) { Console.Write("\n> "); var line = Console.ReadLine(); if (line == null || line == "quit") yield break; yield return line; }
@@ -87,6 +112,7 @@ foreach (var line in Inputs())
     var report = await game.SubmitAsync(decls);
     PrintSuggestions(report);
     Console.WriteLine($"  （{report.Model}、{t.Elapsed.TotalSeconds:0.0} 秒）");
+    foreach (var name in game.State.PendingGrowth.ToList()) game.Grow(name, db.Classes[game.Find(name)!.ClassId].AttackStat);
     if (Opt("--save") is string savePath) File.WriteAllText(savePath, SaveData.From(game).ToJson());
 }
 Console.WriteLine($"\n[状態] 場所 {game.Here.Name} / 第{game.State.Act}幕 / 手がかり {game.State.Clues.Count} / 結末 {game.State.Ending ?? "まだ"}");

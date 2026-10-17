@@ -207,7 +207,7 @@ namespace Tavern.Core.Game
                 {
                     var n = GameTools.SizeValue((string?)e["size"]);
                     c.TakeDamage(n);
-                    Add(report, LogEntry.Line(LogKind.Event, c.Name, $"{c.Name} は {n} の傷を負った（{(string?)e["cause"] ?? ""}）。HP {c.Hp}/{c.MaxHp}{(c.State == LifeState.Down ? "、倒れた" : "")}"));
+                    Add(report, LogEntry.Line(LogKind.Event, c.Name, $"{c.Name} は {n} の傷を負った{(string.IsNullOrWhiteSpace((string?)e["cause"]) ? "" : "（" + (string?)e["cause"] + "）")}。HP {c.Hp}/{c.MaxHp}{(c.State == LifeState.Down ? "、倒れた" : "")}"));
                 }
             foreach (var e in Entries(a, "heal"))
                 if (Find((string?)e["character"]) is Character c && c.State != LifeState.Dead)
