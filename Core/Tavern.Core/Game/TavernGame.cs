@@ -169,10 +169,12 @@ namespace Tavern.Core.Game
             {
                 case "heal":
                 {
-                    var target = Find(d.Target) ?? who;
-                    target.Heal(card.Amount);
-                    var line = $"{who.Name} の「{card.Name}」で {target.Name} の HP が {target.Hp}/{target.MaxHp} に。";
-                    notes.Add(line); Add(report, LogEntry.Line(LogKind.Event, who.Name, line));
+                    foreach (var target in HealTargets(card, who, d.Target))
+                    {
+                        target.Heal(card.Amount);
+                        var line = $"{who.Name} の「{card.Name}」で {target.Name} の HP が {target.Hp}/{target.MaxHp} に。";
+                        notes.Add(line); Add(report, LogEntry.Line(LogKind.Event, who.Name, line));
+                    }
                     break;
                 }
                 case "bless":
@@ -278,6 +280,7 @@ namespace Tavern.Core.Game
             if (who == null || !State.PendingGrowth.Remove(character)) return false;
             string text;
             if (choice == "hp") { who.Toughen(ToughenAmount); text = $"最大 HP +{ToughenAmount}（{who.MaxHp}）"; }
+            else if (choice.StartsWith("card:") && GrowthCards(character).FirstOrDefault(c => c.Id == choice.Substring(5)) is CardDef learned) { who.Cards.Add(learned.Id); text = $"新しい技「{learned.Name}」"; }
             else if (RuleNames.TryParseStat(choice, out var stat)) { who.Improve(stat); text = $"{stat.Label()} +1（+{who.Modifier(stat)}）"; }
             else { State.PendingGrowth.Add(character); return false; }
             var entry = LogEntry.Line(LogKind.Event, who.Name, $"{who.Name} は成長した: {text}");
@@ -315,7 +318,7 @@ namespace Tavern.Core.Game
                     combat.Enemies.Add(new EnemyInstance
                     {
                         Uid = id + i, DefId = id, Name = count > 1 ? $"{d.Name}{(char)('A' + i - 1)}" : d.Name, Art = d.Art,
-                        Hp = d.Hp, MaxHp = d.Hp, Defense = d.Defense, Boss = d.Boss, Undead = d.Undead,
+                        Hp = (int)Math.Ceiling(d.Hp * Teller.EnemyHpScale), MaxHp = (int)Math.Ceiling(d.Hp * Teller.EnemyHpScale), Defense = d.Defense, Boss = d.Boss, Undead = d.Undead,
                     });
                 }
             }
@@ -335,6 +338,7 @@ namespace Tavern.Core.Game
             var summary = new List<string>();
             var dodgeBonus = new Dictionary<string, int>();
             var guards = new Dictionary<string, string>();   // protected name -> guardian name
+            _taunter = null;
 
             // Downed characters roll to stay alive.
             foreach (var c in Party.Where(p => p.State == LifeState.Down).ToList())
@@ -462,29 +466,49 @@ namespace Tavern.Core.Game
                 {
                     var targets = card.Target == "all" ? combat.Enemies.Where(e => e.Alive).ToList()
                         : new List<EnemyInstance> { PickEnemy(target) }.Where(e => e != null).Select(e => e!).ToList();
+                    // A card with no base damage only hurts the undead (e.g. turning the dead).
+                    if (card.Damage == 0 && card.UndeadBonus > 0) targets = targets.Where(e => e.Undead).ToList();
+                    if (targets.Count == 0) { summary.Add($"{who.Name} の「{card.Name}」は効く相手がいなかった。"); break; }
                     foreach (var e in targets)
-                    {
-                        bool hit = card.AutoHit, crit = false;
-                        if (!hit)
+                        for (int h = 0; h < Math.Max(1, card.Hits) && e.Alive; h++)
                         {
-                            RuleNames.TryParseStat(card.Stat, out var st);
-                            var r = await Shown(Checks.RollAgainst(who, st, e.Defense, $"{card.Name} → {e.Name}", _rng), report);
-                            hit = r.Succeeded; crit = r.Outcome == Outcome.Critical;
+                            bool hit = card.AutoHit, crit = false;
+                            if (!hit)
+                            {
+                                RuleNames.TryParseStat(card.Stat, out var st);
+                                var r = await Shown(Checks.RollAgainst(who, st, e.Defense, $"{card.Name} → {e.Name}", _rng), report);
+                                hit = r.Succeeded; crit = r.Outcome == Outcome.Critical;
+                            }
+                            if (!hit) { summary.Add($"{who.Name} の「{card.Name}」は {e.Name} に当たらなかった。"); continue; }
+                            var dmg = Math.Max(1, card.Damage + (e.Undead ? card.UndeadBonus : 0)) * (crit ? 2 : 1);
+                            Hurt(e, dmg);
+                            summary.Add($"{who.Name} の「{card.Name}」が {e.Name} に {dmg} ダメージ{(crit ? "（大成功）" : "")}（{HpText(e)}）。");
+                            if (card.StunOnHit && e.Alive && !e.Boss) { e.Stunned = 1; summary.Add($"{e.Name} はよろめいて動けない。"); }
                         }
-                        if (!hit) { summary.Add($"{who.Name} の「{card.Name}」は {e.Name} に当たらなかった。"); continue; }
-                        var dmg = (card.Damage + (e.Undead ? card.UndeadBonus : 0)) * (crit ? 2 : 1);
-                        Hurt(e, dmg);
-                        summary.Add($"{who.Name} の「{card.Name}」が {e.Name} に {dmg} ダメージ{(crit ? "（大成功）" : "")}（{HpText(e)}）。");
-                    }
                     break;
                 }
                 case "heal":
                 {
-                    var ally = Find(target) ?? who;
-                    ally.Heal(card.Amount);
-                    summary.Add($"{who.Name} の「{card.Name}」で {ally.Name} の HP が {ally.Hp}/{ally.MaxHp} に。");
+                    foreach (var ally in HealTargets(card, who, target))
+                    {
+                        ally.Heal(card.Amount);
+                        summary.Add($"{who.Name} の「{card.Name}」で {ally.Name} の HP が {ally.Hp}/{ally.MaxHp} に。");
+                    }
                     break;
                 }
+                case "ward":
+                {
+                    var allies = card.Target == "party" ? Party.Where(p => p.CanAct).ToList()
+                        : card.Target == "self" ? new List<Character> { who } : new List<Character> { Find(target) ?? who };
+                    foreach (var a in allies) dodgeBonus[a.Name] = (dodgeBonus.TryGetValue(a.Name, out var b) ? b : 0) + card.Bonus;
+                    summary.Add($"{who.Name} の「{card.Name}」: {string.Join("・", allies.Select(a => a.Name))} のかわす判定 +{card.Bonus}。");
+                    break;
+                }
+                case "taunt":
+                    _taunter = who.Name;
+                    dodgeBonus[who.Name] = (dodgeBonus.TryGetValue(who.Name, out var tb) ? tb : 0) + card.Bonus;
+                    summary.Add($"{who.Name} は敵を挑発し、攻撃を自分に引きつけた。");
+                    break;
                 case "guard":
                 {
                     var ally = Find(target);
@@ -516,6 +540,28 @@ namespace Tavern.Core.Game
                     summary.Add($"{who.Name} は「{card.Name}」を使った。");
                     break;
             }
+        }
+
+        /// <summary>This round, the character every enemy attacks (the warrior's taunt).</summary>
+        string? _taunter;
+
+        /// <summary>Who a healing card reaches: itself, the whole living party, or one ally (downed allies stand up).</summary>
+        List<Character> HealTargets(CardDef card, Character who, string? target) => card.Target switch
+        {
+            "self" => new List<Character> { who },
+            "party" => Party.Where(p => p.State != LifeState.Dead).ToList(),
+            _ => new List<Character> { Find(target) is Character t && t.State != LifeState.Dead ? t : who },
+        };
+
+        /// <summary>Growth: up to two cards of the character's class not learned yet (they change with each act).</summary>
+        public List<CardDef> GrowthCards(string character)
+        {
+            var who = Find(character);
+            if (who == null) return new List<CardDef>();
+            var unknown = Db.Cards.Values.Where(c => c.ClassId == who.ClassId && !who.Cards.Contains(c.Id)).ToList();
+            if (unknown.Count <= 2) return unknown;
+            var start = (State.Act * 2 + who.Name.Length) % unknown.Count;
+            return new List<CardDef> { unknown[start], unknown[(start + 1) % unknown.Count] };
         }
 
         /// <summary>Logs a roll; a failed one may be rerolled with the character's fate coin (the UI asks the players).</summary>
@@ -560,7 +606,7 @@ namespace Tavern.Core.Game
                     continue;
                 }
                 var attack = def.Attacks.Count == 1 ? def.Attacks[0] : def.Attacks[_rng.Next(0, def.Attacks.Count)];
-                var target = PickTarget(def.Pattern);
+                var target = _taunter != null && Find(_taunter) is Character t && t.CanAct ? t : PickTarget(def.Pattern);
                 if (target != null) await EnemyHits(e, attack.Name, attack.Dc, attack.Damage, target, report, summary, dodgeBonus, guards);
                 if (big != null && big.Every > 0 && (combat.Round + 1) % big.Every == 0)
                 {
@@ -581,7 +627,7 @@ namespace Tavern.Core.Game
                 summary.Add($"{e.Name} の{attack}を {guardian.Name} が {target.Name} の代わりに受けた（{damage - 1} ダメージ、HP {guardian.Hp}/{guardian.MaxHp}）。");
                 return;
             }
-            var r = await Shown(Checks.RollAgainst(target, Stat.Skill, dc, $"{e.Name}の{attack}をかわす", _rng, dodgeBonus.TryGetValue(target.Name, out var b) ? b : 0), report);
+            var r = await Shown(Checks.RollAgainst(target, Stat.Skill, dc + Teller.EnemyAttackBonus, $"{e.Name}の{attack}をかわす", _rng, dodgeBonus.TryGetValue(target.Name, out var b) ? b : 0), report);
             if (r.Succeeded) { summary.Add($"{target.Name} は {e.Name} の{attack}をかわした。"); return; }
             var dmg = damage * (r.Outcome == Outcome.Fumble ? 2 : 1);
             target.TakeDamage(dmg);

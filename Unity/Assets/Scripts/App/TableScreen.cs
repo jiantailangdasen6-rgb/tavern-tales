@@ -200,7 +200,7 @@ namespace Tavern.Unity.App
 
             var badge = UiKit.Box(t, "Teller", new Color(0, 0, 0, 0.55f), frame: true);
             badge.rectTransform.Place(770, 606, 224, 54);
-            var tellerPic = UiKit.Picture(badge.transform, ArtLibrary.Get("pt_olwen"), 6, 5, 44, 44);
+            var tellerPic = UiKit.Picture(badge.transform, ArtLibrary.Get(_game.Teller.Portrait), 6, 5, 44, 44);
             tellerPic.uvRect = new Rect(0.25f, 0.6f, 0.5f, 0.33f);
             UiKit.Label(badge.transform, "語り部 " + _game.Teller.Name, 17, Theme.Gold, 58, 6, 170, 24);
             _busyText = UiKit.Label(badge.transform, "", 13, Theme.Dim, 58, 28, 170, 22);
@@ -348,7 +348,8 @@ namespace Tavern.Unity.App
             for (int i = 0; i < who.Cards.Count; i++)
             {
                 if (!_app.Db.Cards.TryGetValue(who.Cards[i], out var card)) continue;
-                BuildCard(card, who, draft, 8 + i * 158);
+                var cw = who.Cards.Count <= 3 ? 150f : 472f / who.Cards.Count - 6;
+                BuildCard(card, who, draft, 8 + i * (cw + 6), cw);
             }
 
             UiKit.Clear(_basicCol);
@@ -395,19 +396,19 @@ namespace Tavern.Unity.App
             RefreshDraftSummary();
         }
 
-        void BuildCard(CardDef card, Character who, Declaration draft, float x)
+        void BuildCard(CardDef card, Character who, Declaration draft, float x, float w = 150)
         {
             var on = draft.CardId == card.Id;
             var frame = UiKit.Box(_cardRow, "Card", Theme.Hex("2a2017"), frame: true);
-            frame.rectTransform.Place(x, 0, 150, 236);
+            frame.rectTransform.Place(x, 0, w, 236);
             frame.GetComponent<Outline>().effectColor = on ? Theme.GoldLight : Theme.Gold;
             frame.GetComponent<Outline>().effectDistance = on ? new Vector2(3, -3) : new Vector2(1, -1);
             var art = ArtLibrary.Get("cd_" + card.Id);
-            var pic = UiKit.Picture(frame.transform, art, 6, 6, 138, 96);
-            pic.uvRect = ArtLibrary.Cover(art, 138, 96, 0.55f);
-            UiKit.Label(frame.transform, card.Name, 18, Theme.GoldLight, 8, 106, 136, 26, serif: true);
-            UiKit.Label(frame.transform, card.Text, 13, Theme.Dim, 8, 134, 136, 74);
-            UiKit.Label(frame.transform, $"気力 {card.Cost}", 13, Theme.Hex("8fb3e0"), 8, 210, 136, 20);
+            var pic = UiKit.Picture(frame.transform, art, 6, 6, w - 12, 96);
+            pic.uvRect = ArtLibrary.Cover(art, w - 12, 96, 0.55f);
+            UiKit.Label(frame.transform, card.Name, w < 120 ? 15 : 18, Theme.GoldLight, 6, 106, w - 10, 26, serif: true);
+            UiKit.Label(frame.transform, card.Text, w < 120 ? 11 : 13, Theme.Dim, 6, 134, w - 10, 74);
+            UiKit.Label(frame.transform, $"気力 {card.Cost}", 13, Theme.Hex("8fb3e0"), 6, 210, w - 10, 20);
             var b = frame.gameObject.AddComponent<Button>();
             b.transition = Selectable.Transition.None;   // the frame shows the state itself (gold outline, dark when unaffordable)
             b.interactable = who.CanAct && who.Focus >= card.Cost;
@@ -705,8 +706,23 @@ namespace Tavern.Unity.App
             UiKit.Button(panel, "閉じる", () => UiKit.Clear(_overlay.transform), 330, 362, 210, 52, 20);
         }
 
+        bool _recorded;
+
+        /// <summary>The evening ended: write it into this PC's chronicle and keep this PC's characters for next time.</summary>
+        void RecordEnding()
+        {
+            if (_recorded) return;
+            _recorded = true;
+            var chronicle = _app.LoadChronicle();
+            if (chronicle.Add(Chronicle.From(_game, DateTime.Now))) _app.SaveChronicle(chronicle);
+            var roster = _app.LoadRoster();
+            roster.Record(_game, IsMine);
+            _app.SaveRoster(roster);
+        }
+
         void ShowEnding()
         {
+            RecordEnding();
             UiKit.Clear(_overlay.transform);
             var shade = UiKit.Box(_overlay.transform, "Shade", new Color(0, 0, 0, 0.5f));
             shade.rectTransform.Place(328, 76, 1008, 672);
@@ -726,11 +742,11 @@ namespace Tavern.Unity.App
             if (name == null) return;
             var who = _game.Find(name);
             if (who == null) { _game.State.PendingGrowth.Remove(name); return; }
-            if (_autoTurns > 0) { Grow(name, _app.Db.Classes[who.ClassId].AttackStat); return; }
+            if (_autoTurns > 0) { var learn = _game.GrowthCards(name).FirstOrDefault(); Grow(name, learn != null ? "card:" + learn.Id : _app.Db.Classes[who.ClassId].AttackStat); return; }
 
             var shade = UiKit.Box(_overlay.transform, "Shade", new Color(0, 0, 0, 0.55f));
             shade.rectTransform.Fill();
-            var panel = UiKit.Panel(_overlay.transform, "Growth", 560, 300, 800, 420).transform;
+            var panel = UiKit.Panel(_overlay.transform, "Growth", 560, 230, 800, 600).transform;
             var pic = UiKit.Picture(panel, ArtLibrary.Get(who.Portrait), 30, 30, 160, 240);
             pic.uvRect = ArtLibrary.Cover(pic.texture, 160, 240, 0.7f);
             UiKit.Label(panel, $"{who.Name} は成長する", 32, Theme.Gold, 220, 30, 560, 46, serif: true);
@@ -744,6 +760,17 @@ namespace Tavern.Unity.App
             }
             UiKit.Button(panel, $"最大 HP {who.MaxHp} → {who.MaxHp + TavernGame.ToughenAmount}", () => Grow(name, "hp"), 220, 270, 548, 60, 22);
             UiKit.Label(panel, "力=腕っぷし　技=器用さ・素早さ（かわす判定にも効く）　知=知識・魔法　心=意志・話術・信仰", 15, Theme.Dim, 30, 350, 740, 50);
+            var cards = _game.GrowthCards(name);
+            if (cards.Count > 0) UiKit.Label(panel, "または、新しい技を覚える", 18, Theme.GoldLight, 220, 400, 548, 28);
+            for (int i = 0; i < cards.Count; i++)
+            {
+                var card = cards[i];
+                var b = UiKit.Button(panel, $"「{card.Name}」（気力 {card.Cost}）\n<size=14>{card.Text}</size>", () => Grow(name, "card:" + card.Id), 30 + i * 380, 436, 360, 130, 19, gold: true);
+                var art = ArtLibrary.Get("cd_" + card.Id);
+                var cardPic = UiKit.Picture(b.transform, art, 6, 6, 80, 118);
+                cardPic.uvRect = ArtLibrary.Cover(art, 80, 118, 0.55f);
+                b.GetComponentInChildren<Text>().rectTransform.offsetMin = new Vector2(94, 6);
+            }
         }
 
         void Grow(string name, string choice)

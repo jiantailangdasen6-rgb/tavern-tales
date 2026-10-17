@@ -20,7 +20,9 @@ namespace Tavern.Core.Content
         /// <summary>Stat used for the roll ("" when the card needs none).</summary>
         public string Stat = "";
         public int Cost, Damage, Amount, Bonus, UndeadBonus;
-        public bool AutoHit;
+        /// <summary>Attack cards: how many separate rolls (at least 1).</summary>
+        public int Hits = 1;
+        public bool AutoHit, StunOnHit;
     }
 
     public sealed class EnemyAttack

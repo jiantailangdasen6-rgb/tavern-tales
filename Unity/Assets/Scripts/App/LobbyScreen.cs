@@ -27,6 +27,7 @@ namespace Tavern.Unity.App
         Text _status = null!;
         Button? _start;
         int _startWhen;
+        Func<Storyteller>? _teller;
 
         public LobbyScreen(AppMain app, bool host, string me, CharacterSave myCharacter)
         {
@@ -50,7 +51,7 @@ namespace Tavern.Unity.App
             _list = UiKit.Rect("Players", root).Place(460, 390, 1000, 480);
             _status = UiKit.Label(root, "", 22, Theme.Ink, 0, 890, 1920, 40, align: TextAnchor.MiddleCenter);
             UiKit.Button(root, "部屋を出る", () => { NetSession.ClearHandlers(); NetSession.Leave(); _app.ShowTitle(); }, 90, 980, 240, 64, 22);
-            if (_host) _start = UiKit.Button(root, "この顔ぶれで冒険をはじめる", Begin, 1380, 980, 450, 70, 26, gold: true);
+            if (_host) { _start = UiKit.Button(root, "この顔ぶれで冒険をはじめる", Begin, 1380, 980, 450, 70, 26, gold: true); _teller = StorytellerPicker.Build(root, 400, 966); }
 
             NetSession.ClearHandlers();
             if (_host)
@@ -123,7 +124,7 @@ namespace Tavern.Unity.App
             _start.interactable = false;
             Detach();
             var party = _players.Select(p => p.character.ToCharacter()).ToList();
-            var game = TavernGame.New(_app.Db, _app.Scenario, Storyteller.Olwen, party, _app.Ai.Everyday, _app.Ai.Highlight,
+            var game = TavernGame.New(_app.Db, _app.Scenario, _teller?.Invoke() ?? Storyteller.Olwen, party, _app.Ai.Everyday, _app.Ai.Highlight,
                 new SeededRandom((ulong)DateTime.Now.Ticks));
             foreach (var p in _players) game.State.Owners[p.character.Name] = p.info.PlayerName;
             game.State.HostPlayer = _me;

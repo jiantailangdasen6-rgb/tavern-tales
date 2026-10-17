@@ -1,0 +1,32 @@
+[
+  { "id": "pt_bram", "kind": "portrait", "aspect": "2:3",
+    "prompt": "A burly middle-aged tavern keeper with a thick black beard, rolled-up sleeves and a stained leather apron, a sarcastic half smile, wiping one pewter tankard with one cloth behind a wooden bar counter, barrels and bottles behind him." },
+  { "id": "pt_veil", "kind": "portrait", "aspect": "2:3",
+    "prompt": "A mysterious hooded storyteller whose face is half hidden in the shadow of a deep grey hood, only a pale chin and a faint knowing smile visible, long pale fingers resting on an old closed book, cold bluish candlelight, a dark corner of a tavern." },
+  { "id": "pt_marta", "kind": "portrait", "aspect": "2:3",
+    "prompt": "A tough old woman, a retired adventurer in her seventies with white hair tied back and an old scar across her cheek, wearing a worn leather breastplate over a wool shirt, holding one clay pipe in her right hand, sitting by a tavern fire, stern but kind eyes." },
+
+  { "id": "cd_shieldbash", "kind": "card", "aspect": "2:3", "prompt": "A heavy iron shield slamming into a dark shape, a burst of sparks and dust at the moment of impact." },
+  { "id": "cd_cleave", "kind": "card", "aspect": "2:3", "prompt": "A huge two-handed sword blow falling from above, a streak of white light along the blade, stone chips flying." },
+  { "id": "cd_secondwind", "kind": "card", "aspect": "2:3", "prompt": "A tired armoured warrior seen from behind, standing up again with one hand on his knee, warm light breaking through the dust around him." },
+  { "id": "cd_taunt", "kind": "card", "aspect": "2:3", "prompt": "A lone armoured warrior seen from behind, sword raised high, shouting at a crowd of shadowy monsters that all turn towards him." },
+  { "id": "cd_unbreakable", "kind": "card", "aspect": "2:3", "prompt": "A dented steel shield glowing with a faint golden light, arrows and blades bouncing off it in the dark." },
+
+  { "id": "cd_lightning", "kind": "card", "aspect": "2:3", "prompt": "A blinding bolt of blue-white lightning striking down in a dark ruined hall, sparks and shattered stone." },
+  { "id": "cd_frost", "kind": "card", "aspect": "2:3", "prompt": "A freezing wave of pale blue frost spreading across a stone floor, icicles forming in the air, cold mist." },
+  { "id": "cd_ward", "kind": "card", "aspect": "2:3", "prompt": "A shimmering translucent magical barrier of violet runes hanging in the air, a blade stopped against it." },
+  { "id": "cd_blink", "kind": "card", "aspect": "2:3", "prompt": "A robed figure dissolving into drifting violet sparks, an empty space where a sword cuts through the air." },
+  { "id": "cd_arcane", "kind": "card", "aspect": "2:3", "prompt": "Three glowing violet arrows of pure magic flying in a curve through a dark crypt, trails of light behind them." },
+
+  { "id": "cd_poison", "kind": "card", "aspect": "2:3", "prompt": "A curved dagger dripping with a glowing green poison, a single drop falling, dark background." },
+  { "id": "cd_knives", "kind": "card", "aspect": "2:3", "prompt": "Two small throwing knives spinning through candlelit air, motion blur, a dark tavern cellar." },
+  { "id": "cd_evade", "kind": "card", "aspect": "2:3", "prompt": "A cloaked figure leaping and twisting sideways in mid-air, a heavy axe swinging through the space where he stood." },
+  { "id": "cd_snare", "kind": "card", "aspect": "2:3", "prompt": "A hidden rope snare and iron trap snapping shut among dead leaves on a forest path, a cloud of dust." },
+  { "id": "cd_feint", "kind": "card", "aspect": "2:3", "prompt": "A sly cloaked rogue whistling and tossing a pebble to one side in a dark corridor, a guard's shadow turning towards the noise." },
+
+  { "id": "cd_prayercircle", "kind": "card", "aspect": "2:3", "prompt": "A ring of soft golden light on the stone floor of a chapel, three wounded travellers inside it bathed in warm glow." },
+  { "id": "cd_turnundead", "kind": "card", "aspect": "2:3", "prompt": "A raised holy sun symbol blazing with white light, skeletal shapes crumbling to dust as the light reaches them." },
+  { "id": "cd_sanctuary", "kind": "card", "aspect": "2:3", "prompt": "A dome of pale golden light over a small group of travellers in a dark forest, shadows held back at its edge." },
+  { "id": "cd_smite", "kind": "card", "aspect": "2:3", "prompt": "A heavy flanged mace coming down wreathed in golden light, a burst of radiance at the point of impact." },
+  { "id": "cd_resurrect", "kind": "card", "aspect": "2:3", "prompt": "A fallen warrior lying on stone, a column of gentle golden light descending on him, his hand beginning to move." }
+]

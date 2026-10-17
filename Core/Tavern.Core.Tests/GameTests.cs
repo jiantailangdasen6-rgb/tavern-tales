@@ -174,6 +174,79 @@ namespace Tavern.Core.Tests
         }
 
         [Test]
+        public async Task NewCards_MultiHit_UndeadOnly_Taunt()
+        {
+            var narr = Narr(new { text = "…", suggestions = new string[0] });
+            var llm = new ScriptedLlm(Plan(), Narr(new { text = "", suggestions = new string[0], start_combat = new[] { "goblin", "skeleton" } }), narr, narr);
+            // mage: arcane x3 at the goblin (15, 15, 2 -> two hits of 2+... ), warrior taunts; then the enemies both attack the warrior
+            var game = NewGame(llm, new FixedRandom(15, 15, 2, 20, 20), "mage", "warrior");
+            await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Text = "進む" } });
+            var mage = game.Find("ガレス")!; var warrior = game.Find("エリス")!;
+            mage.Cards.Add("arcane"); warrior.Cards.Add("taunt");
+
+            await game.SubmitAsync(new[]
+            {
+                new Declaration { Character = "ガレス", CardId = "arcane", Target = "goblin1" },
+                new Declaration { Character = "エリス", CardId = "taunt" },
+            });
+
+            Assert.That(game.State.Combat!.Enemies.First(e => e.DefId == "goblin").Hp, Is.EqualTo(5 - 4));
+            // both enemy attacks went to the taunting warrior (two dodge rolls by エリス, both 20)
+            Assert.That(game.State.Log.Count(e => e.Kind == LogKind.Roll && e.Who == "エリス"), Is.EqualTo(2));
+            Assert.That(game.State.Log.Count(e => e.Kind == LogKind.Roll && e.Who == "ガレス" && e.Text.Contains("かわす")), Is.EqualTo(0));
+        }
+
+        [Test]
+        public async Task Growth_CanLearnACardOfTheClass()
+        {
+            var llm = new ScriptedLlm(Plan(), Narr(new { text = "", suggestions = new[] { "a" }, next_act = true }));
+            var game = NewGame(llm, new FixedRandom(), "priest");
+            await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Text = "進む" } });
+
+            var options = game.GrowthCards("ガレス");
+            Assert.That(options, Has.Count.EqualTo(2));
+            Assert.That(options.All(c => c.ClassId == "priest" && !new[] { "heal", "holylight", "bless" }.Contains(c.Id)));
+            Assert.That(game.Grow("ガレス", "card:" + options[0].Id), Is.True);
+            Assert.That(game.Find("ガレス")!.Cards, Does.Contain(options[0].Id));
+        }
+
+        [Test]
+        public async Task Ending_GoesToTheChronicle_AndCharactersCarryOver()
+        {
+            var llm = new ScriptedLlm(Plan(),
+                Narr(new { text = "若者を連れ帰った。", suggestions = new string[0], items_gained = new[] { new { character = "ガレス", item = "金の燭台" } }, end_story = "success" }),
+                Narr(new { text = "こうして、灰色の森に平和が戻った。", suggestions = new string[0] }));
+            var game = NewGame(llm, new FixedRandom(), "warrior", "mage");
+            game.Find("エリス")!.TakeDamage(99);
+            game.Find("エリス")!.Restore(0, 0, 0, LifeState.Dead, 3, 0);
+            await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Text = "村へ帰る" } });
+
+            var entry = Chronicle.From(game, new System.DateTime(2026, 10, 18));
+            Assert.That(entry.Ending, Is.EqualTo("success"));
+            Assert.That(entry.Story, Is.EqualTo("こうして、灰色の森に平和が戻った。"));
+            Assert.That(entry.Fallen, Is.EqualTo(new[] { "エリス" }));
+            var chronicle = new Chronicle();
+            Assert.That(chronicle.Add(entry), Is.True);
+            Assert.That(chronicle.Add(entry), Is.False);
+
+            var roster = new Roster();
+            roster.Record(game, _ => true);
+            roster.Record(game, _ => true);   // twice is the same as once
+            var gareth = roster.Living.Single();
+            Assert.That(gareth.Name, Is.EqualTo("ガレス"));
+            Assert.That(gareth.Nights, Is.EqualTo(1));
+            Assert.That(gareth.Keepsakes, Is.EqualTo(new[] { "金の燭台" }));
+            Assert.That(gareth.Titles, Is.EqualTo(new[] { "灰色の森の祠の英雄" }));
+            Assert.That(roster.Fallen.Single().Name, Is.EqualTo("エリス"));
+
+            var (db, _) = Load();
+            var again = gareth.ToCharacter(db);
+            Assert.That(again.Hp, Is.EqualTo(18));
+            Assert.That(again.Items, Is.EqualTo(new[] { "金の燭台" }));
+            Assert.That(again.Background, Does.Contain("灰色の森の祠の英雄"));
+        }
+
+        [Test]
         public async Task NextAct_GivesEveryoneAGrowthChoice()
         {
             var llm = new ScriptedLlm(Plan(), Narr(new { text = "祠に着いた。", suggestions = new[] { "a" }, next_act = true, move_to = "shrine_front" }));

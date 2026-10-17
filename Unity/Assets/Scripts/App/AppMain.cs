@@ -189,16 +189,16 @@ namespace Tavern.Unity.App
             JoinOnline(File.ReadAllText(file).Trim(), name, preset[index]);
         }
 
-        public void StartEvening(System.Collections.Generic.List<Tavern.Core.Rules.Character> party)
+        public void StartEvening(System.Collections.Generic.List<Tavern.Core.Rules.Character> party, Storyteller? teller = null)
         {
-            var game = TavernGame.New(Db, Scenario, Storyteller.Olwen, party, Ai.Everyday, Ai.Highlight, new Tavern.Core.Rules.SeededRandom((ulong)DateTime.Now.Ticks));
+            var game = TavernGame.New(Db, Scenario, teller ?? Storyteller.Olwen, party, Ai.Everyday, Ai.Highlight, new Tavern.Core.Rules.SeededRandom((ulong)DateTime.Now.Ticks));
             ShowTable(game, opening: true);
         }
 
         public void ContinueEvening()
         {
             var save = SaveData.FromJson(File.ReadAllText(SavePath));
-            var game = save.Load(Db, Scenario, Storyteller.Olwen, Ai.Everyday, Ai.Highlight, new Tavern.Core.Rules.SeededRandom((ulong)DateTime.Now.Ticks));
+            var game = save.Load(Db, Scenario, Storyteller.Find(save.State.StorytellerId), Ai.Everyday, Ai.Highlight, new Tavern.Core.Rules.SeededRandom((ulong)DateTime.Now.Ticks));
             if (save.State.Owners.Count > 0) HostResume(game);
             else ShowTable(game, opening: false);
         }
@@ -211,6 +211,13 @@ namespace Tavern.Unity.App
         }
 
         public bool HasSave => File.Exists(SavePath);
+
+        // The chronicle and the roster live next to the save (tests point them elsewhere with -savefile).
+        string RecordPath(string name) => Path.Combine(Path.GetDirectoryName(SavePath) ?? Application.persistentDataPath, name);
+        public Chronicle LoadChronicle() { try { var p = RecordPath("chronicle.json"); return Chronicle.Load(File.Exists(p) ? File.ReadAllText(p) : null); } catch { return new Chronicle(); } }
+        public Roster LoadRoster() { try { var p = RecordPath("roster.json"); return Roster.Load(File.Exists(p) ? File.ReadAllText(p) : null); } catch { return new Roster(); } }
+        public void SaveChronicle(Chronicle c) { try { File.WriteAllText(RecordPath("chronicle.json"), c.ToJson()); } catch (Exception e) { Debug.LogWarning("[Records] " + e.Message); } }
+        public void SaveRoster(Roster r) { try { File.WriteAllText(RecordPath("roster.json"), r.ToJson()); } catch (Exception e) { Debug.LogWarning("[Records] " + e.Message); } }
 
         public void Save(TavernGame game)
         {

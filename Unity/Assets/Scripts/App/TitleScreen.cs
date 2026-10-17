@@ -1,4 +1,5 @@
 #nullable enable
+using System.Linq;
 using Tavern.Unity.Ui;
 using UnityEngine;
 using UnityEngine.UI;
@@ -35,7 +36,8 @@ namespace Tavern.Unity.App
             var cont = UiKit.Button(root, _app.SaveIsOnline ? "続きから（部屋を開き直す）" : "続きから（ひとり）", _app.ContinueEvening, 760, y, 400, 56, 22);
             cont.interactable = _app.HasSave;
             y += 72;
-            UiKit.Button(root, "遊び方", () => ShowHelp(root), 760, y, 400, 56, 22);
+            UiKit.Button(root, "遊び方", () => ShowHelp(root), 760, y, 195, 56, 22);
+            UiKit.Button(root, "語り部の記録帳", () => ShowChronicle(root), 965, y, 195, 56, 20);
             y += 72;
             UiKit.Button(root, "終わる", Application.Quit, 760, y, 400, 56, 22);
 
@@ -55,6 +57,38 @@ namespace Tavern.Unity.App
             "HP が 0 になると倒れ、手番ごとに死のサイコロ（10 以上で持ちこたえ、3 回失敗で死亡）。仲間が起こせば助かります。全員倒れたら物語は失敗で終わります。\n\n" +
             "■ そのほか\n" +
             "幕の終わりに成長できます。「語り部への注文」で、語りを短く・怖くなど物語の外から頼めます。手番ごとに自動で保存され、「続きから」で再開できます。";
+
+        /// <summary>The storyteller's chronicle: every finished evening on this PC, and the memorial of the fallen.</summary>
+        void ShowChronicle(Transform root)
+        {
+            var layer = UiKit.Rect("Chronicle", root).Fill();
+            UiKit.Box(layer, "Shade", new Color(0, 0, 0, 0.8f)).rectTransform.Fill();
+            var panel = UiKit.Panel(layer, "Panel", 200, 80, 1520, 920).transform;
+            UiKit.Label(panel, "語り部の記録帳", 36, Theme.Gold, 40, 24, 600, 50, serif: true);
+            UiKit.Button(panel, "閉じる", () => Object.Destroy(layer.gameObject), 1300, 24, 180, 48, 20, gold: true);
+
+            var chronicle = _app.LoadChronicle();
+            var list = UiKit.Scroll(panel, 30, 90, 560, 800, out _, 8);
+            var story = UiKit.Label(panel, chronicle.Entries.Count == 0 ? "まだ記録はありません。一晩の冒険を終えると、ここに物語が残ります。" : "左の夜を選ぶと、語り部の締めくくりが読めます。",
+                21, Theme.Ink, 620, 100, 860, 640, serif: true);
+            story.lineSpacing = 1.2f;
+            foreach (var e in chronicle.Entries.AsEnumerable().Reverse())
+            {
+                var entry = e;
+                var b = UiKit.Button(list, $"{e.Date:yyyy/MM/dd}　{e.Scenario}　<color=#c9a24a>{e.EndingLabel}</color>\n<size=15>{string.Join("・", e.Party)}　語り部 {e.Teller}</size>",
+                    () => story.text = UiKit.Kinsoku($"{entry.Scenario}（{entry.EndingLabel}）\n\n{entry.Story}" +
+                        (entry.Fallen.Count > 0 ? $"\n\n倒れた者: {string.Join("・", entry.Fallen)}" : ""), Theme.Serif, 21, FontStyle.Normal, 850), 18);
+                b.gameObject.AddComponent<LayoutElement>().preferredHeight = 76;
+                b.GetComponentInChildren<Text>().alignment = TextAnchor.MiddleLeft;
+            }
+            story.horizontalOverflow = HorizontalWrapMode.Overflow;
+
+            var roster = _app.LoadRoster();
+            var fallen = roster.Fallen.Select(f => $"{f.Name}（{(_app.Db.Classes.TryGetValue(f.ClassId, out var c) ? c.Name : f.ClassId)}、{f.Nights} 晩）").ToList();
+            var living = roster.Living.Select(f => $"{f.Name}{(f.Titles.Count > 0 ? "「" + f.Titles.Last() + "」" : "")}").ToList();
+            UiKit.Label(panel, "生き延びた冒険者: " + (living.Count > 0 ? string.Join("・", living) : "まだいない"), 17, Theme.Dim, 620, 770, 860, 56);
+            UiKit.Label(panel, "墓碑: " + (fallen.Count > 0 ? string.Join("・", fallen) : "まだいない"), 17, Theme.Dim, 620, 830, 860, 56);
+        }
 
         static void ShowHelp(Transform root)
         {
