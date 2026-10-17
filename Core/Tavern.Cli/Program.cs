@@ -26,7 +26,18 @@ const string scenario =
     "祠の扉には罠（毒矢）がある。最初の場面: 夕暮れ、一行が祠の前に着いたところ。";
 
 using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
-var llm = new OllamaClient(http, Opt("--model") ?? "qwen3:8b");
+ILlmClient llm;
+if ((Opt("--engine") ?? "ollama") == "gemini")
+{
+    // The key is read from the environment only (never printed). User scope too, for shells started before it was set.
+    var key = Environment.GetEnvironmentVariable("GEMINI_API_KEY")
+        ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY", EnvironmentVariableTarget.User)
+        ?? throw new Exception("GEMINI_API_KEY is not set");
+    llm = new GeminiClient(http, key, Opt("--model") ?? "gemini-3.8-flash", Opt("--thinking") ?? "low");
+}
+else llm = new OllamaClient(http, Opt("--model") ?? "qwen3:8b");
+var counter = new CountingLlm(llm);
+llm = counter;
 var seed = ulong.TryParse(Opt("--seed"), out var s) ? s : (ulong)DateTime.Now.Ticks;
 var gm = new GmSession(llm, Storyteller.Olwen, party, scenario, new SeededRandom(seed));
 
@@ -49,4 +60,26 @@ foreach (var input in Inputs())
     foreach (var r in turn.Rejected) Console.WriteLine($"  [却下] {r}");
     Console.WriteLine($"--- {Storyteller.Olwen.Name}（{sw.Elapsed.TotalSeconds:0.0} 秒）\n{turn.Narration}");
     if (turn.Suggestions.Count > 0) Console.WriteLine("  [行動案] " + string.Join(" / ", turn.Suggestions));
+    if (turn.Narration.Length == 0 && counter.Inner is GeminiClient g && a.Contains("--debug"))
+    {
+        File.WriteAllText("Logs/gemini-last-request.json", g.LastRequest?.ToString() ?? "");
+        File.WriteAllText("Logs/gemini-last-response.json", g.LastResponse ?? "");
+        Console.WriteLine("  [debug] wrote Logs/gemini-last-*.json");
+    }
+}
+Console.WriteLine($"\n[AI の呼び出し {counter.Calls} 回]");
+
+/// <summary>Counts backend calls (to estimate how much of a free quota one evening uses).</summary>
+sealed class CountingLlm : ILlmClient
+{
+    readonly ILlmClient _inner;
+    public ILlmClient Inner => _inner;
+    public int Calls { get; private set; }
+    public CountingLlm(ILlmClient inner) { _inner = inner; }
+    public string Name => _inner.Name;
+    public Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, CancellationToken ct = default)
+    {
+        Calls++;
+        return _inner.ChatAsync(messages, tools, ct);
+    }
 }

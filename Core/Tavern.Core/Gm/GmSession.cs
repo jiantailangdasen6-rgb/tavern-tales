@@ -55,19 +55,22 @@ namespace Tavern.Core.Gm
             for (int round = 0; round < MaxToolRounds; round++)
             {
                 var reply = await _llm.ChatAsync(_history, _tools, ct).ConfigureAwait(false);
-                _history.Add(new ChatMessage(Role.Assistant, reply.Content, reply.ToolCalls));
                 if (reply.Content.Length > 0) { if (narration.Length > 0) narration.Append('\n'); narration.Append(reply.Content); }
+
+                // Suggestions are for the buttons only. A reply that just suggests ends the turn: keep it in the history
+                // without the call (no dangling tool result; Gemini answered the next declaration with nothing otherwise).
+                if (reply.ToolCalls.Count > 0 && reply.ToolCalls.All(c => c.Name == GmTools.SuggestActions))
+                {
+                    foreach (var call in reply.ToolCalls) Handle(call, turn);
+                    _history.Add(new ChatMessage(Role.Assistant, reply.Content, raw: reply.Raw));
+                    break;
+                }
+                _history.Add(new ChatMessage(Role.Assistant, reply.Content, reply.ToolCalls, raw: reply.Raw));
                 if (reply.ToolCalls.Count == 0) break;
 
-                bool needsAnswer = false;
+                // A check (or another state change) must be narrated, so answer every call and ask again.
                 foreach (var call in reply.ToolCalls)
-                {
-                    var result = Handle(call, turn);
-                    _history.Add(new ChatMessage(Role.Tool, result, toolName: call.Name));
-                    if (call.Name != GmTools.SuggestActions) needsAnswer = true;
-                }
-                // Suggestions alone end the turn; a check result must be narrated, so ask again.
-                if (!needsAnswer) break;
+                    _history.Add(new ChatMessage(Role.Tool, Handle(call, turn), toolName: call.Name));
             }
 
             turn.Narration = narration.ToString().Trim();

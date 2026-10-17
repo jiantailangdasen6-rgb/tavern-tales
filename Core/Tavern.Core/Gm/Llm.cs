@@ -33,9 +33,15 @@ namespace Tavern.Core.Gm
         /// <summary>For Role.Tool: which tool this result answers.</summary>
         public string? ToolName { get; }
 
-        public ChatMessage(Role role, string content, IReadOnlyList<ToolCall>? toolCalls = null, string? toolName = null)
+        /// <summary>
+        /// The backend's own form of an assistant message, sent back unchanged on the next call
+        /// (Gemini needs its thought signatures returned with function calls).
+        /// </summary>
+        public JToken? Raw { get; }
+
+        public ChatMessage(Role role, string content, IReadOnlyList<ToolCall>? toolCalls = null, string? toolName = null, JToken? raw = null)
         {
-            Role = role; Content = content; ToolCalls = toolCalls ?? new List<ToolCall>(); ToolName = toolName;
+            Role = role; Content = content; ToolCalls = toolCalls ?? new List<ToolCall>(); ToolName = toolName; Raw = raw;
         }
     }
 
@@ -43,7 +49,8 @@ namespace Tavern.Core.Gm
     {
         public string Content { get; }
         public IReadOnlyList<ToolCall> ToolCalls { get; }
-        public LlmReply(string content, IReadOnlyList<ToolCall> toolCalls) { Content = content; ToolCalls = toolCalls; }
+        public JToken? Raw { get; }
+        public LlmReply(string content, IReadOnlyList<ToolCall> toolCalls, JToken? raw = null) { Content = content; ToolCalls = toolCalls; Raw = raw; }
     }
 
     /// <summary>One chat backend (local Ollama, Gemini free tier, a paid model later...). Only the host calls it.</summary>
