@@ -49,6 +49,14 @@ namespace Tavern.Core.Game
         /// <summary>Raised for every new log line (the UI can animate dice for rolls).</summary>
         public event Action<LogEntry>? Logged;
 
+        /// <summary>
+        /// Asked (outside fights) when someone failed a check and still has their fate coin: gets the failed roll entries,
+        /// returns the ones to reroll. The UI shows the dice and waits for the players; null means never reroll.
+        /// </summary>
+        public Func<IReadOnlyList<LogEntry>, Task<IReadOnlyList<LogEntry>>>? ChooseRerolls { get; set; }
+
+        bool CanReroll(CheckResult r) => !r.Succeeded && !r.Rerolled && Find(r.Request.CharacterName)?.FateCoins > 0;
+
         /// <summary>A note to the storyteller from outside the story ("shorter", "scarier"); sent with the next turn.</summary>
         public string? StorytellerRequest { get; set; }
 
@@ -96,7 +104,7 @@ namespace Tavern.Core.Game
         public async Task<TurnReport> OpenAsync(CancellationToken ct = default)
         {
             var report = new TurnReport();
-            var turn = await Gm.NarrateAsync(Status() + "\n物語を始めてください。依頼が舞い込む最初の場面を、語り部らしく語ってください。", highlight: true, ct).ConfigureAwait(false);
+            var turn = await Gm.NarrateAsync(Status() + "\n物語を始めてください。依頼が舞い込む最初の場面を、語り部らしく語ってください。", highlight: true, ct);
             Finish(report, turn);
             return report;
         }
@@ -108,8 +116,8 @@ namespace Tavern.Core.Game
             var report = new TurnReport();
             var acting = declarations.Where(d => Find(d.Character)?.CanAct == true || d.Basic == "revive").ToList();
             foreach (var d in acting) Add(report, LogEntry.Line(LogKind.Declaration, d.Character, DescribeDeclaration(d)));
-            if (InCombat) await CombatRoundAsync(acting, report, ct).ConfigureAwait(false);
-            else await ExploreAsync(acting, report, ct).ConfigureAwait(false);
+            if (InCombat) await CombatRoundAsync(acting, report, ct);
+            else await ExploreAsync(acting, report, ct);
             return report;
         }
 
@@ -124,11 +132,29 @@ namespace Tavern.Core.Game
             if (notes.Count > 0) { text.AppendLine("【ゲームが処理したこと】"); foreach (var n in notes) text.AppendLine(n); }
 
             var turn = new GmTurn();
-            await Gm.PlanAsync(text.ToString(), entries => Gm.ResolveChecks(entries, turn), ct: ct).ConfigureAwait(false);
-            foreach (var r in turn.Checks) Add(report, RollEntry(r));
-            var narrated = await Gm.NarrateAsync(null, ct: ct).ConfigureAwait(false);
+            var entries = await Gm.AskPlanAsync(text.ToString(), ct: ct);
+            Gm.RollChecks(entries, turn);
+            var rollEntries = turn.Checks.Select(RollEntry).ToList();
+            foreach (var e in rollEntries) Add(report, e);
+
+            // Fate coins: before the storyteller hears the dice, a player may spend their coin to reroll a failed check.
+            if (ChooseRerolls != null && turn.Checks.Any(CanReroll))
+            {
+                var picks = await ChooseRerolls(rollEntries.Where((e, i) => CanReroll(turn.Checks[i])).ToList());
+                for (int i = 0; i < turn.Checks.Count; i++)
+                {
+                    if (!picks.Contains(rollEntries[i]) || !CanReroll(turn.Checks[i])) continue;
+                    var who = Find(turn.Checks[i].Request.CharacterName)!;
+                    var again = Checks.Reroll(turn.Checks[i], who, _rng);
+                    if (again == null) continue;
+                    turn.Checks[i] = again;
+                    Add(report, RollEntry(again));
+                }
+            }
+            Gm.AnswerPlan(GmSession.ChecksAnswer(turn));
+            var narrated = await Gm.NarrateAsync(null, ct: ct);
             Finish(report, narrated);
-            await AfterNarrationAsync(report, narrated, ct).ConfigureAwait(false);
+            await AfterNarrationAsync(report, narrated, ct);
         }
 
         /// <summary>Card and basic actions outside combat (healing, blessings, reviving, utility cards' +3).</summary>
@@ -214,11 +240,11 @@ namespace Tavern.Core.Game
 
             var enemies = ((a["start_combat"] as JArray)?.Select(x => (string?)x).Where(x => x != null && Db.Enemies.ContainsKey(x!)).ToList()
                 ?? new List<string?>())!;
-            if (enemies.Count > 0 && !InCombat) await StartCombatAsync(enemies!, report, ct).ConfigureAwait(false);
+            if (enemies.Count > 0 && !InCombat) await StartCombatAsync(enemies!, report, ct);
 
             var end = (string?)a["end_story"];
-            if (end == "success" || end == "bitter" || end == "failure") await EndAsync(end, report, ct).ConfigureAwait(false);
-            else if (Party.All(p => !p.CanAct)) await EndAsync("failure", report, ct).ConfigureAwait(false);
+            if (end == "success" || end == "bitter" || end == "failure") await EndAsync(end, report, ct);
+            else if (Party.All(p => !p.CanAct)) await EndAsync("failure", report, ct);
         }
 
         static IEnumerable<JObject> Entries(JObject args, string key) => (args[key] as JArray)?.OfType<JObject>() ?? Enumerable.Empty<JObject>();
@@ -239,6 +265,25 @@ namespace Tavern.Core.Game
             foreach (var p in Party.Where(p => p.CanAct)) p.RestoreFocus(p.MaxFocus);
             var act = Scenario.Acts.FirstOrDefault(x => x.N == State.Act);
             Add(report, LogEntry.Line(LogKind.Event, "", $"第{State.Act}幕「{act?.Title}」（気力が回復した）"));
+            // Growth at the end of acts 1 and 2: everyone alive picks an ability +1 or more max HP.
+            foreach (var p in Party.Where(p => p.State != LifeState.Dead && !State.PendingGrowth.Contains(p.Name))) State.PendingGrowth.Add(p.Name);
+        }
+
+        public const int ToughenAmount = 3;
+
+        /// <summary>Applies a growth choice: a stat label (力/技/知/心) or "hp".</summary>
+        public bool Grow(string character, string choice)
+        {
+            var who = Find(character);
+            if (who == null || !State.PendingGrowth.Remove(character)) return false;
+            string text;
+            if (choice == "hp") { who.Toughen(ToughenAmount); text = $"最大 HP +{ToughenAmount}（{who.MaxHp}）"; }
+            else if (RuleNames.TryParseStat(choice, out var stat)) { who.Improve(stat); text = $"{stat.Label()} +1（+{who.Modifier(stat)}）"; }
+            else { State.PendingGrowth.Add(character); return false; }
+            var entry = LogEntry.Line(LogKind.Event, who.Name, $"{who.Name} は成長した: {text}");
+            State.Log.Add(entry);
+            Logged?.Invoke(entry);
+            return true;
         }
 
         async Task EndAsync(string ending, TurnReport report, CancellationToken ct)
@@ -250,7 +295,7 @@ namespace Tavern.Core.Game
             Add(report, LogEntry.Line(LogKind.Event, "", $"物語の結末: {label}"));
             var text = ending == "success" ? Scenario.Endings.Success : ending == "bitter" ? Scenario.Endings.Bitter : Scenario.Endings.Failure;
             var final = await Gm.NarrateAsync(Status() + $"\n物語は「{label}」の結末を迎えた（{text}）。冒険者一人ひとりの行いに触れながら、" +
-                "この夜の物語の締めくくりを語り部として 6〜8 文で語ってください。行動案は空でよい。", highlight: true, ct).ConfigureAwait(false);
+                "この夜の物語の締めくくりを語り部として 6〜8 文で語ってください。行動案は空でよい。", highlight: true, ct);
             Finish(report, final);
         }
 
@@ -278,7 +323,7 @@ namespace Tavern.Core.Game
             if (combat.Enemies.Any(e => e.Boss))
             {
                 // The boss's entrance is a big moment: the strong model describes it.
-                var entrance = await Gm.NarrateAsync(Status() + "\nボスが姿を現した。その登場を、語り部として 4〜6 文で迫力をもって語ってください。", highlight: true, ct).ConfigureAwait(false);
+                var entrance = await Gm.NarrateAsync(Status() + "\nボスが姿を現した。その登場を、語り部として 4〜6 文で迫力をもって語ってください。", highlight: true, ct);
                 Finish(report, entrance);
             }
         }
@@ -313,7 +358,7 @@ namespace Tavern.Core.Game
                 var text = new StringBuilder(Status());
                 text.AppendLine("【戦闘中の自由な行動】");
                 foreach (var d in free) text.AppendLine($"{d.Character}: {d.Text}");
-                await Gm.PlanAsync(text.ToString(), entries => ResolveFreeCombat(entries, report, summary), ct: ct).ConfigureAwait(false);
+                await Gm.PlanAsync(text.ToString(), entries => ResolveFreeCombat(entries, report, summary), ct: ct);
                 Gm.PlanTool = GmTools.PlanChecksTool(Party);
             }
 
@@ -343,13 +388,13 @@ namespace Tavern.Core.Game
                 else Attack(who, d.Target, report, summary);
             }
 
-            if (State.Combat == null) { await NarrateRoundAsync(summary, report, ct).ConfigureAwait(false); return; }
-            if (combat.Enemies.All(e => !e.Alive)) { await WinAsync(summary, report, ct).ConfigureAwait(false); return; }
+            if (State.Combat == null) { await NarrateRoundAsync(summary, report, ct); return; }
+            if (combat.Enemies.All(e => !e.Alive)) { await WinAsync(summary, report, ct); return; }
 
             EnemyPhase(combat, report, summary, dodgeBonus, guards);
             combat.Round++;
-            await NarrateRoundAsync(summary, report, ct).ConfigureAwait(false);
-            if (Party.All(p => !p.CanAct)) await EndAsync("failure", report, ct).ConfigureAwait(false);
+            await NarrateRoundAsync(summary, report, ct);
+            if (Party.All(p => !p.CanAct)) await EndAsync("failure", report, ct);
         }
 
         string ResolveFreeCombat(IReadOnlyList<JObject> entries, TurnReport report, List<string> summary)
@@ -530,17 +575,17 @@ namespace Tavern.Core.Game
             State.Combat = null;
             summary.Add(bossDown ? "ボスを倒した。戦いは終わった。" : "敵をすべて倒した。戦いは終わった。");
             Add(report, LogEntry.Line(LogKind.Event, "", "勝利"));
-            await NarrateRoundAsync(summary, report, ct, highlight: bossDown).ConfigureAwait(false);
+            await NarrateRoundAsync(summary, report, ct, highlight: bossDown);
         }
 
         async Task NarrateRoundAsync(List<string> summary, TurnReport report, CancellationToken ct, bool highlight = false)
         {
             var text = Status() + "\n【この手番に起きたこと（ゲームが決めた結果）】\n" + string.Join("\n", summary) +
                 "\nこの結果のとおりに、戦いの一手番を短く迫力をもって語ってください（数字は書かない）。";
-            var turn = await Gm.NarrateAsync(text, highlight, ct).ConfigureAwait(false);
+            var turn = await Gm.NarrateAsync(text, highlight, ct);
             Finish(report, turn);
             // Effects other than combat (an ending, items) still apply after a fight.
-            if (!InCombat) await AfterNarrationAsync(report, turn, ct).ConfigureAwait(false);
+            if (!InCombat) await AfterNarrationAsync(report, turn, ct);
         }
 
         // ---------------------------------------------------------------- helpers

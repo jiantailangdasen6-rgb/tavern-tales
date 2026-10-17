@@ -36,7 +36,7 @@ namespace Tavern.Core.Game
                 "（書かなければゲームの状態は変わらない）。何も起きなければ効果の欄は空でよい。",
                 Obj(new JObject
                 {
-                    ["text"] = Str("語り（地の文と台詞だけ。いつもは 2〜4 文）"),
+                    ["text"] = Str("語り（地の文と台詞だけ）。いつもは 2〜4 文・150 字まで。場面の始まりや山場だけ 6 文まで。長すぎる語りは遊びを止めてしまう"),
                     ["suggestions"] = ArrayOf(new JObject { ["type"] = "string" },
                         "次の行動の案を 3 つ（ボタンになる。1 つ 25 字以内）。冒険者がまだ知らないこと（隠された設定、まだ姿を見せていない敵や人物）は書かない"),
                     ["damage"] = ArrayOf(Obj(new JObject { ["character"] = who, ["size"] = Enum(Sizes, "小=2 中=4 大=6"), ["cause"] = Str("原因") },

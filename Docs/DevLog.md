@@ -1,6 +1,22 @@
 # 開発ログ（再開するときはここから）
 
-## 現在の状態（2026-10-17）
+## 現在の状態（2026-10-18 未明、M1 の途中）
+- **M1（1 人で一晩）でできたこと**:
+  - 内容は JSON（`Unity/Assets/Resources/Content/`: classes / cards / enemies / Scenarios/grey_shrine）。CLI とテストも同じファイルを読む。
+  - `TavernGame`（`Core/Tavern.Core/Game/`）: 1 手 = 判定の計画（強制）→ ゲームが振る →（運命のコインで振り直し）→ 語り（強制）。
+    語りの「効果の欄」（ダメージ・回復・持ち物・手がかり・移動・戦闘開始・次の幕・結末）をゲームが検証して反映する。
+    戦闘はルールで進む（カード・基本の行動・自由な行動は AI が大きさを決める・敵の行動の型・ボスの大技の予告・かばう・死のサイコロ・逃げる）。
+    幕の終わりに成長（能力値 +1 か最大 HP +3）。ボスの登場・結末は 3.8 Flash（山場）。途中保存と続きから（`SaveData`）。
+  - Unity: タイトル、キャラ作り（1〜3 人、職業・見た目・名前・生い立ち）、テーブル画面（試し絵どおり）、3D の 20 面ダイス、地図、
+    語り部への注文、運命のコイン、成長、結末。毎手番の後に `%USERPROFILE%/AppData/LocalLow/tavern-tales/酒場の語り部/evening.json` へ保存。
+  - 仮絵（Juggernaut XL）: `Tools/ArtGen/jobs/m1.json` の 38 題材 × 2 案を生成、選んで `Unity/Assets/Resources/Art/*.jpg` に取り込み。
+  - 確認: テスト 29 件、CLI で第 1 幕を通し（Gemini、14 回の呼び出し）、Unity の見本 AI（`-demo`）と本物の Gemini でボットが数手番遊んだ画面。
+- 起動の旗: `-demo`（見本の AI）、`-quickstart`（見本の 3 人ですぐ始める）、`-autoplay N`（ボットが N 手番）、`-continue`、`-partyscreen`、
+  `-savefile PATH`、`-screenshot PATH -shotat 秒,.. -autoquit 秒`。
+- **M1 で残っていること**: 第 2〜3 幕とボス戦・結末までの通しの確認（本物の AI で）、語りの長さ（Flash-Lite は長くなりがち）、
+  成長で新しい技のカードを選べるようにする（職業ごとのカードが 3 枚しかないので M3 で 8 枚に増やしてから）、戦闘中の運命のコイン（今は探索中の判定だけ）。
+
+## M0（2026-10-17）
 - 企画の相談は完了。決定事項は `Docs/00_Decisions.md`、技術設計は `Docs/02_TechnicalDesign.md`、画風は `Docs/art/style-guide.md`。
 - **M0 完了**:
   - Core（`Core/Tavern.Core`）: 20 面の判定（大成功・大失敗、手伝い +2、運命のコインの振り直し）、HP と倒れる、死のサイコロ、
@@ -14,7 +30,9 @@
 ```
 dotnet test Core/Tavern.slnx
 powershell -ExecutionPolicy Bypass -File Tools/Ollama.ps1            # 手元の AI を起動（-Stop で停止）
-dotnet run --project Core/Tavern.Cli -- --script Core/Tavern.Cli/scripts/shrine.txt --seed 7
+dotnet run --project Core/Tavern.Cli -- --script Core/Tavern.Cli/scripts/evening.txt --seed 11   # Gemini で一晩を通す
+Builds/windows/Tavern.exe -demo -quickstart -autoplay 5 -screenshot Logs/shots/demo.png -shotat 7,15,23 -autoquit 30
+dotnet build Tools/ArtGen -o Logs/artgen-bin && dotnet Logs/artgen-bin/ArtGen.dll import Logs/art/m1 Unity/Assets/Resources/Art --pick id=2,...
 powershell -ExecutionPolicy Bypass -File Tools/RunUnity.ps1 -Method Tavern.Unity.Editor.BuildScript.BuildWindows
 Builds/windows/Tavern.exe -screenshot Logs/shots/x.png -shotat 3 -autoquit 4
 ```

@@ -70,6 +70,38 @@ namespace Tavern.Unity.App
         {
             _app = app; _game = game;
             _autoTurns = int.TryParse(AppMain.Arg("-autoplay"), out var n) ? n : 0;
+            _game.ChooseRerolls = ChooseRerollsAsync;
+        }
+
+        // ================================================================ fate coins
+
+        readonly HashSet<LogEntry> _shown = new HashSet<LogEntry>();
+        TaskCompletionSource<bool>? _drained;
+        RectTransform? _rerollBox;
+
+        /// <summary>Shows the dice of this turn, then lets the players spend fate coins on failed checks.</summary>
+        async Task<IReadOnlyList<LogEntry>> ChooseRerollsAsync(IReadOnlyList<LogEntry> failed)
+        {
+            foreach (var e in _game.State.Log.Where(e => e.Kind == LogKind.Roll && !_shown.Contains(e)).ToList()) { _shown.Add(e); _pending.Enqueue(e); }
+            _drained = new TaskCompletionSource<bool>();
+            await _drained.Task;
+
+            var choice = new TaskCompletionSource<IReadOnlyList<LogEntry>>();
+            var picked = new List<LogEntry>();
+            _rerollBox = UiKit.Rect("Reroll", _sceneBg.transform.parent).Place(154, 470, 700, 70 + failed.Count * 52);
+            UiKit.Box(_rerollBox, "Bg", new Color(0.08f, 0.05f, 0.03f, 0.92f), frame: true).rectTransform.Fill();
+            UiKit.Label(_rerollBox, "失敗した判定を、運命のコイン（1 晩 1 枚）で振り直せます", 18, Theme.GoldLight, 16, 12, 668, 28);
+            for (int i = 0; i < failed.Count; i++)
+            {
+                var e = failed[i];
+                UiKit.Button(_rerollBox, $"● {e.Who} のコインで振り直す", () => { picked.Add(e); choice.TrySetResult(picked); }, 16, 48 + i * 52, 420, 44, 18, gold: true);
+            }
+            UiKit.Button(_rerollBox, "このまま進む", () => choice.TrySetResult(picked), 452, 48, 232, 44, 18);
+            if (_autoTurns > 0) choice.TrySetResult(new[] { failed[0] });   // the bot always tries its luck once
+            var result = await choice.Task;
+            UnityEngine.Object.Destroy(_rerollBox.gameObject);
+            _rerollBox = null;
+            return result;
         }
 
         Character Actor => _game.Party[Mathf.Clamp(_selected, 0, _game.Party.Count - 1)];
@@ -432,7 +464,8 @@ namespace Tavern.Unity.App
             try
             {
                 var report = await step();
-                foreach (var e in report.Entries) _pending.Enqueue(e);
+                foreach (var e in report.Entries.Where(e => !_shown.Contains(e))) _pending.Enqueue(e);
+                _shown.Clear();
                 _app.Save(_game);
                 if (_game.Ended) { try { System.IO.File.Delete(_app.SavePath); } catch { } }
                 return true;
@@ -476,7 +509,8 @@ namespace Tavern.Unity.App
             if (_diceRolling || Time.time < _holdUntil) return;
             if (_pending.Count == 0)
             {
-                if (_diceImage.gameObject.activeSelf && Time.time > _holdUntil) HideDice();
+                if (_drained != null) { var d = _drained; _drained = null; d.TrySetResult(true); return; }
+                if (_diceImage.gameObject.activeSelf && Time.time > _holdUntil && _rerollBox == null) HideDice();
                 return;
             }
             var e = _pending.Dequeue();
@@ -646,16 +680,56 @@ namespace Tavern.Unity.App
             UiKit.Button(_overlay.transform, "酒場（タイトル）へ戻る", _app.ShowTitle, 682, 470, 300, 60, 22, gold: true);
         }
 
+        // ================================================================ growth between acts
+
+        void ShowGrowthIfDue()
+        {
+            if (_busy || _pending.Count > 0 || _typing != null || _diceRolling || _overlay.transform.childCount > 0) return;
+            var name = _game.State.PendingGrowth.FirstOrDefault();
+            if (name == null) return;
+            var who = _game.Find(name);
+            if (who == null) { _game.State.PendingGrowth.Remove(name); return; }
+            if (_autoTurns > 0) { _game.Grow(name, _app.Db.Classes[who.ClassId].AttackStat); RefreshParty(); return; }
+
+            var shade = UiKit.Box(_overlay.transform, "Shade", new Color(0, 0, 0, 0.55f));
+            shade.rectTransform.Fill();
+            var panel = UiKit.Panel(_overlay.transform, "Growth", 560, 300, 800, 420).transform;
+            var pic = UiKit.Picture(panel, ArtLibrary.Get(who.Portrait), 30, 30, 160, 240);
+            pic.uvRect = ArtLibrary.Cover(pic.texture, 160, 240, 0.7f);
+            UiKit.Label(panel, $"{who.Name} は成長する", 32, Theme.Gold, 220, 30, 560, 46, serif: true);
+            UiKit.Label(panel, $"第{_game.State.Act - 1}幕を越えた。伸ばしたいものを一つ選んでください。", 18, Theme.Dim, 220, 84, 560, 30);
+            var stats = new[] { Stat.Might, Stat.Skill, Stat.Wits, Stat.Spirit };
+            for (int i = 0; i < stats.Length; i++)
+            {
+                var st = stats[i];
+                UiKit.Button(panel, $"{st.Label()} +{who.Modifier(st)} → +{Math.Min(5, who.Modifier(st) + 1)}", () => Grow(name, st.Label()),
+                    220 + (i % 2) * 280, 130 + (i / 2) * 70, 268, 60, 22, gold: st.Label() == _app.Db.Classes[who.ClassId].AttackStat);
+            }
+            UiKit.Button(panel, $"最大 HP {who.MaxHp} → {who.MaxHp + TavernGame.ToughenAmount}", () => Grow(name, "hp"), 220, 270, 548, 60, 22);
+            UiKit.Label(panel, "力=腕っぷし　技=器用さ・素早さ（かわす判定にも効く）　知=知識・魔法　心=意志・話術・信仰", 15, Theme.Dim, 30, 350, 740, 50);
+        }
+
+        void Grow(string name, string choice)
+        {
+            _game.Grow(name, choice);
+            UiKit.Clear(_overlay.transform);
+            _app.Save(_game);
+            var last = _game.State.Log.LastOrDefault();
+            if (last != null) AppendLog(last, instant: true);
+            RefreshParty();
+        }
+
         // ================================================================ autoplay (checks without a person)
 
         void Autoplay()
         {
+            ShowGrowthIfDue();
             if (_game.Ended)
             {
                 if (_pending.Count == 0 && _typing == null && !_diceRolling && _overlay.transform.childCount == 0) ShowEnding();
                 return;
             }
-            if (_autoTurns <= 0 || _busy || _pending.Count > 0 || _typing != null || _diceRolling) return;
+            if (_autoTurns <= 0 || _busy || _pending.Count > 0 || _typing != null || _diceRolling || _game.State.PendingGrowth.Count > 0) return;
             if (_autoWait <= 0) { _autoWait = Time.time + 1.2f; return; }
             if (Time.time < _autoWait) return;
             _autoWait = 0;

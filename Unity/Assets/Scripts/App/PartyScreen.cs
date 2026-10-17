@@ -94,6 +94,7 @@ namespace Tavern.Unity.App
             s.Empty = UiKit.Rect("Empty", panel.transform).Fill().gameObject;
             UiKit.Button(s.Empty.transform, "＋ 冒険者を加える", () => { SetEnabled(s, true); Refresh(); }, 130, 340, 300, 80, 24);
             s.ClassId = classes[index % 4];
+            SetEnabled(s, false);
             return s;
         }
 

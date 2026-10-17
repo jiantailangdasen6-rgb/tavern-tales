@@ -65,16 +65,30 @@ namespace Tavern.Core.Gm
         public async Task<IReadOnlyList<JObject>> PlanAsync(string userText, Func<IReadOnlyList<JObject>, string> resolve,
             bool highlight = false, CancellationToken ct = default)
         {
+            var entries = await AskPlanAsync(userText, highlight, ct).ConfigureAwait(false);
+            AnswerPlan(resolve(entries));
+            return entries;
+        }
+
+        List<ToolCall> _openPlanCalls = new List<ToolCall>();
+
+        /// <summary>First half of PlanAsync: asks for the plan. The game must call AnswerPlan before anything else.</summary>
+        public async Task<IReadOnlyList<JObject>> AskPlanAsync(string userText, bool highlight = false, CancellationToken ct = default)
+        {
             var llm = Pick(highlight);
             _history.Add(new ChatMessage(Role.User, userText));
             var plan = await llm.ChatAsync(_history, new[] { PlanTool }, PlanTool.Name, ct).ConfigureAwait(false);
-            var calls = plan.ToolCalls.Where(c => c.Name == PlanTool.Name).ToList();
-            _history.Add(new ChatMessage(Role.Assistant, plan.Content, calls, raw: plan.Raw));
-            var entries = calls.SelectMany(c => c.Arguments["actions"] is JArray a ? a.OfType<JObject>() : Enumerable.Empty<JObject>()).ToList();
-            var answer = resolve(entries);
-            foreach (var c in calls) _history.Add(new ChatMessage(Role.Tool, answer, toolName: c.Name));
-            if (calls.Count == 0) _history.Add(new ChatMessage(Role.User, answer));   // a backend that ignored the tool
-            return entries;
+            _openPlanCalls = plan.ToolCalls.Where(c => c.Name == PlanTool.Name).ToList();
+            _history.Add(new ChatMessage(Role.Assistant, plan.Content, _openPlanCalls, raw: plan.Raw));
+            return _openPlanCalls.SelectMany(c => c.Arguments["actions"] is JArray a ? a.OfType<JObject>() : Enumerable.Empty<JObject>()).ToList();
+        }
+
+        /// <summary>Second half: the dice results (or other outcome) go back to the AI as the tool result.</summary>
+        public void AnswerPlan(string answer)
+        {
+            foreach (var c in _openPlanCalls) _history.Add(new ChatMessage(Role.Tool, answer, toolName: c.Name));
+            if (_openPlanCalls.Count == 0) _history.Add(new ChatMessage(Role.User, answer));   // a backend that ignored the tool
+            _openPlanCalls = new List<ToolCall>();
         }
 
         /// <summary>Asks for the narration and suggestions (forced). userText adds facts first (e.g. a combat round summary).</summary>
@@ -125,27 +139,36 @@ namespace Tavern.Core.Gm
         /// <summary>Rolls every planned check (at most one per character); returns the tool-result text for the AI.</summary>
         public string ResolveChecks(IReadOnlyList<JObject> entries, GmTurn turn, Func<Character, int>? extraBonus = null)
         {
-            var lines = new List<string>();
+            RollChecks(entries, turn, extraBonus);
+            return ChecksAnswer(turn);
+        }
+
+        /// <summary>The tool-result text for the checks in a turn (after any rerolls).</summary>
+        public static string ChecksAnswer(GmTurn turn)
+        {
+            var lines = turn.Rejected.Select(r => "受け付けられない: " + r)
+                .Concat(turn.Checks.Select(r => $"- {r.Describe()}（{r.Request.Reason}）")).ToList();
+            return turn.Checks.Count == 0 && turn.Rejected.Count == 0 ? "判定なし。宣言どおりに語ること。"
+                : "判定の結果:\n" + string.Join("\n", lines) + "\nこの結果のとおりに語ること。";
+        }
+
+        /// <summary>Rolls every planned check (at most one per character) into turn.Checks.</summary>
+        public void RollChecks(IReadOnlyList<JObject> entries, GmTurn turn, Func<Character, int>? extraBonus = null)
+        {
             var done = new HashSet<string>();
             foreach (var c in entries.Take(_party.Count * 2))
             {
                 if (c["needs_check"]?.Type == JTokenType.Boolean && !(bool)c["needs_check"]!) continue;
                 var name = (string?)c["character"];
                 var who = _party.FirstOrDefault(p => p.Name == name);
-                if (who == null) { lines.Add(Reject(turn, $"「{name}」という冒険者はいない。")); continue; }
-                if (!who.CanAct) { lines.Add(Reject(turn, $"{who.Name} は倒れていて行動できない。")); continue; }
+                if (who == null) { turn.Rejected.Add($"「{name}」という冒険者はいない。"); continue; }
+                if (!who.CanAct) { turn.Rejected.Add($"{who.Name} は倒れていて行動できない。"); continue; }
                 if (!done.Add(who.Name)) continue;
                 if (!RuleNames.TryParseStat((string?)c["stat"], out var stat)) stat = Stat.Skill;
                 RuleNames.TryParseDifficulty((string?)c["difficulty"], out var difficulty);
                 var request = new CheckRequest(who.Name, stat, difficulty, (string?)c["reason"] ?? "");
-                var result = Checks.Roll(request, who, _rng, extraBonus: extraBonus?.Invoke(who) ?? 0);
-                turn.Checks.Add(result);
-                lines.Add($"- {result.Describe()}（{request.Reason}）");
+                turn.Checks.Add(Checks.Roll(request, who, _rng, extraBonus: extraBonus?.Invoke(who) ?? 0));
             }
-            return lines.Count == 0 ? "判定なし。宣言どおりに語ること。"
-                : "判定の結果:\n" + string.Join("\n", lines) + "\nこの結果のとおりに語ること。";
         }
-
-        static string Reject(GmTurn turn, string why) { turn.Rejected.Add(why); return "受け付けられない: " + why; }
     }
 }

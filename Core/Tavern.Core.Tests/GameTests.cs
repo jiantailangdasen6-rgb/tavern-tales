@@ -138,6 +138,42 @@ namespace Tavern.Core.Tests
         }
 
         [Test]
+        public async Task FateCoin_RerollsAFailedCheck_BeforeTheNarration()
+        {
+            var llm = new ScriptedLlm(
+                Plan(new { character = "ガレス", needs_check = true, stat = "力", difficulty = "難しい", reason = "扉を破る" }),
+                Narr(new { text = "扉が砕けた。", suggestions = new[] { "a" } }));
+            var game = NewGame(llm, new FixedRandom(3, 17), "warrior");
+            game.ChooseRerolls = failed => Task.FromResult<IReadOnlyList<LogEntry>>(failed.ToList());
+
+            var report = await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Text = "扉を蹴破る" } });
+
+            Assert.That(report.Entries.Count(e => e.Kind == LogKind.Roll), Is.EqualTo(2));
+            Assert.That(game.Find("ガレス")!.FateCoins, Is.EqualTo(0));
+            // the AI only hears the reroll
+            var answer = game.Gm.History.Last(m => m.Role == Role.Tool && m.ToolName == GmTools.PlanChecks).Content;
+            Assert.That(answer, Does.Contain("17+3").And.Contain("振り直し"));
+            Assert.That(answer, Does.Not.Contain("3+3"));
+        }
+
+        [Test]
+        public async Task NextAct_GivesEveryoneAGrowthChoice()
+        {
+            var llm = new ScriptedLlm(Plan(), Narr(new { text = "祠に着いた。", suggestions = new[] { "a" }, next_act = true, move_to = "shrine_front" }));
+            var game = NewGame(llm, new FixedRandom(), "warrior", "mage");
+            await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Text = "祠へ" } });
+
+            Assert.That(game.State.Act, Is.EqualTo(2));
+            Assert.That(game.State.PendingGrowth, Is.EquivalentTo(new[] { "ガレス", "エリス" }));
+            Assert.That(game.Grow("ガレス", "hp"), Is.True);
+            Assert.That(game.Find("ガレス")!.MaxHp, Is.EqualTo(21));
+            Assert.That(game.Grow("エリス", "知"), Is.True);
+            Assert.That(game.Find("エリス")!.Modifier(Stat.Wits), Is.EqualTo(4));
+            Assert.That(game.Grow("エリス", "知"), Is.False);
+            Assert.That(game.State.PendingGrowth, Is.Empty);
+        }
+
+        [Test]
         public async Task SaveAndLoad_KeepsStateAndHistory()
         {
             var llm = new ScriptedLlm(Plan(), Narr(new { text = "村に着いた。", suggestions = new[] { "a" }, move_to = "village" }));

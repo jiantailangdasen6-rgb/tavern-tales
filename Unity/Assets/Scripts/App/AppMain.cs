@@ -79,6 +79,7 @@ namespace Tavern.Unity.App
 
             if (Flag("-continue") && File.Exists(SavePath)) ContinueEvening();
             else if (Flag("-quickstart")) StartEvening(PartyScreen.Preset(Db));
+            else if (Flag("-partyscreen")) ShowParty();
             else ShowTitle();
         }
 

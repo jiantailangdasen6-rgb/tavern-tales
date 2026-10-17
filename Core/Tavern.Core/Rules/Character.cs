@@ -18,7 +18,7 @@ namespace Tavern.Core.Rules
         public string Portrait { get; set; } = "";
         readonly Dictionary<Stat, int> _stats = new Dictionary<Stat, int>();
 
-        public int MaxHp { get; }
+        public int MaxHp { get; private set; }
         public int Hp { get; private set; }
         public int MaxFocus { get; }
         public int Focus { get; private set; }
@@ -69,6 +69,12 @@ namespace Tavern.Core.Rules
             FateCoins--;
             return true;
         }
+
+        /// <summary>Growth between acts: one ability +1 (up to +5).</summary>
+        public void Improve(Stat stat) { _stats[stat] = Math.Min(5, _stats[stat] + 1); }
+
+        /// <summary>Growth between acts: more max HP (current HP rises by the same amount).</summary>
+        public void Toughen(int amount) { MaxHp += amount; if (State != LifeState.Dead) Hp += amount; }
 
         /// <summary>Takes and clears the pending bonus.</summary>
         public int ConsumeBonus() { var b = NextCheckBonus; NextCheckBonus = 0; return b; }
