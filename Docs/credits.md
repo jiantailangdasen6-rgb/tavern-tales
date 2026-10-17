@@ -2,7 +2,8 @@
 
 ゲームのタイトル画面の「クレジット」と、配布用 zip の「はじめに.txt」にも同じ内容を載せる。
 表記が必須なのは CC BY 系（Tabletop Audio）だけ。CC0 と PeriTune は任意だが、感謝を込めて載せる。
-ダウンロードした元のファイルは `Logs/audio-src/`（git に入れない）。ゲームに使う分だけを選んで取り込む。
+ダウンロードした元のファイルは `Logs/audio-src/`（git に入れない）。ゲームに使う分だけを `Unity/Assets/Resources/Music`・`Sfx` に取り込む
+（今使っているものはゲーム内の `Resources/Music/credits.txt` に載せる）。
 
 ## 表記が必要
 - **Tabletop Audio**（https://tabletopaudio.com/）— CC BY-NC-ND 4.0（https://creativecommons.org/licenses/by-nc-nd/4.0/）

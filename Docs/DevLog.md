@@ -25,6 +25,12 @@
   自動の実行（`-autoquit` / `-mute`）は無音。
 - 仮絵の追加: 語り部ブラム・ヴェイル・マルタの顔、新しいカード 20 枚（`Tools/ArtGen/jobs/m3.json`、選んだ案は `m1-picks.txt`）。
   場所 10・敵 7・人物 6（`m3b.json`）も。
+- 曲と効果音の素材（2026-10-18 朝）: `Unity/Assets/Resources/Music/music.json` が場面ごとの曲・場所の区分（背景の絵 → 洞窟・墓所・儀式）・効果音・
+  炉の火・ファイルごとの音量の倍率を決める。書いていないものは合成の音を使う。曲は PeriTune・Tabletop Audio・OpenGameArt（CC0）、
+  効果音は Kenney ほか（CC0）。ダウンロードした元の素材は `Logs/audio-src/`（git に入れない）、一覧と規約は `Docs/credits.md`。
+  ゲーム内のクレジットは `Resources/Music/credits.txt`（タイトルの「クレジット」、zip の「はじめに.txt」にも付く）。
+  音量は耳の代わりに `Tavern.Unity.Editor.AudioLevels.Report`（`Logs/audio-levels.txt`、RMS と最大値）で測って、曲は約 -19 dBFS にそろえた。
+  曲の差し替えは music.json の 1 行と gain を直すだけ。
 - 配布: `Tools/Package.ps1` が `dist/tavern-tales-日付.zip`（ゲーム + `Docs/dist/readme.txt` を「はじめに.txt」として）を作る。
   アップロードはしない。展開した exe で起動を確認した。
 - 語りの長さ: 指示に「合わせて 120 字ほど・1 文 40 字ほど」を足した（Flash-Lite で平均 154 字 → 130 字）。

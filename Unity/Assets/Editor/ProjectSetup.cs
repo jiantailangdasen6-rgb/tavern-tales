@@ -1,4 +1,5 @@
 #nullable enable
+using System.Linq;
 using System.IO;
 using Tavern.Unity.App;
 using Tavern.Unity.Boot;
@@ -97,15 +98,19 @@ namespace Tavern.Unity.Editor
             }
         }
 
-        /// <summary>Synthesized audio (Tools/AudioGen): music streams, effects stay in memory; both Vorbis.</summary>
+        /// <summary>
+        /// Audio: the synthesized clips (Resources/Audio) and the free tracks and sounds (Resources/Music, Resources/Sfx).
+        /// Music and long ambience stream, effects stay in memory; all Vorbis.
+        /// </summary>
         static void SetupAudioImport()
         {
-            if (!AssetDatabase.IsValidFolder("Assets/Resources/Audio")) return;
-            foreach (var guid in AssetDatabase.FindAssets("t:AudioClip", new[] { "Assets/Resources/Audio" }))
+            var folders = new[] { "Assets/Resources/Audio", "Assets/Resources/Music", "Assets/Resources/Sfx" }.Where(AssetDatabase.IsValidFolder).ToArray();
+            if (folders.Length == 0) return;
+            foreach (var guid in AssetDatabase.FindAssets("t:AudioClip", folders))
             {
                 var p = AssetDatabase.GUIDToAssetPath(guid);
                 if (!(AssetImporter.GetAtPath(p) is AudioImporter ai)) continue;
-                var music = p.Contains("/bgm/");
+                var music = p.Contains("/bgm/") || p.Contains("/Music/") || p.Contains("ambience");
                 var s = ai.defaultSampleSettings;
                 var load = music ? AudioClipLoadType.Streaming : AudioClipLoadType.CompressedInMemory;
                 if (s.loadType == load && s.compressionFormat == AudioCompressionFormat.Vorbis) continue;

@@ -40,9 +40,11 @@ namespace Tavern.Unity.App
             UiKit.Button(root, "遊び方", () => ShowHelp(root), 760, y, 195, 56, 22);
             UiKit.Button(root, "語り部の記録帳", () => ShowChronicle(root), 965, y, 195, 56, 20);
             y += 72;
-            UiKit.Button(root, "終わる", Application.Quit, 760, y, 400, 56, 22);
+            UiKit.Button(root, "クレジット", () => ShowCredits(root), 760, y, 195, 56, 22);
+            UiKit.Button(root, "終わる", Application.Quit, 965, y, 195, 56, 22);
 
             UiKit.Label(root, _app.Ai.Description, 18, Theme.Dim, 0, 1030, 1900, 30, align: TextAnchor.MiddleRight);
+            if (AppMain.Flag("-showcredits")) ShowCredits(root);   // for screenshots
         }
 
         const string Help =
@@ -101,6 +103,20 @@ namespace Tavern.Unity.App
             var panel = UiKit.Panel(layer, "Panel", 360, 120, 1200, 840).transform;
             UiKit.Label(panel, "遊び方", 36, Theme.Gold, 40, 26, 600, 50, serif: true);
             UiKit.Label(panel, Help, 21, Theme.Ink, 40, 96, 1120, 660).lineSpacing = 1.2f;
+            UiKit.Button(panel, "閉じる", () => Object.Destroy(layer.gameObject), 960, 770, 200, 50, 20, gold: true);
+        }
+
+        /// <summary>Who made the music and sounds (Resources/Music/credits.txt; Tabletop Audio requires it, the rest is thanks).</summary>
+        static void ShowCredits(Transform root)
+        {
+            var layer = UiKit.Rect("Credits", root).Fill();
+            UiKit.Box(layer, "Shade", new Color(0, 0, 0, 0.75f)).rectTransform.Fill();
+            var panel = UiKit.Panel(layer, "Panel", 360, 120, 1200, 840).transform;
+            UiKit.Label(panel, "クレジット", 36, Theme.Gold, 40, 26, 600, 50, serif: true);
+            var text = Resources.Load<TextAsset>("Music/credits")?.text ?? "";
+            var content = UiKit.Scroll(panel, 30, 96, 1140, 650, out _);
+            var label = UiKit.Label(content, text, 20, Theme.Ink);
+            label.lineSpacing = 1.15f;
             UiKit.Button(panel, "閉じる", () => Object.Destroy(layer.gameObject), 960, 770, 200, 50, 20, gold: true);
         }
     }

@@ -278,7 +278,7 @@ namespace Tavern.Unity.App
         void RefreshScene()
         {
             var tex = ArtLibrary.Get(_game.Here.Art);
-            AudioDirector.Music(_game.Ended ? "ending" : _game.InCombat ? (_game.State.Combat!.Enemies.Any(e => e.Boss && e.Alive) ? "boss" : "battle") : _game.State.Location == "tavern" ? "tavern" : "explore", loop: !_game.Ended);
+            AudioDirector.Music(_game.Ended ? "ending_" + _game.State.Ending : _game.InCombat ? (_game.State.Combat!.Enemies.Any(e => e.Boss && e.Alive) ? "boss" : "battle") : _game.State.Location == "tavern" ? "tavern" : AudioDirector.Zone(_game.Here.Art));
             _sceneBg.texture = tex;
             _sceneBg.uvRect = ArtLibrary.Cover(tex, 1008, 672);
             _placeText.text = _game.Here.Name;

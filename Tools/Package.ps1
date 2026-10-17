@@ -18,6 +18,10 @@ Get-ChildItem $build | Where-Object { $_.Name -notlike "*DontShip*" } | ForEach-
 # The readme's file name is Japanese ("hajimeni"); built from code points so this script stays ASCII.
 $readme = [string]::new([char[]]@(0x306F, 0x3058, 0x3081, 0x306B)) + ".txt"
 Copy-Item (Join-Path $root "Docs\dist\readme.txt") (Join-Path $stage $readme)
+# The same credits as the title screen's credits panel (Tabletop Audio's license requires them).
+$utf8 = New-Object System.Text.UTF8Encoding $false
+$credits = [IO.File]::ReadAllText((Join-Path $root "Unity\Assets\Resources\Music\credits.txt"), $utf8)
+[IO.File]::AppendAllText((Join-Path $stage $readme), "`r`n" + $credits, $utf8)
 
 $zip = Join-Path $dist "tavern-tales-$stamp.zip"
 if (Test-Path $zip) { Remove-Item -Force $zip }
