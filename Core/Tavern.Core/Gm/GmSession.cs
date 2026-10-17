@@ -43,6 +43,48 @@ namespace Tavern.Core.Gm
 
         public IReadOnlyList<ChatMessage> History => _history;
 
+        /// <summary>
+        /// How many recent turns go to the AI word for word (0: the whole evening). Older turns are sent as a short recap in the
+        /// system prompt: each narration cut to its start, plus every request to the storyteller. The game repeats the current
+        /// state (place, clues, HP, items) in every turn, so the story holds while each call stays small (the free tier allows
+        /// 250k input tokens a minute, and the full history grew by about 800 tokens a turn). The saved history stays whole.
+        /// </summary>
+        public int KeepTurns { get; set; }
+
+        const int RecapLineChars = 100, RecapLines = 40;
+
+        /// <summary>What is sent to the AI: the system prompt (with the recap of older turns) and the last KeepTurns turns.</summary>
+        public IReadOnlyList<ChatMessage> Window()
+        {
+            // A turn starts at a user message; every tool call before it already has its answer, so any of them can start the window.
+            var starts = Enumerable.Range(1, _history.Count - 1).Where(i => _history[i].Role == Role.User).ToList();
+            if (KeepTurns <= 0 || starts.Count <= KeepTurns) return _history;
+            var cut = starts[starts.Count - KeepTurns];
+            var recap = new List<string>();
+            for (int i = 1; i < cut; i++)
+            {
+                var m = _history[i];
+                if (m.Role == Role.User)
+                    recap.AddRange(m.Content.Split('\n').Where(l => l.StartsWith("【語り部への注文", StringComparison.Ordinal)).Select(l => "（注文）" + l));
+                else if (m.Role == Role.Assistant)
+                {
+                    var told = m.ToolCalls?.FirstOrDefault(c => c.Name == NarrateTool.Name) is ToolCall n ? (string?)n.Arguments["text"] : m.Content;
+                    if (!string.IsNullOrWhiteSpace(told)) recap.Add(Shorten(told!.Trim()));
+                }
+            }
+            var lines = recap.Count > RecapLines ? recap.Take(5).Append("……").Concat(recap.Skip(recap.Count - (RecapLines - 5))) : recap;
+            var system = _history[0].Content + "\n\n## これまでのあらすじ（古い手番の語りの要約。注文はいまも有効）\n" + string.Join("\n", lines.Select(l => "- " + l));
+            return new[] { new ChatMessage(Role.System, system) }.Concat(_history.Skip(cut)).ToList();
+        }
+
+        static string Shorten(string text)
+        {
+            text = text.Replace("\n", " ");
+            if (text.Length <= RecapLineChars) return text;
+            var stop = text.LastIndexOf('。', RecapLineChars - 1);
+            return stop >= 20 ? text.Substring(0, stop + 1) : text.Substring(0, RecapLineChars) + "…";
+        }
+
         public GmSession(ILlmClient llm, Storyteller teller, IReadOnlyList<Character> party, string scenario, IRandom rng, ILlmClient? highlightLlm = null)
             : this(llm, Prompts.System(teller, party, scenario), party, rng, highlightLlm) { }
 
@@ -77,7 +119,7 @@ namespace Tavern.Core.Gm
         {
             var llm = Pick(highlight);
             _history.Add(new ChatMessage(Role.User, userText));
-            var plan = await llm.ChatAsync(_history, new[] { PlanTool }, PlanTool.Name, ct).ConfigureAwait(false);
+            var plan = await llm.ChatAsync(Window(), new[] { PlanTool }, PlanTool.Name, ct).ConfigureAwait(false);
             _openPlanCalls = plan.ToolCalls.Where(c => c.Name == PlanTool.Name).ToList();
             _history.Add(new ChatMessage(Role.Assistant, plan.Content, _openPlanCalls, raw: plan.Raw));
             return _openPlanCalls.SelectMany(c => c.Arguments["actions"] is JArray a ? a.OfType<JObject>() : Enumerable.Empty<JObject>()).ToList();
@@ -103,7 +145,7 @@ namespace Tavern.Core.Gm
         {
             var llm = Pick(highlight);
             if (userText != null) _history.Add(new ChatMessage(Role.User, userText));
-            var reply = await llm.ChatAsync(_history, new[] { NarrateTool }, NarrateTool.Name, ct).ConfigureAwait(false);
+            var reply = await llm.ChatAsync(Window(), new[] { NarrateTool }, NarrateTool.Name, ct).ConfigureAwait(false);
             turn.Model = NameOf(llm);
             var narrate = reply.ToolCalls.FirstOrDefault(c => c.Name == NarrateTool.Name);
             if (narrate != null)

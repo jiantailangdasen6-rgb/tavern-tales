@@ -76,14 +76,17 @@ namespace Tavern.Core.Game
             var state = new GameState { ScenarioId = scenario.Id, StorytellerId = teller.Id, Location = scenario.Start };
             if (scenario.Id.StartsWith("gen_")) state.ScenarioJson = Newtonsoft.Json.JsonConvert.SerializeObject(scenario);
             state.Visited.Add(scenario.Start);
-            var gm = new GmSession(llm, SystemPrompt(teller, party, scenario, db), party, rng, highlightLlm);
+            var gm = new GmSession(llm, SystemPrompt(teller, party, scenario, db), party, rng, highlightLlm) { KeepTurns = RecentTurns };
             return new TavernGame(db, scenario, teller, party, state, gm, rng);
         }
+
+        /// <summary>Player messages sent word for word each call (a combat round has two); older ones go as a recap (GmSession.KeepTurns).</summary>
+        public const int RecentTurns = 10;
 
         internal static TavernGame Restore(ContentDb db, ScenarioDef scenario, Storyteller teller, List<Character> party, GameState state,
             IEnumerable<ChatMessage> history, ILlmClient llm, ILlmClient? highlightLlm, IRandom rng)
         {
-            var gm = new GmSession(llm, SystemPrompt(teller, party, scenario, db), party, rng, highlightLlm, history);
+            var gm = new GmSession(llm, SystemPrompt(teller, party, scenario, db), party, rng, highlightLlm, history) { KeepTurns = RecentTurns };
             return new TavernGame(db, scenario, teller, party, state, gm, rng);
         }
 
