@@ -27,11 +27,11 @@ namespace Tavern.Core.Gm
         public ILlmClient Current => _chain[_current];
         public string Name => Current.Name;
 
-        public async Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, CancellationToken ct = default)
+        public async Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, string? forceTool = null, CancellationToken ct = default)
         {
             while (true)
             {
-                try { return await Current.ChatAsync(messages, tools, ct).ConfigureAwait(false); }
+                try { return await Current.ChatAsync(messages, tools, forceTool, ct).ConfigureAwait(false); }
                 catch (Exception ex) when ((ex is LlmRateLimitException || ex is LlmUnavailableException) && _current + 1 < _chain.Count)
                 {
                     var from = Current;

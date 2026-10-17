@@ -57,6 +57,7 @@ namespace Tavern.Core.Gm
     public interface ILlmClient
     {
         string Name { get; }
-        Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, CancellationToken ct = default);
+        /// <param name="forceTool">When set, the model must answer by calling this tool (the game fixes the order of a turn).</param>
+        Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, string? forceTool = null, CancellationToken ct = default);
     }
 }

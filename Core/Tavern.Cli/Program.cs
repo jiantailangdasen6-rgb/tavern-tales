@@ -65,7 +65,7 @@ foreach (var input in Inputs())
     var text = input == "begin" ? "物語を始めてください。最初の場面を語ってください。" : body.Replace(" / ", "\n");
     Console.WriteLine($"\n=== プレイヤー: {input}");
     var sw = Stopwatch.StartNew();
-    var turn = await gm.PlayAsync(text, big);
+    var turn = input == "begin" ? await gm.OpenAsync(text) : await gm.PlayAsync(text, big);
     foreach (var c in turn.Checks) Console.WriteLine($"  [サイコロ] {c.Describe()}（{c.Request.Reason}）");
     foreach (var r in turn.Rejected) Console.WriteLine($"  [却下] {r}");
     Console.WriteLine($"--- {Storyteller.Olwen.Name}（{turn.Model}、{sw.Elapsed.TotalSeconds:0.0} 秒）\n{turn.Narration}");
@@ -81,9 +81,9 @@ sealed class CountingLlm : ILlmClient
     public int Calls { get; private set; }
     public CountingLlm(ILlmClient inner) { _inner = inner; }
     public string Name => _inner.Name;
-    public Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, CancellationToken ct = default)
+    public Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, string? forceTool = null, CancellationToken ct = default)
     {
         Calls++;
-        return _inner.ChatAsync(messages, tools, ct);
+        return _inner.ChatAsync(messages, tools, forceTool, ct);
     }
 }

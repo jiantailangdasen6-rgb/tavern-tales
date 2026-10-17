@@ -26,7 +26,7 @@ namespace Tavern.Core.Gm
             _http = http; _model = model; _baseUrl = baseUrl.TrimEnd('/'); _contextTokens = contextTokens;
         }
 
-        public async Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, CancellationToken ct = default)
+        public async Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, string? forceTool = null, CancellationToken ct = default)
         {
             var body = new JObject
             {
@@ -36,6 +36,8 @@ namespace Tavern.Core.Gm
                 ["messages"] = new JArray(messages.Select(ToJson)),
                 ["options"] = new JObject { ["num_ctx"] = _contextTokens, ["temperature"] = 0.8 },
             };
+            // Ollama cannot force a call; offering only the wanted tool is the closest thing.
+            if (forceTool != null) tools = tools.Where(t => t.Name == forceTool).ToList();
             if (tools.Count > 0)
                 body["tools"] = new JArray(tools.Select(t => new JObject
                 {

@@ -13,11 +13,13 @@ namespace Tavern.Core.Tests
     {
         readonly Queue<LlmReply> _replies;
         public List<List<ChatMessage>> Sent { get; } = new();
+        public List<string?> Forced { get; } = new();
         public ScriptedLlm(params LlmReply[] replies) { _replies = new(replies); }
         public string Name => "scripted";
-        public Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, CancellationToken ct = default)
+        public Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, string? forceTool = null, CancellationToken ct = default)
         {
             Sent.Add(new List<ChatMessage>(messages));
+            Forced.Add(forceTool);
             return Task.FromResult(_replies.Dequeue());
         }
     }
@@ -32,33 +34,41 @@ namespace Tavern.Core.Tests
 
         static ToolCall Call(string name, object args) => new(name, JObject.FromObject(args));
 
+        static ToolCall Plan(params object[] actions) => Call(GmTools.PlanChecks, new { actions });
+        static ToolCall Narrate(string text, params string[] suggestions) => Call(GmTools.Narrate, new { text, suggestions });
+
         [Test]
-        public async Task CheckIsRolledByTheGame_AndResultIsSentBack()
+        public async Task EveryPlannedCheckIsRolledByTheGame_ThenNarrated()
         {
             var llm = new ScriptedLlm(
-                new LlmReply("ロッコが錠に指をかける。", new[] { Call(GmTools.RequestCheck, new { character = "ロッコ", stat = "技", difficulty = "難しい", reason = "罠を外す" }) }),
-                new LlmReply("カチリ、と罠が外れた。", new[] { Call(GmTools.SuggestActions, new { actions = new[] { "扉を開ける", "奥を覗く" } }) }));
-            var gm = new GmSession(llm, Storyteller.Olwen, Party(), "森の祠", new FixedRandom(15));
+                new LlmReply("", new[] { Plan(
+                    new { character = "ロッコ", needs_check = true, stat = "技", difficulty = "難しい", reason = "罠を外す" },
+                    new { character = "ガレス", needs_check = false },
+                    new { character = "エリス", stat = "知", difficulty = "普通", reason = "碑文を読む" }) }),
+                new LlmReply("", new[] { Narrate("カチリ、と罠が外れた。", "扉を開ける", "奥を覗く", "碑文を写す", "帰る") }));
+            var gm = new GmSession(llm, Storyteller.Olwen, Party(), "森の祠", new FixedRandom(15, 4));
 
-            var turn = await gm.PlayAsync("ロッコ: 扉の罠を外す");
+            var turn = await gm.PlayAsync("ロッコ: 扉の罠を外す\nエリス: 碑文を読む");
 
-            Assert.That(turn.Checks, Has.Count.EqualTo(1));
+            Assert.That(turn.Checks, Has.Count.EqualTo(2));
             Assert.That(turn.Checks[0].Total, Is.EqualTo(18));
             Assert.That(turn.Checks[0].Succeeded, Is.True);
-            Assert.That(turn.Narration, Does.Contain("錠").And.Contain("カチリ"));
-            Assert.That(turn.Suggestions, Is.EqualTo(new[] { "扉を開ける", "奥を覗く" }));
-            // second call must carry the dice result as a tool message
+            Assert.That(turn.Checks[1].Succeeded, Is.False);
+            Assert.That(turn.Narration, Is.EqualTo("カチリ、と罠が外れた。"));
+            Assert.That(turn.Suggestions, Is.EqualTo(new[] { "扉を開ける", "奥を覗く", "碑文を写す" }));
+            // the turn order is forced: plan first, then narrate with the dice results in the history
+            Assert.That(llm.Forced, Is.EqualTo(new[] { GmTools.PlanChecks, GmTools.Narrate }));
             var lastSent = llm.Sent[1][^1];
             Assert.That(lastSent.Role, Is.EqualTo(Role.Tool));
-            Assert.That(lastSent.Content, Does.Contain("成功"));
+            Assert.That(lastSent.Content, Does.Contain("成功").And.Contain("失敗"));
         }
 
         [Test]
         public async Task UnknownCharacter_IsRejected_NotRolled()
         {
             var llm = new ScriptedLlm(
-                new LlmReply("", new[] { Call(GmTools.RequestCheck, new { character = "ガレス", stat = "力", difficulty = "普通", reason = "x" }) }),
-                new LlmReply("ロッコが代わりに挑む。", new ToolCall[0]));
+                new LlmReply("", new[] { Plan(new { character = "ガレス", stat = "力", difficulty = "普通", reason = "x" }) }),
+                new LlmReply("", new[] { Narrate("ロッコが代わりに挑む。") }));
             var gm = new GmSession(llm, Storyteller.Olwen, Party(), "", new FixedRandom());
 
             var turn = await gm.PlayAsync("x");
@@ -66,6 +76,18 @@ namespace Tavern.Core.Tests
             Assert.That(turn.Checks, Is.Empty);
             Assert.That(turn.Rejected, Has.Count.EqualTo(1));
             Assert.That(llm.Sent[1][^1].Content, Does.Contain("いない"));
+        }
+
+        [Test]
+        public async Task Opening_SkipsThePlan_AndPlainTextIsAccepted()
+        {
+            var llm = new ScriptedLlm(new LlmReply("夕暮れの森。", new ToolCall[0]));
+            var gm = new GmSession(llm, Storyteller.Olwen, Party(), "", new FixedRandom());
+
+            var turn = await gm.OpenAsync("始めて");
+
+            Assert.That(turn.Narration, Is.EqualTo("夕暮れの森。"));
+            Assert.That(llm.Forced, Is.EqualTo(new[] { GmTools.Narrate }));
         }
 
         [Test]

@@ -46,9 +46,9 @@ namespace Tavern.Core.Gm
             _http = http; _apiKey = apiKey; _model = model; _thinkingLevel = thinkingLevel;
         }
 
-        public async Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, CancellationToken ct = default)
+        public async Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, string? forceTool = null, CancellationToken ct = default)
         {
-            var body = BuildRequest(messages, tools, _thinkingLevel);
+            var body = BuildRequest(messages, tools, _thinkingLevel, forceTool);
             for (int attempt = 0; ; attempt++)
             {
                 using var req = new HttpRequestMessage(HttpMethod.Post,
@@ -100,7 +100,7 @@ namespace Tavern.Core.Gm
             catch (JsonException) { return null; }
         }
 
-        internal static JObject BuildRequest(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, string? thinkingLevel)
+        internal static JObject BuildRequest(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, string? thinkingLevel, string? forceTool = null)
         {
             var system = string.Join("\n\n", messages.Where(m => m.Role == Role.System).Select(m => m.Content));
             var contents = new JArray();
@@ -151,6 +151,11 @@ namespace Tavern.Core.Gm
                         ["name"] = t.Name, ["description"] = t.Description, ["parametersJsonSchema"] = t.Parameters,
                     })),
                 });
+            if (forceTool != null)
+                body["toolConfig"] = new JObject
+                {
+                    ["functionCallingConfig"] = new JObject { ["mode"] = "ANY", ["allowedFunctionNames"] = new JArray(forceTool) },
+                };
             return body;
         }
 
