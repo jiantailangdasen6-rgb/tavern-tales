@@ -17,6 +17,17 @@
   成長で新しい技のカードを選べるようにする（職業ごとのカードが 3 枚しかないので M3 で 8 枚に増やしてから）。
 - 運命のコインは探索の判定・攻撃・かわす・死のサイコロのどれにも使える（失敗したときに振り直すかを聞く）。戦闘では、ルールの結果（誰が何点）もログに出る。
 
+## M4（演出）・M5（配布）の下準備（2026-10-18 未明）
+- 音: `Tools/AudioGen` が効果音 16（ダイス・大成功・大失敗・命中・空振り・呪文・回復・敵・大技の予告・成長・勝利・敗北・クリック・頁など）と
+  曲 6（酒場・探索・戦闘・ボス・結末・炉の火）を合成して `Unity/Assets/Resources/Audio` に書く（git に入れない。クローンしたら一度実行）。
+  `AudioDirector`: 場面で曲を切り替え（クロスフェード）、酒場の曲の下に炉の火、ログの行に合わせた効果音、右上の「音」で なし/小/中/大（既定は小）。
+  自動の実行（`-autoquit` / `-mute`）は無音。
+- 仮絵の追加: 語り部ブラム・ヴェイル・マルタの顔、新しいカード 20 枚（`Tools/ArtGen/jobs/m3.json`、選んだ案は `m1-picks.txt`）。
+  場所・敵・人物（`m3b.json`）も。
+- 配布: `Tools/Package.ps1` が `dist/tavern-tales-日付.zip`（ゲーム + `Docs/dist/readme.txt` を「はじめに.txt」として）を作る。
+  アップロードはしない。展開した exe で起動を確認した。
+- 語りの長さ: 指示に「合わせて 120 字ほど・1 文 40 字ほど」を足した（Flash-Lite で平均 154 字 → 130 字）。
+
 ## M3（中身を増やす）の途中（2026-10-18 未明）
 - 語り部 4 人（`Storyteller`）: オルウェン（標準）、ブラム（皮肉屋、敵の HP ×1.25・攻撃 +1）、ヴェイル（謎、晩を重ねるごとに正体の
   手がかりを一つずつ。記録帳の晩数で段階が上がる）、マルタ（助言が多い）。キャラ作りの画面とロビーで選ぶ。
@@ -65,6 +76,8 @@ Builds/windows/Tavern.exe -demo -quickstart -autoplay 5 -screenshot Logs/shots/d
 dotnet build Tools/ArtGen -o Logs/artgen-bin && dotnet Logs/artgen-bin/ArtGen.dll import Logs/art/m1 Unity/Assets/Resources/Art --pick id=2,...
 powershell -ExecutionPolicy Bypass -File Tools/RunUnity.ps1 -Method Tavern.Unity.Editor.BuildScript.BuildWindows
 Builds/windows/Tavern.exe -screenshot Logs/shots/x.png -shotat 3 -autoquit 4
+dotnet run --project Tools/AudioGen                                     # 音を作る（Unity/Assets/Resources/Audio）
+powershell -ExecutionPolicy Bypass -File Tools/Package.ps1           # 友人に渡す zip（dist/）
 ```
 
 ## 手元の AI（qwen3:8b）を試して分かったこと（2026-10-17、`Logs/gm-shrine-1.txt`）
