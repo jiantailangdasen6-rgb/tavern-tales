@@ -2,6 +2,8 @@
   "dependencies": {
     "com.tavern.core": "file:../../Core/Tavern.Core",
     "com.unity.inputsystem": "1.19.0",
+    "com.unity.netcode.gameobjects": "2.13.3",
+    "com.unity.services.multiplayer": "2.4.0",
     "com.unity.nuget.newtonsoft-json": "3.2.2",
     "com.unity.render-pipelines.universal": "17.6.0",
     "com.unity.ugui": "2.6.0",

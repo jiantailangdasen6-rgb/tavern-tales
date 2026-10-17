@@ -360,7 +360,7 @@ namespace Tavern.Unity.App
             }
 
             UiKit.Clear(_suggestBox);
-            var sug = _game.State.Suggestions;
+            var sug = _game.Ended ? new List<string>() : _game.State.Suggestions;
             for (int i = 0; i < sug.Count && i < 3; i++)
             {
                 var text = sug[i];

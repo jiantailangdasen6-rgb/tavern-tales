@@ -191,6 +191,28 @@ namespace Tavern.Core.Tests
         }
 
         [Test]
+        public async Task TurnMessage_MirrorsTheHostGame()
+        {
+            var llm = new ScriptedLlm(Plan(), Narr(new { text = "狼だ！", suggestions = new[] { "a", "b" }, start_combat = new[] { "wolf", "wolf" } }));
+            var game = NewGame(llm, new FixedRandom(), "warrior", "mage");
+            game.State.Owners["ガレス"] = "host"; game.State.Owners["エリス"] = "friend";
+            await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Text = "進む" } });
+
+            var json = NetJson.Json(TurnMsg.From(game, new[] { "エリス" }, busy: false));
+            var msg = NetJson.Read<TurnMsg>(json);
+            var (db, s) = Load();
+            var mirror = Mirror.Build(msg, db, s);
+
+            Assert.That(mirror.InCombat);
+            Assert.That(mirror.State.Combat!.Enemies.Select(e => e.Name), Is.EqualTo(new[] { "灰色狼A", "灰色狼B" }));
+            Assert.That(mirror.State.Suggestions, Is.EqualTo(new[] { "a", "b" }));
+            Assert.That(mirror.State.Owners["エリス"], Is.EqualTo("friend"));
+            Assert.That(mirror.State.Log.Last().Seq, Is.EqualTo(game.State.Log.Count));
+            Assert.That(msg.Declared, Is.EqualTo(new[] { "エリス" }));
+            Assert.That(mirror.Party.Select(p => p.Name), Is.EqualTo(new[] { "ガレス", "エリス" }));
+        }
+
+        [Test]
         public async Task SaveAndLoad_KeepsStateAndHistory()
         {
             var llm = new ScriptedLlm(Plan(), Narr(new { text = "村に着いた。", suggestions = new[] { "a" }, move_to = "village" }));

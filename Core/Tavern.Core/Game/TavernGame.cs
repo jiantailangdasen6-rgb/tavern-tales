@@ -282,6 +282,7 @@ namespace Tavern.Core.Game
             else { State.PendingGrowth.Add(character); return false; }
             var entry = LogEntry.Line(LogKind.Event, who.Name, $"{who.Name} は成長した: {text}");
             State.Log.Add(entry);
+            entry.Seq = State.Log.Count;
             Logged?.Invoke(entry);
             return true;
         }
@@ -658,6 +659,7 @@ namespace Tavern.Core.Game
         void Add(TurnReport report, LogEntry e)
         {
             State.Log.Add(e);
+            e.Seq = State.Log.Count;
             report.Entries.Add(e);
             Logged?.Invoke(e);
         }

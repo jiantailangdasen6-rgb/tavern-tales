@@ -9,6 +9,8 @@ namespace Tavern.Core.Game
     public sealed class LogEntry
     {
         public LogKind Kind;
+        /// <summary>Position in the evening's log (1-based), so each PC knows which lines it has already shown.</summary>
+        public int Seq;
         /// <summary>Speaker or actor (storyteller name, character name, "" for the game).</summary>
         public string Who = "";
         public string Text = "";
@@ -59,6 +61,8 @@ namespace Tavern.Core.Game
         public string? Ending;
         public CombatState? Combat;
         public List<LogEntry> Log = new List<LogEntry>();
+        /// <summary>Online: character name -> player name (who plays it). Empty when played alone.</summary>
+        public Dictionary<string, string> Owners = new Dictionary<string, string>();
         /// <summary>Narration length setting: short / normal / long.</summary>
         public string NarrationLength = "normal";
         /// <summary>Characters who still choose their growth for the act just finished.</summary>
