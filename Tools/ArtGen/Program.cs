@@ -1,0 +1,152 @@
+using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json.Nodes;
+
+// Image generation for tavern-tales (based on the cardgame project's ArtGen).
+//   dotnet run --project Tools/ArtGen -- <jobs.json> --engine fal|flux|sdxl --out DIR [--seeds 1,2] [--only id,..]
+// jobs.json: [{ "id": "olwen", "kind": "portrait"|"scene"|"creature", "aspect": "16:9"|"2:3"|"1:1", "prompt": "subject..." }]
+// - fal  : fal.ai FLUX.1 Kontext Pro text-to-image (key from env FAL_KEY, never printed or stored)
+// - flux : local ComfyUI, FLUX.1 schnell fp8
+// - sdxl : local ComfyUI, Juggernaut XL v9
+// The shared style text lives in Style below; Docs/art/style-guide.md is the source of truth.
+
+var a = args.ToList();
+string? Opt(string n) { int i = a.IndexOf(n); return i >= 0 && i + 1 < a.Count ? a[i + 1] : null; }
+var jobsPath = a.Count > 0 ? a[0] : throw new Exception("jobs.json is required");
+var engine = Opt("--engine") ?? "fal";
+var outDir = Opt("--out") ?? throw new Exception("--out DIR is required");
+var seeds = (Opt("--seeds") ?? "1,2").Split(',').Select(long.Parse).ToArray();
+var only = Opt("--only")?.Split(',').ToHashSet();
+Directory.CreateDirectory(outDir);
+
+using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
+int ok = 0, fail = 0;
+foreach (var job in JsonNode.Parse(File.ReadAllText(jobsPath, Encoding.UTF8))!.AsArray())
+{
+    var id = job!["id"]!.GetValue<string>();
+    if (only != null && !only.Contains(id)) continue;
+    var kind = job["kind"]?.GetValue<string>() ?? "portrait";
+    var aspect = job["aspect"]?.GetValue<string>() ?? "2:3";
+    var prompt = Style.Build(kind, job["prompt"]!.GetValue<string>());
+    foreach (var seed in seeds)
+    {
+        var outPath = Path.Combine(outDir, $"{id}_{engine}_{seed}.png");
+        if (File.Exists(outPath)) { Console.WriteLine($"{id} {engine} {seed} ... exists"); continue; }
+        try
+        {
+            var bytes = engine == "fal" ? await Fal.TextToImage(http, prompt, aspect, seed)
+                : await Comfy.Generate(http, engine, prompt, Style.Negative, seed, aspect);
+            await File.WriteAllBytesAsync(outPath, bytes);
+            Console.WriteLine($"{id} {engine} {seed} ... OK"); ok++;
+        }
+        catch (Exception ex) { Console.WriteLine($"{id} {engine} {seed} ... FAILED: {ex.Message}"); fail++; }
+    }
+}
+Console.WriteLine($"done: ok {ok} / failed {fail}");
+return fail == 0 ? 0 : 1;
+
+static class Style
+{
+    /// <summary>The look: heavy classical oil painting, like old fantasy-novel plates (owner's choice 2026-10-17).</summary>
+    public const string Bible =
+        "A classical oil painting on canvas in the manner of nineteenth-century romantic and academic painters and vintage fantasy book plates: " +
+        "visible brushstrokes, canvas texture and rich glazes; a muted earthy palette of umber, ochre, deep olive, slate blue and dark crimson; " +
+        "dramatic chiaroscuro with warm candle or firelight against deep shadows; atmospheric depth with softer, darker edges in the background. " +
+        "Serious and grounded, painterly, not photorealistic, not anime, not cartoon, not smooth digital art.";
+
+    const string NoText = "No text, letters, numbers, logos, signatures, watermarks, borders or frames anywhere.";
+    const string Anatomy = "Correct anatomy: each visible hand has exactly five fingers, and figures hold only the objects described.";
+
+    public const string Negative =
+        "text, letters, watermark, signature, frame, border, anime, cartoon, 3d render, photo, plastic, smooth digital art, oversaturated, extra fingers, deformed hands";
+
+    /// <summary>Subject first (long style text first made models ignore the subject in the cardgame project).</summary>
+    public static string Build(string kind, string subject) => kind switch
+    {
+        "scene" => $"Subject: {subject} An empty scene with no figures. Style: {Bible} {NoText}",
+        "creature" => $"Subject: {subject} Style: {Bible} The creature is fully visible and centred, nothing important touches the edges. {Anatomy} {NoText}",
+        "card" => $"Subject: {subject} Style: {Bible} The effect itself is the main subject, centred; any figure is secondary or seen from behind. {Anatomy} {NoText}",
+        _ => $"Subject: {subject} Style: {Bible} The figure is centred with the face clearly lit. {Anatomy} {NoText}",
+    };
+}
+
+static class Fal
+{
+    public static async Task<byte[]> TextToImage(HttpClient http, string prompt, string aspect, long seed)
+    {
+        var key = Environment.GetEnvironmentVariable("FAL_KEY") ?? Environment.GetEnvironmentVariable("FAL_KEY", EnvironmentVariableTarget.User)
+            ?? throw new Exception("FAL_KEY is not set");
+        var body = new JsonObject
+        {
+            ["prompt"] = prompt, ["aspect_ratio"] = aspect, ["num_images"] = 1, ["seed"] = seed,
+            ["safety_tolerance"] = "5", ["output_format"] = "png",
+        };
+        for (int attempt = 0; ; attempt++)
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Post, "https://fal.run/fal-ai/flux-pro/kontext/text-to-image")
+            { Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json") };
+            req.Headers.Authorization = new AuthenticationHeaderValue("Key", key);
+            using var res = await http.SendAsync(req);
+            var text = await res.Content.ReadAsStringAsync();
+            if ((int)res.StatusCode == 429 && attempt < 20) { await Task.Delay(3000 + attempt * 1000); continue; }
+            if (!res.IsSuccessStatusCode) throw new Exception($"HTTP {(int)res.StatusCode}: {text[..Math.Min(300, text.Length)]}");
+            var url = JsonNode.Parse(text)!["images"]?[0]?["url"]?.GetValue<string>() ?? throw new Exception("no image url");
+            var bytes = url.StartsWith("data:") ? Convert.FromBase64String(url[(url.IndexOf(',') + 1)..]) : await http.GetByteArrayAsync(url);
+            if (bytes.Length < 20000) throw new Exception("suspiciously small image (blocked by the safety filter?)");
+            return bytes;
+        }
+    }
+}
+
+static class Comfy
+{
+    const string BaseUrl = "http://127.0.0.1:8188";
+
+    static (int w, int h) Size(string aspect) => aspect switch
+    {
+        "16:9" => (1344, 768), "1:1" => (1024, 1024), "3:4" => (896, 1152), _ => (832, 1216),
+    };
+
+    public static async Task<byte[]> Generate(HttpClient http, string engine, string prompt, string negative, long seed, string aspect)
+    {
+        var (w, h) = Size(aspect);
+        bool flux = engine == "flux";
+        var ckpt = flux ? "flux1-schnell-fp8.safetensors" : "Juggernaut-XL_v9_RunDiffusionPhoto_v2.safetensors";
+        var wf = new JsonObject
+        {
+            ["4"] = Node("CheckpointLoaderSimple", new JsonObject { ["ckpt_name"] = ckpt }),
+            ["6"] = Node("CLIPTextEncode", new JsonObject { ["text"] = prompt, ["clip"] = Link("4", 1) }),
+            ["7"] = Node("CLIPTextEncode", new JsonObject { ["text"] = flux ? "" : negative, ["clip"] = Link("4", 1) }),
+            ["5"] = Node("EmptyLatentImage", new JsonObject { ["width"] = w, ["height"] = h, ["batch_size"] = 1 }),
+            ["3"] = Node("KSampler", new JsonObject
+            {
+                ["seed"] = seed, ["steps"] = flux ? 4 : 30, ["cfg"] = flux ? 1.0 : 4.5,
+                ["sampler_name"] = flux ? "euler" : "dpmpp_2m", ["scheduler"] = flux ? "simple" : "karras", ["denoise"] = 1.0,
+                ["model"] = Link("4", 0), ["positive"] = Link("6", 0), ["negative"] = Link("7", 0), ["latent_image"] = Link("5", 0),
+            }),
+            ["8"] = Node("VAEDecode", new JsonObject { ["samples"] = Link("3", 0), ["vae"] = Link("4", 2) }),
+            ["9"] = Node("SaveImage", new JsonObject { ["filename_prefix"] = "tavern", ["images"] = Link("8", 0) }),
+        };
+        var body = new JsonObject { ["prompt"] = wf, ["client_id"] = "tavern-artgen" };
+        using var res = await http.PostAsync(BaseUrl + "/prompt", new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json"));
+        var text = await res.Content.ReadAsStringAsync();
+        if (!res.IsSuccessStatusCode) throw new Exception($"ComfyUI /prompt {(int)res.StatusCode}: {text[..Math.Min(300, text.Length)]}");
+        var promptId = JsonNode.Parse(text)!["prompt_id"]!.GetValue<string>();
+        var deadline = DateTime.UtcNow.AddMinutes(10);
+        while (DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(1500);
+            var entry = JsonNode.Parse(await http.GetStringAsync($"{BaseUrl}/history/{promptId}"))![promptId];
+            if (entry == null) continue;
+            if (entry["status"]?["status_str"]?.GetValue<string>() == "error") throw new Exception("ComfyUI failed");
+            var img = entry["outputs"]?["9"]?["images"]?[0];
+            if (img == null) continue;
+            var url = $"{BaseUrl}/view?filename={Uri.EscapeDataString(img["filename"]!.GetValue<string>())}&subfolder={Uri.EscapeDataString(img["subfolder"]?.GetValue<string>() ?? "")}&type={img["type"]!.GetValue<string>()}";
+            return await http.GetByteArrayAsync(url);
+        }
+        throw new TimeoutException("ComfyUI timed out");
+    }
+
+    static JsonObject Node(string type, JsonObject inputs) => new() { ["class_type"] = type, ["inputs"] = inputs };
+    static JsonArray Link(string node, int slot) => new(node, slot);
+}

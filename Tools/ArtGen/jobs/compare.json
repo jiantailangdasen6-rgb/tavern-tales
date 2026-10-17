@@ -1,0 +1,8 @@
+[
+  { "id": "temple", "kind": "scene", "aspect": "16:9",
+    "prompt": "The interior of a half-flooded ancient temple corridor: broken stone pillars rising from still, dark water, shafts of pale light falling through a collapsed ceiling, moss and hanging roots on the walls, a distant archway glowing faintly green." },
+  { "id": "olwen", "kind": "portrait", "aspect": "2:3",
+    "prompt": "Half-length portrait of an old bard storyteller with a long white beard and kind, mischievous eyes, wearing a worn deep-green travelling cloak, holding a small wooden lyre in his left hand, seated beside a tavern hearth; warm firelight on his face, a dark tavern interior with hanging lanterns and wooden beams behind him." },
+  { "id": "boneknight", "kind": "creature", "aspect": "2:3",
+    "prompt": "A towering undead knight made of bleached old bones inside rusted ancient plate armour with a tattered dark-red surcoat, gripping one long notched greatsword with both hands, faint cold green light glowing in the eye sockets of its helm, standing in a misty ruined crypt. Full body, facing the viewer, a dark fantasy mood." }
+]

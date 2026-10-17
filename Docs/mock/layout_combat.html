@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><title>Layout mock - combat</title>
+<style>
+:root{--ink:#e9dcc0;--dim:#a8977a;--gold:#c9a24a;--panel:#1d1712;--panel2:#271f18;--edge:#5a4630;--red:#9b2f24;--blue:#3d5e8c;--green:#4f7a3a}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1600px;height:900px;background:#120e0b;color:var(--ink);font-family:"Yu Gothic UI","Yu Gothic",sans-serif;font-size:15px;overflow:hidden}
+.serif{font-family:"Yu Mincho","YuMincho",serif}
+.frame{border:1px solid var(--edge);box-shadow:inset 0 0 0 1px #000,0 0 0 1px #000;background:linear-gradient(#211a14,#18130f);border-radius:4px}
+.top{position:absolute;left:12px;right:12px;top:10px;height:44px;display:flex;align-items:center;padding:0 16px;gap:18px}
+.top .title{font-size:20px;color:var(--gold);letter-spacing:.1em}
+.top .actname{color:var(--ink);font-size:16px}
+.top .sp{flex:1}
+.btn{border:1px solid var(--edge);background:linear-gradient(#3a2d20,#241b13);color:var(--ink);padding:6px 14px;border-radius:3px;font-size:14px}
+.btn.gold{border-color:var(--gold);color:#f3e2b5}
+/* party */
+.party{position:absolute;left:12px;top:64px;width:250px;height:560px;padding:10px;display:flex;flex-direction:column;gap:10px}
+.pc{padding:10px;display:grid;grid-template-columns:64px 1fr;gap:4px 10px;background:var(--panel2);border:1px solid var(--edge);border-radius:4px}
+.por{grid-row:span 4;width:64px;height:80px;border:1px solid var(--gold);border-radius:3px;background:radial-gradient(circle at 50% 35%,#8a6a4a 0 18%,transparent 19%),radial-gradient(ellipse at 50% 95%,#5c4632 0 45%,transparent 46%),linear-gradient(#3b3026,#1c1611)}
+.pc .nm{font-size:16px}.pc .cl{color:var(--dim);font-size:12px}
+.bar{height:9px;background:#0c0907;border:1px solid #000;border-radius:2px;position:relative}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:1px}
+.lbl{font-size:11px;color:var(--dim);display:flex;justify-content:space-between}
+.chip{font-size:11px;padding:1px 6px;border-radius:8px;border:1px solid}
+.down{opacity:.75}.down .por{filter:grayscale(1)}
+.saves{display:flex;gap:4px;align-items:center;font-size:11px;color:#d88}
+.saves b{width:10px;height:10px;border-radius:50%;border:1px solid #d88;display:inline-block}
+.saves b.x{background:#b33}
+/* scene */
+.scene{position:absolute;left:274px;top:64px;width:840px;height:560px;overflow:hidden}
+.scene .art{position:absolute;inset:0;background:
+ radial-gradient(ellipse at 50% 30%,rgba(120,150,140,.35),transparent 60%),
+ radial-gradient(ellipse at 20% 80%,rgba(40,60,40,.6),transparent 50%),
+ linear-gradient(180deg,#2b3a35 0%,#1d2622 45%,#141a16 70%,#0d100d 100%)}
+.pillar{position:absolute;bottom:0;width:70px;background:linear-gradient(90deg,#1a1f1c,#36403a 40%,#1a1f1c);border-top:10px solid #3e4842}
+.scene .cap{position:absolute;left:12px;top:10px;font-size:13px;color:var(--dim);background:rgba(0,0,0,.45);padding:3px 10px;border-radius:3px}
+.enemy{position:absolute;bottom:70px;text-align:center}
+.sil{margin:0 auto;background:#07090a;opacity:.92;filter:drop-shadow(0 0 12px rgba(140,200,180,.25))}
+.ehp{width:170px;margin:8px auto 0;background:rgba(0,0,0,.6);padding:5px 8px;border:1px solid var(--edge);border-radius:3px}
+.ehp .n{font-size:14px;margin-bottom:4px}
+.warn{position:absolute;left:50%;transform:translateX(-50%);top:46px;padding:8px 22px;background:rgba(60,10,8,.85);border:1px solid #c4553f;color:#ffd9c9;font-size:16px;border-radius:3px;white-space:nowrap}
+.dice{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);text-align:center}
+.dice .who{margin-top:6px;font-size:15px;background:rgba(0,0,0,.6);padding:4px 12px;border-radius:3px}
+.teller{position:absolute;right:12px;bottom:12px;display:flex;gap:8px;align-items:center;background:rgba(0,0,0,.55);padding:6px 10px;border:1px solid var(--edge);border-radius:3px;font-size:13px}
+.teller .p{width:40px;height:40px;border-radius:50%;border:1px solid var(--gold);background:radial-gradient(circle at 50% 40%,#9a7d5c 0 25%,#3a2d22 26%)}
+/* log */
+.log{position:absolute;left:1126px;top:64px;width:462px;height:826px;padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.log h3{font-size:14px;color:var(--gold);font-weight:normal;letter-spacing:.2em;border-bottom:1px solid var(--edge);padding-bottom:6px}
+.nar{font-size:17px;line-height:1.75;color:#efe3c8}
+.nar .sp{color:var(--gold);font-size:13px;display:block;margin-bottom:2px}
+.decl{font-size:14px;line-height:1.6;padding:6px 10px;border-left:3px solid;background:rgba(255,255,255,.03)}
+.roll{font-size:13px;color:var(--dim);padding-left:10px}
+.roll b{color:#f1d58a}
+.req{margin-top:auto;font-size:13px;color:var(--dim);border:1px dashed var(--edge);padding:8px 10px;border-radius:3px}
+/* action */
+.act{position:absolute;left:12px;top:636px;width:1102px;height:254px;padding:12px 14px;display:flex;gap:16px}
+.cards{display:flex;gap:10px}
+.card{width:118px;height:168px;border:1px solid var(--gold);border-radius:5px;background:linear-gradient(#3a2c1f,#1f1812);padding:6px;display:flex;flex-direction:column;gap:4px}
+.card .im{height:70px;border-radius:3px;background:linear-gradient(135deg,#5b4733,#2a2018)}
+.card .t{font-size:14px;color:#f3e2b5}.card .d{font-size:11px;color:var(--dim);line-height:1.4}
+.card .c{font-size:11px;color:#8fb3e0}
+.card.sel{box-shadow:0 0 0 2px #f1d58a,0 0 18px rgba(241,213,138,.4)}
+.basic{display:flex;flex-direction:column;gap:8px;width:120px}
+.right{flex:1;display:flex;flex-direction:column;gap:10px}
+.sugg{display:flex;gap:8px;flex-wrap:wrap}
+.sugg .btn{font-size:13px}
+.inp{display:flex;gap:8px}
+.inp .box{flex:1;height:64px;border:1px solid var(--edge);background:#0e0b08;border-radius:3px;padding:8px 10px;color:var(--dim);font-size:14px}
+.st{font-size:13px;color:var(--dim);display:flex;gap:14px;align-items:center}
+.coin{width:16px;height:16px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ffe9a6,#b98a2a);display:inline-block;vertical-align:middle;border:1px solid #6b4d14}
+.tag{position:absolute;font-size:12px;color:#ffd27a;background:#5a1d10;padding:2px 8px;border-radius:2px;letter-spacing:.05em}
+</style></head><body>
+
+<div class="top frame">
+  <span class="title serif">酒場の語り部</span>
+  <span class="actname serif">第二幕 ― 沈んだ神殿サンケン・テンプル</span>
+  <span style="color:var(--dim);font-size:13px">戦闘 3 手番目</span>
+  <span class="sp"></span>
+  <span style="color:var(--dim);font-size:13px">経過 1:12</span>
+  <span class="btn">地図</span><span class="btn">記録帳</span><span class="btn">キャラシート</span><span class="btn gold">語り部への注文</span>
+</div>
+
+<div class="party frame">
+  <div class="pc">
+    <div class="por" style="border-color:#c96a4a"></div>
+    <div><span class="nm">ガレス</span> <span class="cl">戦士</span></div>
+    <div class="lbl"><span>HP</span><span>9 / 18</span></div>
+    <div class="bar"><i style="width:50%;background:#a8382b"></i></div>
+    <div style="display:flex;justify-content:space-between;align-items:center"><span class="lbl" style="gap:6px">気力 3/4 <span class="coin"></span></span><span class="chip" style="color:#9fd08a;border-color:#4f7a3a">宣言済み</span></div>
+  </div>
+  <div class="pc">
+    <div class="por" style="border-color:#6a8ad0"></div>
+    <div><span class="nm">エリス</span> <span class="cl">魔法使い</span> <span class="chip" style="color:#f1d58a;border-color:#8a6d2a;font-size:10px">あなた</span></div>
+    <div class="lbl"><span>HP</span><span>11 / 12</span></div>
+    <div class="bar"><i style="width:92%;background:#a8382b"></i></div>
+    <div style="display:flex;justify-content:space-between;align-items:center"><span class="lbl" style="gap:6px">気力 2/6 <span class="coin"></span></span><span class="chip" style="color:#f1d58a;border-color:#8a6d2a">考え中</span></div>
+  </div>
+  <div class="pc down">
+    <div class="por" style="border-color:#7a7a7a"></div>
+    <div><span class="nm">ロッコ</span> <span class="cl">盗賊</span></div>
+    <div class="lbl"><span>HP</span><span>0 / 14</span></div>
+    <div class="bar"><i style="width:0"></i></div>
+    <div class="saves">死のサイコロ <b class="x"></b><b></b><b></b></div>
+  </div>
+  <div style="margin-top:auto;font-size:12px;color:var(--dim);line-height:1.6;padding:4px">● は運命のコイン（1 晩 1 枚）<br>倒れた仲間は「起こす」で助けられる</div>
+</div>
+
+<div class="scene frame">
+  <div class="art"></div>
+  <div class="pillar" style="left:40px;height:430px"></div>
+  <div class="pillar" style="left:170px;height:380px;opacity:.7"></div>
+  <div class="pillar" style="right:60px;height:440px"></div>
+  <div class="pillar" style="right:190px;height:360px;opacity:.7"></div>
+  <div class="cap">背景の絵（場面ごと）・敵の立ち絵がここに入る</div>
+
+  <div class="enemy" style="left:150px">
+    <div class="sil" style="width:120px;height:170px;clip-path:polygon(40% 0,60% 0,65% 18%,85% 30%,80% 60%,70% 100%,30% 100%,20% 60%,15% 30%,35% 18%)"></div>
+    <div class="ehp"><div class="n">沼のゴブリン</div><div class="bar"><i style="width:35%;background:#7a9a3a"></i></div></div>
+  </div>
+  <div class="enemy" style="left:330px;bottom:60px">
+    <div class="sil" style="width:200px;height:300px;clip-path:polygon(45% 0,55% 0,60% 12%,80% 20%,95% 2%,98% 8%,85% 35%,78% 65%,72% 100%,28% 100%,22% 65%,10% 40%,20% 20%,40% 12%)"></div>
+    <div class="ehp" style="width:220px;border-color:#c4553f"><div class="n">骨の騎士 <span style="font-size:11px;color:#e98">ボス</span></div><div class="bar"><i style="width:60%;background:#b0402e"></i></div></div>
+  </div>
+  <div class="enemy" style="left:600px">
+    <div class="sil" style="width:110px;height:160px;clip-path:polygon(40% 0,60% 0,65% 18%,85% 30%,80% 60%,70% 100%,30% 100%,20% 60%,15% 30%,35% 18%)"></div>
+    <div class="ehp"><div class="n">沼のゴブリン</div><div class="bar"><i style="width:100%;background:#7a9a3a"></i></div></div>
+  </div>
+
+  <div class="warn serif">骨の騎士が剣を高く掲げた……（次の手番に大技）</div>
+
+  <div class="dice">
+    <svg width="150" height="150" viewBox="0 0 100 100">
+      <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6e7c1"/><stop offset="1" stop-color="#b8935a"/></linearGradient></defs>
+      <polygon points="50,3 93,27 93,73 50,97 7,73 7,27" fill="url(#g)" stroke="#4a3418" stroke-width="2"/>
+      <polygon points="50,20 78,66 22,66" fill="none" stroke="#7a5a2a" stroke-width="1.5"/>
+      <line x1="50" y1="3" x2="50" y2="20" stroke="#7a5a2a"/><line x1="93" y1="27" x2="78" y2="66" stroke="#7a5a2a"/><line x1="7" y1="27" x2="22" y2="66" stroke="#7a5a2a"/>
+      <line x1="93" y1="73" x2="78" y2="66" stroke="#7a5a2a"/><line x1="7" y1="73" x2="22" y2="66" stroke="#7a5a2a"/><line x1="50" y1="97" x2="50" y2="66" stroke="#7a5a2a" opacity="0"/>
+      <text x="50" y="56" text-anchor="middle" font-size="22" font-family="Georgia,serif" font-weight="bold" fill="#3a2410">17</text>
+    </svg>
+    <div class="who">ガレスの攻撃 ― 17 + 力 3 = <b style="color:#f1d58a">20</b>（守り 14）命中！</div>
+  </div>
+
+  <div class="teller"><div class="p"></div><div><div style="color:var(--gold)">語り部 オルウェン</div><div style="color:var(--dim);font-size:11px">標準</div></div></div>
+</div>
+
+<div class="log frame">
+  <h3 class="serif">語 り</h3>
+  <div class="nar serif"><span class="sp">オルウェン</span>水没した回廊に、骨の騎士の鎧が軋む音が響く。崩れた柱の陰から、沼のゴブリンどもが錆びた槍を構えて躍り出た。</div>
+  <div class="decl" style="border-color:#c96a4a">ガレス：「なぎ払い」で手前のゴブリンを狙う</div>
+  <div class="roll">ガレス 攻撃 <b>17</b> + 3 = 20 → 命中、3 ダメージ</div>
+  <div class="decl" style="border-color:#7a7a7a">ロッコ：骨の騎士の背後に回り込む</div>
+  <div class="roll">ロッコ かわす <b>4</b> + 2 = 6 → 失敗、5 ダメージ（倒れた）</div>
+  <div class="nar serif"><span class="sp">オルウェン</span>黒い刃が弧を描き、ロッコの体が冷たい水の中へ沈む。……だが、まだ息はある。若き盗賊の指が、かすかに水面を掻いた。</div>
+  <div class="req">語り部への注文（物語の外のやり取り）<br><span style="color:#cbb">例：「もう少し短めで」「さっきの酒場の娘をまた出して」</span></div>
+</div>
+
+<div class="act frame">
+  <div class="cards">
+    <div class="card sel"><div class="im" style="background:linear-gradient(135deg,#c2521f,#3a160a)"></div><div class="t">ファイアボール</div><div class="d">敵全員に 4 ダメージ</div><div class="c">気力 2 ・ 知</div></div>
+    <div class="card"><div class="im" style="background:linear-gradient(135deg,#6b6fae,#1e1f3a)"></div><div class="t">魔力感知</div><div class="d">隠されたものを見抜く</div><div class="c">気力 1 ・ 知</div></div>
+    <div class="card"><div class="im" style="background:linear-gradient(135deg,#5f8f7a,#132520)"></div><div class="t">眠りの霧</div><div class="d">敵 1 体を 1 手番止める</div><div class="c">気力 2 ・ 知</div></div>
+  </div>
+  <div class="basic">
+    <span class="btn">攻撃</span><span class="btn">守る</span><span class="btn">手伝う</span><span class="btn">道具を使う</span><span class="btn" style="border-color:#c96a4a">ロッコを起こす</span>
+  </div>
+  <div class="right">
+    <div class="st">あなたの手番 ― 3 人がそろうと語りが進む　<span>ガレス：宣言済み</span><span>ロッコ：倒れている</span></div>
+    <div class="sugg"><span class="btn">倒れたロッコを水から引き上げる</span><span class="btn">骨の騎士の大技に備え、柱の陰へ</span><span class="btn">ファイアボールでゴブリンを一掃する</span></div>
+    <div class="inp"><div class="box">自由に行動を書く…（例：天井の鎖を焼き切って、シャンデリアを骨の騎士に落とす）</div><span class="btn gold" style="align-self:stretch;display:flex;align-items:center;padding:0 22px;font-size:16px">宣言する</span></div>
+    <div class="st"><span class="coin"></span> 運命のコイン：残り 1 枚（振り直しに使える）</div>
+  </div>
+</div>
+</body></html>
