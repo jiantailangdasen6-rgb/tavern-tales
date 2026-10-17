@@ -80,6 +80,12 @@ namespace Tavern.Unity.App
             if (Flag("-continue") && File.Exists(SavePath)) ContinueEvening();
             else if (Flag("-quickstart")) StartEvening(PartyScreen.Preset(Db));
             else if (Flag("-partyscreen")) ShowParty();
+            else if (int.TryParse(Arg("-dicetest"), out var face))
+            {
+                UiKit.Box(Root, "Bg", Theme.Bg).rectTransform.Fill();
+                UiKit.Picture(Root, Dice.Texture, 660, 240, 600, 600);
+                Dice.Roll(face, 1.2f);
+            }
             else ShowTitle();
         }
 

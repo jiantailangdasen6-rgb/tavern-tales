@@ -64,6 +64,52 @@ namespace Tavern.Unity.Dice
             gameObject.SetActive(false);
         }
 
+        const int AtlasCols = 5, AtlasRows = 4, Cell = 256;
+        const int BakeLayer = 29;
+
+        /// <summary>
+        /// Draws the numbers 1..20 (ivory cells, dark numbers, 1 and 20 in red) with a throwaway camera and reads them
+        /// into a texture, so the numbers are part of the die's surface.
+        /// </summary>
+        Texture2D BakeNumbers()
+        {
+            var w = AtlasCols * Cell; var h = AtlasRows * Cell;
+            var rt = RenderTexture.GetTemporary(w, h, 24, RenderTextureFormat.ARGB32);
+            var root = new GameObject("Bake");
+            root.transform.position = new Vector3(0, 1000, 0);
+            var camGo = new GameObject("BakeCam");
+            camGo.transform.SetParent(root.transform, false);
+            camGo.transform.localPosition = new Vector3(w / 2f / Cell, -h / 2f / Cell, -10);
+            var cam = camGo.AddComponent<Camera>();
+            cam.orthographic = true; cam.orthographicSize = h / 2f / Cell;
+            cam.clearFlags = CameraClearFlags.SolidColor; cam.backgroundColor = new Color(0.93f, 0.86f, 0.68f);
+            cam.cullingMask = 1 << BakeLayer; cam.targetTexture = rt; cam.enabled = false;
+            camGo.AddComponent<UniversalAdditionalCameraData>().renderPostProcessing = false;
+            for (int i = 0; i < 20; i++)
+            {
+                var label = new GameObject("n" + (i + 1)) { layer = BakeLayer };
+                label.transform.SetParent(root.transform, false);
+                label.transform.localPosition = new Vector3(i % AtlasCols + 0.5f, -(i / AtlasCols + 0.5f) + 0.04f, 0);
+                var tm = label.AddComponent<TextMesh>();
+                tm.text = (i + 1) == 6 || (i + 1) == 9 ? (i + 1) + "." : (i + 1).ToString();   // a dot tells 6 from 9
+                tm.font = Theme.Serif;
+                tm.fontSize = 128; tm.characterSize = 0.036f; tm.fontStyle = FontStyle.Bold;
+                tm.anchor = TextAnchor.MiddleCenter; tm.alignment = TextAlignment.Center;
+                tm.color = i == 19 || i == 0 ? new Color(0.55f, 0.07f, 0.03f) : new Color(0.17f, 0.1f, 0.04f);
+                label.GetComponent<MeshRenderer>().sharedMaterial = Theme.Serif.material;
+            }
+            cam.Render();
+            var prev = RenderTexture.active;
+            RenderTexture.active = rt;
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, true) { name = "D20Numbers", wrapMode = TextureWrapMode.Clamp, anisoLevel = 4 };
+            tex.ReadPixels(new Rect(0, 0, w, h), 0, 0);
+            tex.Apply(true, true);
+            RenderTexture.active = prev;
+            RenderTexture.ReleaseTemporary(rt);
+            Destroy(root);
+            return tex;
+        }
+
         GameObject BuildDie()
         {
             float p = (1 + Mathf.Sqrt(5)) / 2;
@@ -79,7 +125,7 @@ namespace Tavern.Unity.Dice
                 0,11,5, 0,5,1, 0,1,7, 0,7,10, 0,10,11, 1,5,9, 5,11,4, 11,10,2, 10,7,6, 7,1,8,
                 3,9,4, 3,4,2, 3,2,6, 3,6,8, 3,8,9, 4,9,5, 2,4,11, 6,2,10, 8,6,7, 9,8,1,
             };
-            var verts = new List<Vector3>(); var tris = new List<int>();
+            var verts = new List<Vector3>(); var tris = new List<int>(); var uvs = new List<Vector2>();
             var go = new GameObject("D20") { layer = Layer };
             for (int i = 0; i < 20; i++)
             {
@@ -93,25 +139,26 @@ namespace Tavern.Unity.Dice
                 var up = (a - centre).normalized;
                 _faces.Add((n, up));
 
-                // The number, slightly above the face, reading outward.
-                var label = new GameObject("n" + (i + 1)) { layer = Layer };
-                label.transform.SetParent(go.transform, false);
-                label.transform.localPosition = centre + n * 0.012f;
-                label.transform.localRotation = Quaternion.LookRotation(-n, up);
-                var tm = label.AddComponent<TextMesh>();
-                tm.text = (i + 1).ToString();
-                tm.font = Theme.Serif;
-                tm.fontSize = 96; tm.characterSize = 0.034f; tm.fontStyle = FontStyle.Bold;
-                tm.anchor = TextAnchor.MiddleCenter; tm.alignment = TextAlignment.Center;
-                tm.color = i == 19 || i == 0 ? new Color(0.5f, 0.06f, 0.03f) : new Color(0.16f, 0.09f, 0.03f);
-                label.GetComponent<MeshRenderer>().sharedMaterial = Theme.Serif.material;
+                // Map the face onto its number's cell of the atlas: "up" points to vertex a, "right" is as seen from outside.
+                var right = Vector3.Cross(up, -n).normalized;
+                var radius = (a - centre).magnitude;
+                var cell = new Vector2((i % AtlasCols + 0.5f) / AtlasCols, 1 - (i / AtlasCols + 0.5f) / AtlasRows);
+                var half = new Vector2(0.5f / AtlasCols, 0.5f / AtlasRows) * 0.98f;
+                foreach (var corner in new[] { a, b, c })
+                {
+                    var d = corner - centre;
+                    uvs.Add(cell + new Vector2(Vector3.Dot(d, right) / radius * half.x, Vector3.Dot(d, up) / radius * half.y));
+                }
             }
             var mesh = new Mesh { name = "d20" };
-            mesh.SetVertices(verts); mesh.SetTriangles(tris, 0); mesh.RecalculateNormals(); mesh.RecalculateBounds();
+            mesh.SetVertices(verts); mesh.SetTriangles(tris, 0); mesh.SetUVs(0, uvs); mesh.RecalculateNormals(); mesh.RecalculateBounds();
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             var mr = go.AddComponent<MeshRenderer>();
-            // The material is an asset made by ProjectSetup, so the URP Lit shader is included in builds.
-            mr.sharedMaterial = Resources.Load<Material>("Materials/DiceBody");
+            // The material is an asset made by ProjectSetup (so the URP Lit shader is in builds); the numbers are baked into its texture.
+            var mat = new Material(Resources.Load<Material>("Materials/DiceBody"));
+            mat.SetTexture("_BaseMap", BakeNumbers());
+            mat.SetColor("_BaseColor", Color.white);
+            mr.sharedMaterial = mat;
             go.transform.localScale = Vector3.one * 1.25f;
             return go;
         }
