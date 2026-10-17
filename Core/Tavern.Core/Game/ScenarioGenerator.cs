@@ -67,6 +67,7 @@ namespace Tavern.Core.Game
             sb.AppendLine("- 各場所の art は一覧から内容がいちばん近い絵を選ぶ（同じ絵を何か所で使ってもよい）。");
             sb.AppendLine("- 戦いは encounter に敵の id を並べる。第 1 幕に 1 回、第 2 幕に 1〜2 回（2〜3 体まで）。最後の場所の encounter の先頭にボス。");
             sb.AppendLine("- 人物は 2〜4 人（art は肖像の一覧から）。手がかりは 4〜6 個（where は見つかる場所の id）。");
+            sb.AppendLine("- 人物の名前に、語り部（オルウェン・ブラム・ヴェイル・マルタ）や冒険者と同じ名前を使わない。");
             sb.AppendLine("- 弱点・鍵（weakness）: ボス戦を楽にする方法を一つ。手がかりで知ることができる。");
             sb.AppendLine("- secret には冒険者が調べて初めて分かることを書く。truth には物語の真相をまとめる。");
             sb.AppendLine("- 結末は success（成功）/ bitter（苦い成功）/ failure（失敗）の 3 つ。");
@@ -78,7 +79,7 @@ namespace Tavern.Core.Game
         {
             JObject Str(string d = "") => new JObject { ["type"] = "string", ["description"] = d };
             JObject Enum(IEnumerable<string> v) => new JObject { ["type"] = "string", ["enum"] = new JArray(v.ToArray()) };
-            JObject Arr(JObject item) => new JObject { ["type"] = "array", ["items"] = item };
+            JObject Arr(JObject item, int min = 0) { var o = new JObject { ["type"] = "array", ["items"] = item }; if (min > 0) o["minItems"] = min; return o; }
             JObject Obj(JObject props, params string[] req) => new JObject { ["type"] = "object", ["properties"] = props, ["required"] = new JArray(req) };
             var bg = story.Catalog.Backgrounds.Select(b => b.Id).ToList();
             var bgHelp = string.Join(" / ", story.Catalog.Backgrounds.Select(b => $"{b.Id}={b.About}"));
@@ -91,7 +92,7 @@ namespace Tavern.Core.Game
                     ["hook"] = Str("導入: 依頼が舞い込む経緯"),
                     ["truth"] = Str("真相（冒険者には最初は秘密）"),
                     ["weakness"] = Str("ボスの弱点・物語の鍵"),
-                    ["acts"] = Arr(Obj(new JObject { ["title"] = Str(), ["goal"] = Str("この幕の目標") }, "title", "goal")),
+                    ["acts"] = Arr(Obj(new JObject { ["title"] = Str(), ["goal"] = Str("この幕の目標") }, "title", "goal"), 3),
                     ["locations"] = Arr(Obj(new JObject
                     {
                         ["id"] = Str("半角英小文字と _"), ["name"] = Str(), ["art"] = new JObject { ["type"] = "string", ["enum"] = new JArray(bg.ToArray()), ["description"] = bgHelp },
@@ -99,13 +100,13 @@ namespace Tavern.Core.Game
                         ["description"] = Str("見て分かる様子"), ["secret"] = Str("調べて分かること（なければ空）"), ["trap"] = Str("罠（なければ空）"),
                         ["exits"] = Arr(Str("つながる場所の id")),
                         ["encounter"] = new JObject { ["type"] = "array", ["items"] = new JObject { ["type"] = "string", ["enum"] = new JArray(db.Enemies.Keys.ToArray()) }, ["description"] = enemyHelp },
-                    }, "id", "name", "art", "act", "description", "exits")),
+                    }, "id", "name", "art", "act", "description", "exits"), 7),
                     ["npcs"] = Arr(Obj(new JObject
                     {
                         ["id"] = Str(), ["name"] = Str(), ["art"] = new JObject { ["type"] = "string", ["enum"] = new JArray(story.Catalog.Portraits.Select(p => p.Id).ToArray()), ["description"] = ptHelp },
                         ["where"] = Str("いる場所の id"), ["role"] = Str("役回りと、知っていること"),
-                    }, "id", "name", "art", "where", "role")),
-                    ["clues"] = Arr(Obj(new JObject { ["id"] = Str(), ["text"] = Str(), ["where"] = Str("場所の id") }, "id", "text", "where")),
+                    }, "id", "name", "art", "where", "role"), 2),
+                    ["clues"] = Arr(Obj(new JObject { ["id"] = Str(), ["text"] = Str(), ["where"] = Str("場所の id") }, "id", "text", "where"), 4),
                     ["boss"] = Enum(bosses),
                     ["endings"] = Obj(new JObject { ["success"] = Str(), ["bitter"] = Str(), ["failure"] = Str() }, "success", "bitter", "failure"),
                 }, "title", "hook", "truth", "weakness", "acts", "locations", "npcs", "clues", "boss", "endings"));
