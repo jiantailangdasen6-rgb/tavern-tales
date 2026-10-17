@@ -247,6 +247,29 @@ namespace Tavern.Core.Tests
         }
 
         [Test]
+        public async Task GeneratedScenario_IsRepairedIntoAPlayableSheet()
+        {
+            var (db, _) = Load();
+            var story = StoryContent.LoadFolder(ContentDir());
+            var party = new List<Character> { TavernGame.CreateCharacter(db, "ガレス", "warrior", "没落騎士") };
+            var s = await ScenarioGenerator.GenerateAsync(new DemoLlm(), story, db, story.Templates[0], party, "海賊", new FixedRandom(0, 0));
+
+            Assert.That(s.Id, Does.StartWith("gen_"));
+            Assert.That(s.Start, Is.EqualTo("tavern"));
+            Assert.That(s.Locations[0].Id, Is.EqualTo("tavern"));
+            var ids = s.Locations.Select(l => l.Id).ToHashSet();
+            Assert.That(s.Locations.All(l => l.Exits.All(ids.Contains)));
+            Assert.That(db.Enemies[s.Boss].Boss);
+            Assert.That(s.Locations.Single(l => l.Encounter.Contains(s.Boss)).Act, Is.EqualTo(3));
+            Assert.That(s.Acts.Select(a => a.N), Is.EqualTo(new[] { 1, 2, 3 }));
+
+            // an evening on it keeps the sheet in its save, so continuing and friends use the same story
+            var game = TavernGame.New(db, s, Storyteller.Olwen, party, new ScriptedLlm(), null, new FixedRandom());
+            var loaded = SaveData.FromJson(SaveData.From(game).ToJson());
+            Assert.That(Scenarios.For(loaded.State, Load().s).Title, Is.EqualTo(s.Title));
+        }
+
+        [Test]
         public async Task NextAct_GivesEveryoneAGrowthChoice()
         {
             var llm = new ScriptedLlm(Plan(), Narr(new { text = "祠に着いた。", suggestions = new[] { "a" }, next_act = true, move_to = "shrine_front" }));

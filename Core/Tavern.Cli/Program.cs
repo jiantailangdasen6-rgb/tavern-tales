@@ -21,7 +21,7 @@ string? Opt(string n) { int i = a.IndexOf(n); return i >= 0 && i + 1 < a.Count ?
 var root = FindRoot();
 var contentDir = Path.Combine(root, "Unity", "Assets", "Resources", "Content");
 var db = ContentDb.LoadFolder(contentDir);
-var scenario = ContentDb.LoadScenario(File.ReadAllText(Path.Combine(contentDir, "Scenarios", "grey_shrine.json")));
+ScenarioDef scenario = ContentDb.LoadScenario(File.ReadAllText(Path.Combine(contentDir, "Scenarios", "grey_shrine.json")));
 
 using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
 var counters = new List<CountingLlm>();
@@ -44,16 +44,30 @@ if ((Opt("--engine") ?? "gemini") == "gemini")
 else llm = Counted(new OllamaClient(http, Opt("--model") ?? "qwen3:8b"));
 
 var seed = ulong.TryParse(Opt("--seed"), out var s) ? s : (ulong)DateTime.Now.Ticks;
+var story = StoryContent.LoadFolder(contentDir);
+ScenarioPrompt.World = story.World.Describe();
+var presetParty = new List<Character>
+{
+    TavernGame.CreateCharacter(db, "ガレス", "warrior", "没落した騎士の家の三男。家名を取り戻したい", "pc_warrior_m"),
+    TavernGame.CreateCharacter(db, "エリス", "mage", "魔法学院を追い出された。理由は語りたがらない", "pc_mage_f"),
+    TavernGame.CreateCharacter(db, "ロッコ", "thief", "港町の孤児。お調子者で、光る物に目がない", "pc_thief_m"),
+};
+if (Opt("--generate") is string templateId)
+{
+    var t = story.Template(templateId) ?? story.Templates[0];
+    var sw0 = Stopwatch.StartNew();
+    scenario = await ScenarioGenerator.GenerateAsync(a.Contains("--generate-strong") && highlight != null ? highlight : llm, story, db, t, presetParty, Opt("--request"), new SeededRandom(seed));
+    Console.WriteLine($"[シナリオ生成 {sw0.Elapsed.TotalSeconds:0.0} 秒] {scenario.Title}（{scenario.Template}）\n導入: {scenario.Hook}\n真相: {scenario.Truth}\n鍵: {scenario.Weakness}");
+    foreach (var l in scenario.Locations) Console.WriteLine($"  [{l.Act}] {l.Id} {l.Name}（{l.Art}）→ {string.Join(",", l.Exits)} {(l.Encounter.Count > 0 ? "敵: " + string.Join(",", l.Encounter) : "")}");
+    foreach (var n in scenario.Npcs) Console.WriteLine($"  人物: {n.Name}（{n.Where}）{n.Role}");
+    foreach (var c in scenario.Clues) Console.WriteLine($"  手がかり: {c.Text}（{c.Where}）");
+    if (a.Contains("--generate-only")) return;
+}
 TavernGame game;
 if (Opt("--load") is string loadPath)
     game = SaveData.FromJson(File.ReadAllText(loadPath)).Load(db, scenario, Storyteller.Find(SaveData.FromJson(File.ReadAllText(loadPath)).State.StorytellerId), llm, highlight, new SeededRandom(seed));
 else
-    game = TavernGame.New(db, scenario, Storyteller.Find(Opt("--teller")), new List<Character>
-    {
-        TavernGame.CreateCharacter(db, "ガレス", "warrior", "没落した騎士の家の三男。家名を取り戻したい", "pc_warrior_m"),
-        TavernGame.CreateCharacter(db, "エリス", "mage", "魔法学院を追い出された。理由は語りたがらない", "pc_mage_f"),
-        TavernGame.CreateCharacter(db, "ロッコ", "thief", "港町の孤児。お調子者で、光る物に目がない", "pc_thief_m"),
-    }, llm, highlight, new SeededRandom(seed));
+    game = TavernGame.New(db, scenario, Storyteller.Find(Opt("--teller")), presetParty, llm, highlight, new SeededRandom(seed));
 
 game.Logged += e =>
 {

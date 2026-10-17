@@ -1,0 +1,27 @@
+[
+  { "id": "bg_road", "kind": "scene", "aspect": "16:9", "prompt": "A muddy old trade road winding across rolling moorland under a heavy grey sky, a broken milestone, distant hills, a few crows." },
+  { "id": "bg_marsh", "kind": "scene", "aspect": "16:9", "prompt": "A foggy marsh at dusk: black water between reeds and dead trees, a rotting wooden walkway, will-o'-the-wisp lights in the distance." },
+  { "id": "bg_mountain", "kind": "scene", "aspect": "16:9", "prompt": "A narrow mountain pass between jagged dark cliffs, snow on the peaks, a rope bridge over a deep gorge, cold wind and mist." },
+  { "id": "bg_ruins", "kind": "scene", "aspect": "16:9", "prompt": "The overgrown ruins of an ancient temple on a hill: broken columns, a collapsed dome, carved stone faces covered in moss, evening light." },
+  { "id": "bg_ruins_hall", "kind": "scene", "aspect": "16:9", "prompt": "Inside an ancient ruined temple hall: tall cracked pillars, a mosaic floor partly buried in sand, shafts of light from holes in the roof, a sealed stone door." },
+  { "id": "bg_town", "kind": "scene", "aspect": "16:9", "prompt": "A crowded little market town square at night during a harvest festival: lanterns strung between timber houses, stalls, a bonfire, a stone church tower." },
+  { "id": "bg_manor", "kind": "scene", "aspect": "16:9", "prompt": "The great hall of a gloomy country manor: a long dining table, tall candelabras, faded tapestries, portraits of stern ancestors, rain on the tall windows." },
+  { "id": "bg_cave", "kind": "scene", "aspect": "16:9", "prompt": "A large dark cave lit by a single campfire: rough rock walls, stolen crates and barrels piled up, a narrow tunnel leading deeper." },
+  { "id": "bg_coast", "kind": "scene", "aspect": "16:9", "prompt": "A rocky coast under a stormy sky: a shipwreck on the rocks, waves crashing, a lonely lighthouse on a cliff, seabirds." },
+  { "id": "bg_camp", "kind": "scene", "aspect": "16:9", "prompt": "A small travellers' camp at night in a forest clearing: a campfire, a covered wagon, tethered horses, bedrolls, stars between the trees." },
+
+  { "id": "en_bandit", "kind": "creature", "aspect": "2:3", "prompt": "A rough adult bandit with a scarred face and a hooded cloak, holding one short sword in his right hand, standing on a muddy road." },
+  { "id": "en_bandit_chief", "kind": "creature", "aspect": "2:3", "prompt": "A big brutal bandit chieftain with a fur mantle and a dented iron helmet, holding one heavy battle axe in both hands, standing in a cave lit by fire." },
+  { "id": "en_spider", "kind": "creature", "aspect": "2:3", "prompt": "A giant black cave spider as big as a horse, many glinting eyes, hairy legs, webs hanging around it in a dark cavern." },
+  { "id": "en_cultist", "kind": "creature", "aspect": "2:3", "prompt": "An adult cultist in a dark red hooded robe with a pale painted face, holding one curved ritual dagger in his right hand, candles behind him." },
+  { "id": "en_cult_leader", "kind": "creature", "aspect": "2:3", "prompt": "A tall cult leader in black and crimson robes with a horned silver mask, one hand raised casting a sinister purple flame, an altar behind him." },
+  { "id": "en_troll", "kind": "creature", "aspect": "2:3", "prompt": "A huge hunched mountain troll with grey stony skin, long arms and a tree-trunk club, standing on a snowy mountain pass." },
+  { "id": "en_wraith", "kind": "creature", "aspect": "2:3", "prompt": "A ghostly wraith in tattered black shrouds floating above the ground, a pale skull-like face inside the hood, cold blue light, a ruined hall." },
+
+  { "id": "pt_merchant", "kind": "portrait", "aspect": "2:3", "prompt": "A plump adult travelling merchant in his fifties with a curled moustache, a fur-trimmed coat and many rings, holding one coin purse, beside a covered wagon." },
+  { "id": "pt_priestess", "kind": "portrait", "aspect": "2:3", "prompt": "A calm adult temple priestess in her forties in grey and white robes with a silver sun pendant, holding one candle, in a quiet chapel." },
+  { "id": "pt_noble", "kind": "portrait", "aspect": "2:3", "prompt": "A proud adult noblewoman in her thirties in a dark green velvet gown with a lace collar, a cold smile, standing in a candlelit manor hall." },
+  { "id": "pt_guard", "kind": "portrait", "aspect": "2:3", "prompt": "A weathered adult town guard captain in his forties with a grey moustache, wearing a chainmail coat and a blue tabard, one hand on his sword hilt." },
+  { "id": "pt_witch", "kind": "portrait", "aspect": "2:3", "prompt": "An old hedge witch with wild grey hair and sharp green eyes, wearing layered dark shawls with herbs and bones tied to them, in a smoky hut." },
+  { "id": "pt_fisher", "kind": "portrait", "aspect": "2:3", "prompt": "A weather-beaten adult fisherman in his sixties with a white beard, a knitted cap and an oilskin coat, holding one fishing net, on a stormy shore." }
+]

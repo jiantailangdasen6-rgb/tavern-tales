@@ -1,0 +1,34 @@
+{
+  "backgrounds": [
+    { "id": "bg_tavern", "about": "酒場の店内（暖炉、樽、テーブル）" },
+    { "id": "bg_village", "about": "森の縁の小さな村の広場（夕暮れ）" },
+    { "id": "bg_town", "about": "宿場町の広場・祭りの夜（提灯、屋台、焚き火、教会の塔）" },
+    { "id": "bg_manor", "about": "屋敷の大広間（長い食卓、燭台、肖像画、雨の窓）" },
+    { "id": "bg_road", "about": "荒れ野の街道（曇り空、道標）" },
+    { "id": "bg_camp", "about": "森の空き地の野営地（夜、焚き火、幌馬車）" },
+    { "id": "bg_forest_path", "about": "霧の森の小道" },
+    { "id": "bg_hunter_hut", "about": "森の中の山小屋・猟師小屋（屋内）" },
+    { "id": "bg_marsh", "about": "霧の沼地（黒い水、葦、朽ちた木道、鬼火）" },
+    { "id": "bg_mountain", "about": "険しい山道・吊り橋（雪の峰）" },
+    { "id": "bg_cave", "about": "洞窟・盗賊のねぐら（焚き火、木箱）" },
+    { "id": "bg_coast", "about": "荒れた海岸（難破船、灯台、嵐の空）" },
+    { "id": "bg_ruins", "about": "丘の上の古代遺跡（崩れた柱、苔むした石像）" },
+    { "id": "bg_ruins_hall", "about": "古代神殿の内部（ひび割れた柱、砂に埋もれたモザイク、封じられた石の扉）" },
+    { "id": "bg_shrine_front", "about": "森の奥の苔むした石の祠（扉と碑文、騎士の像）" },
+    { "id": "bg_shrine_inside", "about": "小さな祠・礼拝堂の中（祭壇、燭台、地下への階段）" },
+    { "id": "bg_flooded_hall", "about": "水没した地下の回廊（黒い水、崩れた柱）" },
+    { "id": "bg_prison", "about": "地下牢（鉄格子、鎖、松明）" },
+    { "id": "bg_crypt", "about": "玄室・墓所（石棺、緑の炎、古い旗）" }
+  ],
+  "portraits": [
+    { "id": "pt_elder", "about": "村長・年配の男" },
+    { "id": "pt_hunter", "about": "猟師・腕の立つ女" },
+    { "id": "pt_youth", "about": "若い村人・捕らわれた者" },
+    { "id": "pt_merchant", "about": "商人・隊商の主" },
+    { "id": "pt_priestess", "about": "神殿の女司祭" },
+    { "id": "pt_noble", "about": "貴族の女・領主の一族" },
+    { "id": "pt_guard", "about": "衛兵隊長・兵士" },
+    { "id": "pt_witch", "about": "老いた魔女・まじない師" },
+    { "id": "pt_fisher", "about": "年老いた漁師・船乗り" }
+  ]
+}

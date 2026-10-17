@@ -28,6 +28,7 @@ namespace Tavern.Unity.App
         public static AppMain Instance { get; private set; } = null!;
         public ContentDb Db { get; private set; } = null!;
         public ScenarioDef Scenario { get; private set; } = null!;
+        public StoryContent Story { get; private set; } = null!;
         public AiSetup.Backends Ai { get; private set; } = null!;
         public Transform Root { get; private set; } = null!;
         public DiceRoller Dice { get; private set; } = null!;
@@ -48,6 +49,8 @@ namespace Tavern.Unity.App
             Application.targetFrameRate = 60;
             Db = ContentDb.Load(Text("Content/classes"), Text("Content/cards"), Text("Content/enemies"));
             Scenario = ContentDb.LoadScenario(Text("Content/Scenarios/grey_shrine"));
+            Story = StoryContent.Load(Text("Content/world"), Text("Content/art_catalog"), Text("Content/templates"));
+            ScenarioPrompt.World = Story.World.Describe();
             Ai = AiSetup.Create(Flag("-demo"));
             SavePath = Arg("-savefile") ?? Path.Combine(Application.persistentDataPath, "evening.json");
             AudioListener.volume = Flag("-autoquit") || Flag("-mute") ? 0f : 0.4f;
@@ -79,7 +82,7 @@ namespace Tavern.Unity.App
 
             if (Flag("-onlinehost") || Arg("-onlinejoinfile") != null) StartCoroutine(AutoOnline());
             else if (Flag("-continue") && File.Exists(SavePath)) ContinueEvening();
-            else if (Flag("-quickstart")) StartEvening(PartyScreen.Preset(Db));
+            else if (Flag("-quickstart")) StartEvening(PartyScreen.Preset(Db), Storyteller.Find(Arg("-teller")), Arg("-story") is string st ? new StoryChoice { Prepared = st == "prepared", TemplateId = st == "auto" || st == "prepared" ? null : st } : null);
             else if (Flag("-partyscreen")) ShowParty();
             else if (int.TryParse(Arg("-dicetest"), out var face))
             {
@@ -189,16 +192,47 @@ namespace Tavern.Unity.App
             JoinOnline(File.ReadAllText(file).Trim(), name, preset[index]);
         }
 
-        public void StartEvening(System.Collections.Generic.List<Tavern.Core.Rules.Character> party, Storyteller? teller = null)
+        public async void StartEvening(System.Collections.Generic.List<Tavern.Core.Rules.Character> party, Storyteller? teller = null, StoryChoice? story = null)
         {
-            var game = TavernGame.New(Db, Scenario, teller ?? Storyteller.Olwen, party, Ai.Everyday, Ai.Highlight, new Tavern.Core.Rules.SeededRandom((ulong)DateTime.Now.Ticks));
+            var scenario = await PrepareScenarioAsync(party, story);
+            if (scenario == null) return;
+            var game = TavernGame.New(Db, scenario, teller ?? Storyteller.Olwen, party, Ai.Everyday, Ai.Highlight, new Tavern.Core.Rules.SeededRandom((ulong)DateTime.Now.Ticks));
             ShowTable(game, opening: true);
+        }
+
+        /// <summary>
+        /// The prepared scenario, or one the storyteller writes now (strong model, falls back to the everyday one).
+        /// Shows a waiting screen meanwhile. Null if writing failed (the title shows why).
+        /// </summary>
+        public async System.Threading.Tasks.Task<ScenarioDef?> PrepareScenarioAsync(System.Collections.Generic.IReadOnlyList<Tavern.Core.Rules.Character> party, StoryChoice? story, bool fallBackToPrepared = false)
+        {
+            if (story == null || story.Prepared) return Scenario;
+            UiKit.Clear(Root);
+            var bg = ArtLibrary.Get("bg_tavern");
+            var pic = UiKit.Picture(Root, bg, 0, 0, 1920, 1080);
+            pic.uvRect = ArtLibrary.Cover(bg, 1920, 1080);
+            UiKit.Box(Root, "Shade", new Color(0.05f, 0.03f, 0.02f, 0.72f)).rectTransform.Fill();
+            UiKit.Label(Root, "語り部が今宵の物語を考えている……", 44, Theme.Gold, 0, 470, 1920, 70, serif: true, align: TextAnchor.MiddleCenter);
+            UiKit.Label(Root, "（10〜30 秒ほど）", 22, Theme.Dim, 0, 550, 1920, 40, align: TextAnchor.MiddleCenter);
+            var rng = new Tavern.Core.Rules.SeededRandom((ulong)DateTime.Now.Ticks);
+            var template = Story.Template(story.TemplateId) ?? Story.Templates[rng.Next(0, Story.Templates.Count)];
+            try
+            {
+                return await ScenarioGenerator.GenerateAsync(Ai.Highlight ?? Ai.Everyday, Story, Db, template, party, story.Request, rng);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[Story] " + e);
+                if (fallBackToPrepared) return Scenario;
+                ShowError("物語を作れなかった（" + e.Message + "）。用意された物語で遊ぶこともできます。");
+                return null;
+            }
         }
 
         public void ContinueEvening()
         {
             var save = SaveData.FromJson(File.ReadAllText(SavePath));
-            var game = save.Load(Db, Scenario, Storyteller.Find(save.State.StorytellerId), Ai.Everyday, Ai.Highlight, new Tavern.Core.Rules.SeededRandom((ulong)DateTime.Now.Ticks));
+            var game = save.Load(Db, Scenarios.For(save.State, Scenario), Storyteller.Find(save.State.StorytellerId), Ai.Everyday, Ai.Highlight, new Tavern.Core.Rules.SeededRandom((ulong)DateTime.Now.Ticks));
             if (save.State.Owners.Count > 0) HostResume(game);
             else ShowTable(game, opening: false);
         }

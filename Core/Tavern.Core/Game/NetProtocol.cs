@@ -101,6 +101,6 @@ namespace Tavern.Core.Game
     {
         /// <summary>Builds a read-only copy of the host's game from a turn message (friends draw the table from it).</summary>
         public static TavernGame Build(TurnMsg msg, Content.ContentDb db, Content.ScenarioDef scenario)
-            => msg.Snapshot.Load(db, scenario, Tavern.Core.Gm.Storyteller.Find(msg.Snapshot.State.StorytellerId), new NoLlm(), null, new Rules.SeededRandom(1));
+            => msg.Snapshot.Load(db, Scenarios.For(msg.Snapshot.State, scenario), Tavern.Core.Gm.Storyteller.Find(msg.Snapshot.State.StorytellerId), new NoLlm(), null, new Rules.SeededRandom(1));
     }
 }

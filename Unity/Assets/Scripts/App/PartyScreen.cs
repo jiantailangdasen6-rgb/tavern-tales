@@ -45,6 +45,7 @@ namespace Tavern.Unity.App
 
         readonly OnlineMode _mode;
         Func<Tavern.Core.Gm.Storyteller>? _teller;
+        Func<StoryChoice>? _story;
         InputField? _playerName, _code;
 
         public PartyScreen(AppMain app, OnlineMode mode = OnlineMode.None) { _app = app; _mode = mode; }
@@ -67,7 +68,7 @@ namespace Tavern.Unity.App
             if (_mode == OnlineMode.None) for (int i = 0; i < 3; i++) _slots.Add(BuildSlot(root, i, 90 + i * 590));
             else BuildOnline(root);
             UiKit.Button(root, "おまかせで埋める", FillSamples, 90, 980, 300, 64, 22);
-            if (_mode == OnlineMode.None) _teller = StorytellerPicker.Build(root, 630, 966);
+            if (_mode == OnlineMode.None) { _teller = StorytellerPicker.Build(root, 630, 966); _story = StoryChooser.Build(root, _app.Story, _app.Scenario.Title, 90, 876); }
             UiKit.Button(root, "もどる", _app.ShowTitle, 410, 980, 200, 64, 22);
             _start = UiKit.Button(root, _mode == OnlineMode.Host ? "部屋を作る" : _mode == OnlineMode.Join ? "部屋に入る" : "この顔ぶれで酒場へ", Begin, 1430, 980, 400, 70, 28, gold: true);
             SetEnabled(_slots[0], true);
@@ -77,7 +78,7 @@ namespace Tavern.Unity.App
         Slot BuildSlot(Transform root, int index, float x)
         {
             var s = new Slot();
-            var panel = UiKit.Panel(root, "Slot" + index, x, 180, 560, 770);
+            var panel = UiKit.Panel(root, "Slot" + index, x, 180, 560, 680);
             s.Body = UiKit.Rect("Body", panel.transform).Fill().gameObject;
             var body = s.Body.transform;
 
@@ -97,12 +98,12 @@ namespace Tavern.Unity.App
             UiKit.Label(body, "名前", 18, Theme.Dim, 20, 370, 200, 28);
             s.Name = UiKit.Input(body, "例: ガレス", 20, 398, 520, 48, 22);
             UiKit.Label(body, "生い立ち・性格（自由に）", 18, Theme.Dim, 20, 458, 400, 28);
-            s.Background = UiKit.Input(body, "例: 没落した騎士の家の三男。家名を取り戻したい", 20, 486, 520, 180, 20, multiline: true);
-            UiKit.Button(body, "この席を空ける", () => { SetEnabled(s, false); Refresh(); }, 340, 690, 200, 44, 18);
-            UiKit.Button(body, "前の冒険者を呼ぶ", () => PickFromRoster(s), 20, 690, 300, 44, 18, gold: true);
+            s.Background = UiKit.Input(body, "例: 没落した騎士の家の三男。家名を取り戻したい", 20, 486, 520, 120, 20, multiline: true);
+            UiKit.Button(body, "この席を空ける", () => { SetEnabled(s, false); Refresh(); }, 340, 620, 200, 44, 18);
+            UiKit.Button(body, "前の冒険者を呼ぶ", () => PickFromRoster(s), 20, 620, 300, 44, 18, gold: true);
 
             s.Empty = UiKit.Rect("Empty", panel.transform).Fill().gameObject;
-            UiKit.Button(s.Empty.transform, "＋ 冒険者を加える", () => { SetEnabled(s, true); Refresh(); }, 130, 340, 300, 80, 24);
+            UiKit.Button(s.Empty.transform, "＋ 冒険者を加える", () => { SetEnabled(s, true); Refresh(); }, 130, 300, 300, 80, 24);
             s.ClassId = classes[index % 4];
             SetEnabled(s, false);
             return s;
@@ -200,7 +201,7 @@ namespace Tavern.Unity.App
                 else party.Add(TavernGame.CreateCharacter(_app.Db, name, s.ClassId, s.Background.text.Trim(), s.Art));
             }
             if (party.Count == 0) return;
-            if (_mode == OnlineMode.None) { _app.StartEvening(party, _teller?.Invoke()); return; }
+            if (_mode == OnlineMode.None) { _app.StartEvening(party, _teller?.Invoke(), _story?.Invoke()); return; }
             var player = (_playerName?.text ?? "").Trim();
             if (player.Length == 0) player = party[0].Name + "の中の人";
             _start.interactable = false;

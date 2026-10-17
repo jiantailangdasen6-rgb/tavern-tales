@@ -28,6 +28,7 @@ namespace Tavern.Unity.App
         Button? _start;
         int _startWhen;
         Func<Storyteller>? _teller;
+        Func<StoryChoice>? _story;
 
         public LobbyScreen(AppMain app, bool host, string me, CharacterSave myCharacter)
         {
@@ -49,9 +50,9 @@ namespace Tavern.Unity.App
                 UiKit.Button(root, "コードをコピー", () => GUIUtility.systemCopyBuffer = NetSession.JoinCode ?? "", 840, 300, 240, 50, 20);
             }
             _list = UiKit.Rect("Players", root).Place(460, 390, 1000, 480);
-            _status = UiKit.Label(root, "", 22, Theme.Ink, 0, 890, 1920, 40, align: TextAnchor.MiddleCenter);
+            _status = UiKit.Label(root, "", 20, Theme.Ink, 0, 922, 1920, 36, align: TextAnchor.MiddleCenter);
             UiKit.Button(root, "部屋を出る", () => { NetSession.ClearHandlers(); NetSession.Leave(); _app.ShowTitle(); }, 90, 980, 240, 64, 22);
-            if (_host) { _start = UiKit.Button(root, "この顔ぶれで冒険をはじめる", Begin, 1380, 980, 450, 70, 26, gold: true); _teller = StorytellerPicker.Build(root, 400, 966); }
+            if (_host) { _start = UiKit.Button(root, "この顔ぶれで冒険をはじめる", Begin, 1380, 980, 450, 70, 26, gold: true); _teller = StorytellerPicker.Build(root, 400, 966); _story = StoryChooser.Build(root, _app.Story, _app.Scenario.Title, 300, 852); }
 
             NetSession.ClearHandlers();
             if (_host)
@@ -118,13 +119,16 @@ namespace Tavern.Unity.App
                 : "ホストが冒険をはじめるのを待っています…";
         }
 
-        void Begin()
+        async void Begin()
         {
             if (!_host || _start == null || !_start.interactable) return;
             _start.interactable = false;
             Detach();
             var party = _players.Select(p => p.character.ToCharacter()).ToList();
-            var game = TavernGame.New(_app.Db, _app.Scenario, _teller?.Invoke() ?? Storyteller.Olwen, party, _app.Ai.Everyday, _app.Ai.Highlight,
+            var teller = _teller?.Invoke() ?? Storyteller.Olwen;
+            // A story the storyteller writes now (friends wait in the lobby); if that fails, the prepared one.
+            var scenario = await _app.PrepareScenarioAsync(party, _story?.Invoke(), fallBackToPrepared: true) ?? _app.Scenario;
+            var game = TavernGame.New(_app.Db, scenario, teller, party, _app.Ai.Everyday, _app.Ai.Highlight,
                 new SeededRandom((ulong)DateTime.Now.Ticks));
             foreach (var p in _players) game.State.Owners[p.character.Name] = p.info.PlayerName;
             game.State.HostPlayer = _me;

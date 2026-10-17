@@ -30,6 +30,23 @@ namespace Tavern.Core.Gm
 
         public Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, string? forceTool = null, CancellationToken ct = default)
         {
+            if (forceTool == "write_scenario")
+            {
+                // A tiny made-up evening; the generator's repair step fills in the rest.
+                var sheet = JObject.Parse(@"{
+                  ""title"": ""見本の夜"", ""hook"": ""村の井戸に何かが棲みついた。"", ""truth"": ""井戸の底に古い亡霊が眠っていた。"",
+                  ""weakness"": ""亡霊の名を刻んだ石を井戸に戻すと鎮まる。"",
+                  ""acts"": [ { ""title"": ""依頼"", ""goal"": ""村へ行く"" }, { ""title"": ""森"", ""goal"": ""手がかりを集める"" }, { ""title"": ""井戸の底"", ""goal"": ""亡霊と向き合う"" } ],
+                  ""locations"": [
+                    { ""id"": ""tavern"", ""name"": ""眠る竜亭"", ""art"": ""bg_tavern"", ""act"": 1, ""description"": ""酒場。"", ""exits"": [""village""] },
+                    { ""id"": ""village"", ""name"": ""井戸のある村"", ""art"": ""bg_village"", ""act"": 1, ""description"": ""静かな村。"", ""exits"": [""tavern"", ""forest""], ""encounter"": [""wolf"", ""wolf""] },
+                    { ""id"": ""forest"", ""name"": ""霧の森"", ""art"": ""bg_forest_path"", ""act"": 2, ""description"": ""霧が濃い。"", ""exits"": [""village"", ""well""] },
+                    { ""id"": ""well"", ""name"": ""井戸の底"", ""art"": ""bg_flooded_hall"", ""act"": 3, ""description"": ""冷たい水。"", ""exits"": [""forest""], ""encounter"": [""wraith""] } ],
+                  ""npcs"": [ { ""id"": ""elder"", ""name"": ""村長"", ""art"": ""pt_elder"", ""where"": ""village"", ""role"": ""依頼人"" } ],
+                  ""clues"": [ { ""id"": ""stone"", ""text"": ""名を刻んだ石がなくなっている"", ""where"": ""village"" } ],
+                  ""boss"": ""wraith"", ""endings"": { ""success"": ""鎮まった。"", ""bitter"": ""井戸は埋められた。"", ""failure"": ""村は捨てられた。"" } }");
+                return Task.FromResult(new LlmReply("", new[] { new ToolCall("write_scenario", sheet) }));
+            }
             if (forceTool == GmTools.PlanChecks)
             {
                 // Every declaring character rolls a normal skill check (names are read from the tool's enum).

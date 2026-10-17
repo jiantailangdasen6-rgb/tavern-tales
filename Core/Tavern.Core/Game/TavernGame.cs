@@ -74,6 +74,7 @@ namespace Tavern.Core.Game
             ILlmClient llm, ILlmClient? highlightLlm, IRandom rng)
         {
             var state = new GameState { ScenarioId = scenario.Id, StorytellerId = teller.Id, Location = scenario.Start };
+            if (scenario.Id.StartsWith("gen_")) state.ScenarioJson = Newtonsoft.Json.JsonConvert.SerializeObject(scenario);
             state.Visited.Add(scenario.Start);
             var gm = new GmSession(llm, SystemPrompt(teller, party, scenario, db), party, rng, highlightLlm);
             return new TavernGame(db, scenario, teller, party, state, gm, rng);

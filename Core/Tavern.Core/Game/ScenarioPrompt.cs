@@ -8,9 +8,13 @@ namespace Tavern.Core.Game
     /// <summary>Writes the scenario sheet as the secret part of the system prompt.</summary>
     public static class ScenarioPrompt
     {
+        /// <summary>The fixed world, given to the storyteller with every scenario (set once by the app).</summary>
+        public static string World = "";
+
         public static string Describe(ScenarioDef s, ContentDb db)
         {
             var sb = new StringBuilder();
+            if (World.Length > 0) { sb.AppendLine("【世界】"); sb.AppendLine(World); }
             sb.AppendLine($"題: {s.Title}（型: {s.Template}）");
             sb.AppendLine($"導入: {s.Hook}");
             sb.AppendLine($"真相: {s.Truth}");
