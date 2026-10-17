@@ -29,6 +29,7 @@ namespace Tavern.Unity.App
             {
                 var d = new DemoLlm();
                 d.Extra[2] = new JObject { ["start_combat"] = new JArray("wolf", "wolf"), ["move_to"] = "forest_path" };
+                if (int.TryParse(AppMain.Arg("-demoend"), out var endAt)) d.Extra[endAt] = new JObject { ["end_story"] = "success" };
                 return new Backends { Everyday = d, Description = "AI: 見本（-demo）", Demo = true };
             }
             var key = Environment.GetEnvironmentVariable("GEMINI_API_KEY")
