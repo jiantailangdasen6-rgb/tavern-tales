@@ -14,6 +14,7 @@ namespace Tavern.Core.Gm
     {
         readonly IReadOnlyList<ILlmClient> _chain;
         int _current;
+        DateTimeOffset _backAt;
 
         /// <summary>Raised when the session moves to the next backend (the UI can show a small notice).</summary>
         public event Action<ILlmClient, ILlmClient, Exception>? SwitchedBackend;
@@ -35,6 +36,8 @@ namespace Tavern.Core.Gm
 
         public async Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, string? forceTool = null, CancellationToken ct = default)
         {
+            // A backend left for its quota is tried again once that quota should be back (midnight Pacific for a day's, 10 min otherwise).
+            if (_current > 0 && DateTimeOffset.UtcNow >= _backAt) _current = 0;
             for (int i = _current; ; i++)
             {
                 var backend = _chain[i];
@@ -47,6 +50,7 @@ namespace Tavern.Core.Gm
                 {
                     if (i != _current) continue;
                     _current++;
+                    _backAt = ex is LlmRateLimitException r && r.Daily ? AiNotices.NextReset(DateTimeOffset.UtcNow) : DateTimeOffset.UtcNow.AddMinutes(10);
                     SwitchedBackend?.Invoke(backend, Current, ex);
                 }
             }

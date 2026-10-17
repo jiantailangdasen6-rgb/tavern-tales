@@ -14,7 +14,9 @@ namespace Tavern.Core.Gm
     /// <summary>Thrown when the backend says "too many requests" (per-minute or daily quota).</summary>
     public sealed class LlmRateLimitException : Exception
     {
-        public LlmRateLimitException(string message) : base(message) { }
+        /// <summary>The day's quota is used up (back at midnight Pacific time), not just the per-minute one.</summary>
+        public bool Daily { get; }
+        public LlmRateLimitException(string message, bool daily = false) : base(message) { Daily = daily; }
     }
 
     /// <summary>Thrown when the backend is overloaded or down for now.</summary>
@@ -48,9 +50,9 @@ namespace Tavern.Core.Gm
 
         public async Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, string? forceTool = null, CancellationToken ct = default)
         {
-            // After a daily-quota 429 the model is skipped for a while (FallbackLlm moves on to the next one at once).
+            // After a daily-quota 429 the model is skipped until the quota comes back (FallbackLlm moves on to the next one at once).
             if (Exhausted.TryGetValue(_model, out var until) && DateTime.UtcNow < until)
-                throw new LlmRateLimitException($"gemini 429: {_model} daily quota used up");
+                throw new LlmRateLimitException($"gemini 429: {_model} daily quota used up", daily: true);
             var body = BuildRequest(messages, tools, _thinkingLevel, forceTool);
             for (int attempt = 0; ; attempt++)
             {
@@ -68,8 +70,8 @@ namespace Tavern.Core.Gm
                     var wait = RetryDelay(text);
                     if (IsDailyQuota(text))
                     {
-                        Exhausted[_model] = DateTime.UtcNow.AddHours(1);
-                        throw new LlmRateLimitException("gemini 429 (daily): " + Trim(text));
+                        Exhausted[_model] = AiNotices.NextReset(DateTimeOffset.UtcNow).UtcDateTime;
+                        throw new LlmRateLimitException("gemini 429 (daily): " + Trim(text), daily: true);
                     }
                     if (attempt < MaxRateLimitRetries && wait != null && wait.Value <= TimeSpan.FromSeconds(90))
                     {

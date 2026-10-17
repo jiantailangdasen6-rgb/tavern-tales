@@ -227,7 +227,7 @@ namespace Tavern.Unity.App
             {
                 Debug.LogWarning("[Story] " + e);
                 if (fallBackToPrepared) return Scenario;
-                ShowError("物語を作れなかった（" + e.Message + "）。用意された物語で遊ぶこともできます。");
+                ShowError((AiNotices.Failed(e, Ai.LocalOnly(), DateTimeOffset.UtcNow, AiSetup.LocalOffset) ?? "物語を作れなかった（" + e.Message + "）。") + "用意された物語で遊ぶこともできます。");
                 return null;
             }
         }

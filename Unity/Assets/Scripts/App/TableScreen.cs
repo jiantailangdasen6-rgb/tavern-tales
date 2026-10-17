@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Tavern.Core.Content;
 using Tavern.Core.Game;
+using Tavern.Core.Gm;
 using Tavern.Core.Rules;
 using Tavern.Unity.Ui;
 using UnityEngine;
@@ -489,7 +490,9 @@ namespace Tavern.Unity.App
             catch (Exception ex)
             {
                 Debug.LogWarning("[Table] " + ex);
-                _pending.Enqueue(LogEntry.Line(LogKind.Warning, "", "語り部が言葉に詰まった（" + Short(ex.Message) + "）。もう一度宣言してください。"));
+                var why = AiNotices.Failed(ex, _app.Ai.LocalOnly(), DateTimeOffset.UtcNow, AiSetup.LocalOffset)
+                    ?? "語り部が言葉に詰まった（" + Short(ex.Message) + "）。もう一度宣言してください。";
+                _pending.Enqueue(LogEntry.Line(LogKind.Warning, "", why));
                 return false;
             }
             finally
@@ -517,6 +520,8 @@ namespace Tavern.Unity.App
         public void Update()
         {
             if (!_game.Ended) _game.State.PlayMinutes += Time.unscaledDeltaTime / 60f;
+            // the host hears when a free AI quota runs out and another model takes over
+            if (_role != NetRole.Client) while (_app.Ai.Notices.TryDequeue(out var notice)) _pending.Enqueue(LogEntry.Line(LogKind.Warning, "", notice));
             if (Time.frameCount % 30 == 0) { RefreshTop(); if (_role == NetRole.Host && _pending.Count == 0 && _typing == null) TrySubmitHost(); }
             Playback();
             Autoplay();
@@ -623,8 +628,12 @@ namespace Tavern.Unity.App
                     UiKit.Label(row, $"🎲 {e.Text}".Replace("🎲 ", "◆ "), 15, e.Outcome.Contains("成功") ? Theme.Hex("c8d6a0") : Theme.Hex("c9a39a"));
                     break;
                 case LogKind.Warning:
-                    UiKit.Label(row, "⚠ " + e.Text, 17, Theme.Hex("ffb8a0"), serif: true);
+                {
+                    // wrapped by hand like the narration (Unity would break only at the spaces in "Gemini 3.5 Flash-Lite")
+                    var w = UiKit.Label(row, UiKit.Kinsoku("⚠ " + e.Text, Theme.Serif, 17, FontStyle.Normal, 496), 17, Theme.Hex("ffb8a0"), serif: true);
+                    w.horizontalOverflow = HorizontalWrapMode.Overflow;
                     break;
+                }
                 default:
                     fitter.padding = new RectOffset(12, 4, 0, 0);
                     UiKit.Label(row, (e.Who.Length > 0 && !e.Text.StartsWith(e.Who) ? e.Who + "　" : "") + e.Text, 15, Theme.Gold);
