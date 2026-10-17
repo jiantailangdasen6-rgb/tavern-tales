@@ -38,7 +38,7 @@ namespace Tavern.Unity.App
             if (string.IsNullOrWhiteSpace(key))
                 return new Backends { Everyday = local, Description = "AI: 手元の AI（Gemini の鍵が見つからない）" };
             var everyday = new FallbackLlm(new GeminiClient(Http, key!, "gemini-3.5-flash-lite", "minimal"), local);
-            var highlight = new FallbackLlm(new GeminiClient(Http, key!, "gemini-3.8-flash", "low"), everyday);
+            var highlight = new FallbackLlm(new GeminiClient(Http, key!, "gemini-3.8-flash", "low"), everyday) { Patience = TimeSpan.FromSeconds(40) };
             return new Backends { Everyday = everyday, Highlight = highlight, Description = "AI: Gemini（無料枠）＋ 手元の AI" };
         }
     }

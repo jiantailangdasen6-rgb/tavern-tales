@@ -48,6 +48,9 @@ namespace Tavern.Core.Gm
 
         public async Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, string? forceTool = null, CancellationToken ct = default)
         {
+            // After a daily-quota 429 the model is skipped for a while (FallbackLlm moves on to the next one at once).
+            if (Exhausted.TryGetValue(_model, out var until) && DateTime.UtcNow < until)
+                throw new LlmRateLimitException($"gemini 429: {_model} daily quota used up");
             var body = BuildRequest(messages, tools, _thinkingLevel, forceTool);
             for (int attempt = 0; ; attempt++)
             {
@@ -55,12 +58,19 @@ namespace Tavern.Core.Gm
                     $"https://generativelanguage.googleapis.com/v1beta/models/{_model}:generateContent")
                 { Content = new StringContent(body.ToString(Formatting.None), Encoding.UTF8, "application/json") };
                 req.Headers.Add("x-goog-api-key", _apiKey);
+                var sw = System.Diagnostics.Stopwatch.StartNew();
                 using var res = await _http.SendAsync(req, ct).ConfigureAwait(false);
                 var text = await res.Content.ReadAsStringAsync().ConfigureAwait(false);
+                Trace?.Invoke($"[{_model}] {(int)res.StatusCode} {sw.Elapsed.TotalSeconds:0.0}s" + ((int)res.StatusCode == 200 ? "" : " " + Trim(text)));
                 if ((int)res.StatusCode == 429)
                 {
                     // The free tier has a small per-minute quota: wait as told and try again; a daily quota gives up.
                     var wait = RetryDelay(text);
+                    if (IsDailyQuota(text))
+                    {
+                        Exhausted[_model] = DateTime.UtcNow.AddHours(1);
+                        throw new LlmRateLimitException("gemini 429 (daily): " + Trim(text));
+                    }
                     if (attempt < MaxRateLimitRetries && wait != null && wait.Value <= TimeSpan.FromSeconds(90))
                     {
                         RateLimitWaits++;
@@ -83,6 +93,15 @@ namespace Tavern.Core.Gm
         }
 
         const int MaxRateLimitRetries = 3;
+
+        /// <summary>Optional trace of each HTTP exchange (status, seconds; never the key), e.g. the CLI with --trace.</summary>
+        public static Action<string>? Trace;
+
+        /// <summary>Models whose daily free quota ran out, and until when to skip them.</summary>
+        static readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTime> Exhausted = new System.Collections.Concurrent.ConcurrentDictionary<string, DateTime>();
+
+        /// <summary>A 429 for the per-day quota (QuotaFailure ids like "GenerateRequestsPerDayPerProjectPerModel-FreeTier").</summary>
+        internal static bool IsDailyQuota(string errorBody) => errorBody.Contains("PerDay");
 
         /// <summary>How many times a call waited for the per-minute quota (to judge the free tier).</summary>
         public int RateLimitWaits { get; private set; }

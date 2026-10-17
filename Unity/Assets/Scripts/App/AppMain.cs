@@ -215,11 +215,12 @@ namespace Tavern.Unity.App
             pic.uvRect = ArtLibrary.Cover(bg, 1920, 1080);
             UiKit.Box(Root, "Shade", new Color(0.05f, 0.03f, 0.02f, 0.72f)).rectTransform.Fill();
             UiKit.Label(Root, "語り部が今宵の物語を考えている……", 44, Theme.Gold, 0, 470, 1920, 70, serif: true, align: TextAnchor.MiddleCenter);
-            UiKit.Label(Root, "（10〜30 秒ほど）", 22, Theme.Dim, 0, 550, 1920, 40, align: TextAnchor.MiddleCenter);
+            UiKit.Label(Root, "（長くても 1 分ほど）", 22, Theme.Dim, 0, 550, 1920, 40, align: TextAnchor.MiddleCenter);
             var rng = new Tavern.Core.Rules.SeededRandom((ulong)DateTime.Now.Ticks);
             var template = Story.Template(story.TemplateId) ?? Story.Templates[rng.Next(0, Story.Templates.Count)];
             try
             {
+                // The strong model gets 40 s (FallbackLlm.Patience), then the everyday model writes the story.
                 return await ScenarioGenerator.GenerateAsync(Ai.Highlight ?? Ai.Everyday, Story, Db, template, party, story.Request, rng);
             }
             catch (Exception e)

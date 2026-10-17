@@ -36,7 +36,7 @@ namespace Tavern.Core.Gm
                 var sheet = JObject.Parse(@"{
                   ""title"": ""見本の夜"", ""hook"": ""村の井戸に何かが棲みついた。"", ""truth"": ""井戸の底に古い亡霊が眠っていた。"",
                   ""weakness"": ""亡霊の名を刻んだ石を井戸に戻すと鎮まる。"",
-                  ""acts"": [ { ""title"": ""依頼"", ""goal"": ""村へ行く"" }, { ""title"": ""森"", ""goal"": ""手がかりを集める"" }, { ""title"": ""井戸の底"", ""goal"": ""亡霊と向き合う"" } ],
+                  ""acts"": [ { ""title"": ""依頼"", ""goal"": ""村へ行く"" }, { ""title"": ""森"", ""goal"": ""手がかりを集める"" }, { ""title"": ""第3幕：井戸の底"", ""goal"": ""亡霊と向き合う"" } ],
                   ""locations"": [
                     { ""id"": ""tavern"", ""name"": ""眠る竜亭"", ""art"": ""bg_tavern"", ""act"": 1, ""description"": ""酒場。"", ""exits"": [""village""] },
                     { ""id"": ""village"", ""name"": ""井戸のある村"", ""art"": ""bg_village"", ""act"": 1, ""description"": ""静かな村。"", ""exits"": [""tavern"", ""forest""], ""encounter"": [""wolf"", ""wolf""] },

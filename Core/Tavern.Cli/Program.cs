@@ -39,10 +39,11 @@ if ((Opt("--engine") ?? "gemini") == "gemini")
     if (a.Contains("--fallback-local")) chain.Add(Counted(new OllamaClient(http)));
     llm = chain.Count == 1 ? chain[0] : new FallbackLlm(chain.ToArray());
     var hiModel = Opt("--highlight-model") ?? "gemini-3.8-flash";
-    if (hiModel != "none") highlight = new FallbackLlm(Counted(new GeminiClient(http, key, hiModel, "low")), llm);
+    if (hiModel != "none") highlight = new FallbackLlm(Counted(new GeminiClient(http, key, hiModel, "low")), llm) { Patience = TimeSpan.FromSeconds(40) };
 }
 else llm = Counted(new OllamaClient(http, Opt("--model") ?? "qwen3:8b"));
 
+if (a.Contains("--trace")) GeminiClient.Trace = m => Console.Error.WriteLine("  [trace] " + m);
 var seed = ulong.TryParse(Opt("--seed"), out var s) ? s : (ulong)DateTime.Now.Ticks;
 var story = StoryContent.LoadFolder(contentDir);
 ScenarioPrompt.World = story.World.Describe();

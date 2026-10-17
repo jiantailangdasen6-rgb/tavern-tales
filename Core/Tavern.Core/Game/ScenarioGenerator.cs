@@ -122,10 +122,16 @@ namespace Tavern.Core.Game
             if (string.IsNullOrWhiteSpace(s.Title)) s.Title = "名もなき夜の物語";
 
             // acts
-            while (s.Acts.Count < 3) s.Acts.Add(new ActDef { Title = $"第{s.Acts.Count + 1}幕", Goal = "物語を先へ進める" });
+            while (s.Acts.Count < 3) s.Acts.Add(new ActDef { Title = "物語の続き", Goal = "物語を先へ進める" });
             if (s.Acts.Count > 3) s.Acts = s.Acts.Take(3).ToList();
             var minutes = new[] { 40, 50, 40 };
             for (int i = 0; i < 3; i++) { s.Acts[i].N = i + 1; if (s.Acts[i].Minutes <= 0) s.Acts[i].Minutes = minutes[i]; }
+            // The screen shows "第N幕「title」", so a title written as "第3幕：石の祠の決戦" loses its prefix.
+            foreach (var act in s.Acts)
+            {
+                var bare = Regex.Replace(act.Title ?? "", @"^\s*第\s*[0-9０-９一二三]+\s*幕\s*[：:・\-―\s　]*", "").Trim('「', '」', ' ', '　');
+                act.Title = bare.Length > 0 ? bare : act.Goal;
+            }
 
             // locations: unique slugs, known art, acts 1..3
             var seen = new HashSet<string>();

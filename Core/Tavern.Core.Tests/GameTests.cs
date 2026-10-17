@@ -262,6 +262,7 @@ namespace Tavern.Core.Tests
             Assert.That(db.Enemies[s.Boss].Boss);
             Assert.That(s.Locations.Single(l => l.Encounter.Contains(s.Boss)).Act, Is.EqualTo(3));
             Assert.That(s.Acts.Select(a => a.N), Is.EqualTo(new[] { 1, 2, 3 }));
+            Assert.That(s.Acts[2].Title, Is.EqualTo("井戸の底"));   // "第3幕：" is dropped (the screen adds it)
 
             // an evening on it keeps the sheet in its save, so continuing and friends use the same story
             var game = TavernGame.New(db, s, Storyteller.Olwen, party, new ScriptedLlm(), null, new FixedRandom());

@@ -18,6 +18,12 @@ namespace Tavern.Core.Gm
         /// <summary>Raised when the session moves to the next backend (the UI can show a small notice).</summary>
         public event Action<ILlmClient, ILlmClient, Exception>? SwitchedBackend;
 
+        /// <summary>
+        /// When set, a backend that hasn't answered in this time is given up for this one call (not for good) and the
+        /// next one answers it. Gemini 3.8 Flash some days takes minutes for a reply that Flash-Lite writes in seconds.
+        /// </summary>
+        public TimeSpan? Patience { get; set; }
+
         public FallbackLlm(params ILlmClient[] chain)
         {
             if (chain.Length == 0) throw new ArgumentException("no backend");
@@ -29,14 +35,19 @@ namespace Tavern.Core.Gm
 
         public async Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, string? forceTool = null, CancellationToken ct = default)
         {
-            while (true)
+            for (int i = _current; ; i++)
             {
-                try { return await Current.ChatAsync(messages, tools, forceTool, ct).ConfigureAwait(false); }
-                catch (Exception ex) when ((ex is LlmRateLimitException || ex is LlmUnavailableException) && _current + 1 < _chain.Count)
+                var backend = _chain[i];
+                var hasNext = i + 1 < _chain.Count;
+                using var slow = Patience != null && hasNext ? CancellationTokenSource.CreateLinkedTokenSource(ct) : null;
+                slow?.CancelAfter(Patience!.Value);
+                try { return await backend.ChatAsync(messages, tools, forceTool, slow?.Token ?? ct).ConfigureAwait(false); }
+                catch (OperationCanceledException) when (slow != null && !ct.IsCancellationRequested) { }
+                catch (Exception ex) when ((ex is LlmRateLimitException || ex is LlmUnavailableException) && hasNext)
                 {
-                    var from = Current;
+                    if (i != _current) continue;
                     _current++;
-                    SwitchedBackend?.Invoke(from, Current, ex);
+                    SwitchedBackend?.Invoke(backend, Current, ex);
                 }
             }
         }
