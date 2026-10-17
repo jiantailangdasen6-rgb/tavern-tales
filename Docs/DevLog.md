@@ -50,6 +50,11 @@ Builds/windows/Tavern.exe -screenshot Logs/shots/x.png -shotat 3 -autoquit 4
   - gemini-3.1-flash-lite: 道具の呼び出しを本文に文字で書いてしまう（`suggest_actions{...}`）→ 使えない。
 - 有料にした場合の目安（ネットの情報。2026 年末までの導入価格 入力 0.75 / 出力 3.75 ドル毎 100 万トークン、2027 年から倍）:
   一晩 150 回 × 入力 1 万トークンなら 1〜3 ドル程度（履歴を要約して短くすればもっと安い）。公式の価格表で要確認。
+- **gemini-3.5-flash-lite の無料枠は 1 日 500 回**（オーナーが確認）→ 普段は Lite、山場は 3.8 Flash、最後に手元の AI、に決定。
+  `GmSession(..., highlightLlm)` と `PlayAsync(input, highlight)`。CLI はスクリプトの行頭 `!` が山場。
+  混ぜて試した結果（`Logs/gm-shrine-mixed.txt`）: 手ごとに AI が替わっても問題なく続く。Lite の手は行動案を出さず、
+  判定も 1 人分しか頼まないことがある → M1 で指示文と「足りない道具を促す」仕組みで直す。
+- gemini-3-flash-preview の無料枠（1 日 20 回）は試しで使い切った。
 - 直したこと: 行動案だけの返事のあとに次の宣言を送ると Gemini が空の返事をした → 行動案の呼び出しは履歴に残さない。
   判定を頼むときは先に語らない、と指示に足した。503 は少し待って送り直す。`FallbackLlm`（Gemini → 手元の AI）を用意した。
 

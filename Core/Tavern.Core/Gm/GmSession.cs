@@ -17,6 +17,8 @@ namespace Tavern.Core.Gm
         public List<string> Suggestions { get; } = new List<string>();
         /// <summary>Tool calls the game refused (unknown character, bad arguments). Useful when tuning prompts.</summary>
         public List<string> Rejected { get; } = new List<string>();
+        /// <summary>Which backend told this turn.</summary>
+        public string Model { get; internal set; } = "";
     }
 
     /// <summary>
@@ -28,6 +30,8 @@ namespace Tavern.Core.Gm
         const int MaxToolRounds = 6;
 
         readonly ILlmClient _llm;
+        /// <summary>A stronger model for the big moments (opening, boss, ending); the free tier allows only a few calls a day.</summary>
+        readonly ILlmClient? _highlightLlm;
         readonly IReadOnlyList<Character> _party;
         readonly IRandom _rng;
         readonly List<ChatMessage> _history = new List<ChatMessage>();
@@ -38,23 +42,29 @@ namespace Tavern.Core.Gm
 
         public IReadOnlyList<ChatMessage> History => _history;
 
-        public GmSession(ILlmClient llm, Storyteller teller, IReadOnlyList<Character> party, string scenario, IRandom rng)
+        public GmSession(ILlmClient llm, Storyteller teller, IReadOnlyList<Character> party, string scenario, IRandom rng, ILlmClient? highlightLlm = null)
         {
-            _llm = llm; _party = party; _rng = rng;
+            _llm = llm; _highlightLlm = highlightLlm; _party = party; _rng = rng;
             _tools = GmTools.For(party);
             _history.Add(new ChatMessage(Role.System, Prompts.System(teller, party, scenario)));
         }
 
-        /// <summary>Sends the players' input (declarations, or "begin" for the opening) and returns the narrated result.</summary>
-        public async Task<GmTurn> PlayAsync(string playerInput, CancellationToken ct = default)
+        /// <summary>
+        /// Sends the players' input (declarations, or the opening request) and returns the narrated result.
+        /// highlight: a big moment, told by the highlight model when there is one. A whole turn stays on one model.
+        /// </summary>
+        public async Task<GmTurn> PlayAsync(string playerInput, bool highlight = false, CancellationToken ct = default)
         {
             var turn = new GmTurn();
             var narration = new StringBuilder();
+            var llm = highlight && _highlightLlm != null ? _highlightLlm : _llm;
+            turn.Model = llm is FallbackLlm f ? f.Current.Name : llm.Name;
             _history.Add(new ChatMessage(Role.User, playerInput));
 
             for (int round = 0; round < MaxToolRounds; round++)
             {
-                var reply = await _llm.ChatAsync(_history, _tools, ct).ConfigureAwait(false);
+                var reply = await llm.ChatAsync(_history, _tools, ct).ConfigureAwait(false);
+                if (llm is FallbackLlm fb) turn.Model = fb.Current.Name;
                 if (reply.Content.Length > 0) { if (narration.Length > 0) narration.Append('\n'); narration.Append(reply.Content); }
 
                 // Suggestions are for the buttons only. A reply that just suggests ends the turn: keep it in the history

@@ -4,7 +4,7 @@ using Tavern.Core.Gm;
 using Tavern.Core.Rules;
 
 // Talk to the AI game master without Unity (checks the narration quality and tool use).
-//   dotnet run --project Core/Tavern.Cli -- [--model qwen3:8b] [--script file.txt] [--seed N]
+//   dotnet run --project Core/Tavern.Cli -- [--engine ollama|gemini] [--model M] [--highlight-model M|none] [--fallback-local] [--script file.txt] [--seed N]
 // Each line of the script (or of stdin) is one round of player declarations; "begin" opens the scene.
 // Needs the local Ollama server: powershell -ExecutionPolicy Bypass -File Tools/Ollama.ps1
 
@@ -26,20 +26,27 @@ const string scenario =
     "祠の扉には罠（毒矢）がある。最初の場面: 夕暮れ、一行が祠の前に着いたところ。";
 
 using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+var counters = new List<CountingLlm>();
+ILlmClient Counted(ILlmClient c) { var w = new CountingLlm(c); counters.Add(w); return w; }
+
 ILlmClient llm;
+ILlmClient? highlight = null;
 if ((Opt("--engine") ?? "ollama") == "gemini")
 {
     // The key is read from the environment only (never printed). User scope too, for shells started before it was set.
     var key = Environment.GetEnvironmentVariable("GEMINI_API_KEY")
         ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY", EnvironmentVariableTarget.User)
         ?? throw new Exception("GEMINI_API_KEY is not set");
-    llm = new GeminiClient(http, key, Opt("--model") ?? "gemini-3.8-flash", Opt("--thinking") ?? "low");
+    // Everyday narration on the Flash-Lite free tier (500/day), big moments on Flash (20/day), local model last.
+    var chain = new List<ILlmClient> { Counted(new GeminiClient(http, key, Opt("--model") ?? "gemini-3.5-flash-lite", Opt("--thinking") ?? "minimal")) };
+    if (a.Contains("--fallback-local")) chain.Add(Counted(new OllamaClient(http)));
+    llm = chain.Count == 1 ? chain[0] : new FallbackLlm(chain.ToArray());
+    var hiModel = Opt("--highlight-model") ?? "gemini-3.8-flash";
+    if (hiModel != "none") highlight = new FallbackLlm(Counted(new GeminiClient(http, key, hiModel, "low")), llm);
 }
-else llm = new OllamaClient(http, Opt("--model") ?? "qwen3:8b");
-var counter = new CountingLlm(llm);
-llm = counter;
+else llm = Counted(new OllamaClient(http, Opt("--model") ?? "qwen3:8b"));
 var seed = ulong.TryParse(Opt("--seed"), out var s) ? s : (ulong)DateTime.Now.Ticks;
-var gm = new GmSession(llm, Storyteller.Olwen, party, scenario, new SeededRandom(seed));
+var gm = new GmSession(llm, Storyteller.Olwen, party, scenario, new SeededRandom(seed), highlight);
 
 IEnumerable<string> Inputs()
 {
@@ -52,22 +59,19 @@ IEnumerable<string> Inputs()
 Console.WriteLine($"[{llm.Name}] seed {seed}");
 foreach (var input in Inputs())
 {
-    var text = input == "begin" ? "物語を始めてください。最初の場面を語ってください。" : input.Replace(" / ", "\n");
+    // "begin" opens the story; a line starting with "!" is a big moment (told by the highlight model).
+    bool big = input == "begin" || input.StartsWith("!");
+    var body = input.TrimStart('!');
+    var text = input == "begin" ? "物語を始めてください。最初の場面を語ってください。" : body.Replace(" / ", "\n");
     Console.WriteLine($"\n=== プレイヤー: {input}");
     var sw = Stopwatch.StartNew();
-    var turn = await gm.PlayAsync(text);
+    var turn = await gm.PlayAsync(text, big);
     foreach (var c in turn.Checks) Console.WriteLine($"  [サイコロ] {c.Describe()}（{c.Request.Reason}）");
     foreach (var r in turn.Rejected) Console.WriteLine($"  [却下] {r}");
-    Console.WriteLine($"--- {Storyteller.Olwen.Name}（{sw.Elapsed.TotalSeconds:0.0} 秒）\n{turn.Narration}");
+    Console.WriteLine($"--- {Storyteller.Olwen.Name}（{turn.Model}、{sw.Elapsed.TotalSeconds:0.0} 秒）\n{turn.Narration}");
     if (turn.Suggestions.Count > 0) Console.WriteLine("  [行動案] " + string.Join(" / ", turn.Suggestions));
-    if (turn.Narration.Length == 0 && counter.Inner is GeminiClient g && a.Contains("--debug"))
-    {
-        File.WriteAllText("Logs/gemini-last-request.json", g.LastRequest?.ToString() ?? "");
-        File.WriteAllText("Logs/gemini-last-response.json", g.LastResponse ?? "");
-        Console.WriteLine("  [debug] wrote Logs/gemini-last-*.json");
-    }
 }
-Console.WriteLine($"\n[AI の呼び出し {counter.Calls} 回]");
+Console.WriteLine("\n[AI の呼び出し] " + string.Join(" / ", counters.Select(c => $"{c.Name} {c.Calls} 回")));
 
 /// <summary>Counts backend calls (to estimate how much of a free quota one evening uses).</summary>
 sealed class CountingLlm : ILlmClient
