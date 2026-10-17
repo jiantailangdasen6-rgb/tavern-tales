@@ -59,6 +59,8 @@ namespace Tavern.Core.Game
         public string? Ending;
         public CombatState? Combat;
         public List<LogEntry> Log = new List<LogEntry>();
+        /// <summary>Narration length setting: short / normal / long.</summary>
+        public string NarrationLength = "normal";
         /// <summary>Characters who still choose their growth for the act just finished.</summary>
         public List<string> PendingGrowth = new List<string>();
         public List<string> Suggestions = new List<string>();

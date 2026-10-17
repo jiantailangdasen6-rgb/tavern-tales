@@ -1,0 +1,1 @@
+bg_crypt=1,bg_flooded_hall=2,bg_forest_path=1,bg_hunter_hut=1,bg_prison=2,bg_shrine_front=1,bg_shrine_inside=2,bg_tavern=1,bg_village=2,en_boneknight=1,en_drowned=1,en_goblin=1,en_skeleton=2,en_wolf=1,pt_elder=1,pt_hunter=2,pt_olwen=1,pt_youth=2,pc_warrior_m=1,pc_warrior_f=1,pc_mage_m=1,pc_mage_f=1,pc_thief_m=1,pc_thief_f=1,pc_priest_m=2,pc_priest_f=2,cd_guard=2

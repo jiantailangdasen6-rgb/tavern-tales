@@ -556,9 +556,11 @@ namespace Tavern.Unity.App
                 {
                     fitter.spacing = 2;
                     UiKit.Label(row, e.Who, 14, Theme.Gold, serif: true);
-                    var t = UiKit.Label(row, instant ? e.Text : "", 21, Theme.Hex("efe3c8"), serif: true);
+                    var wrapped = UiKit.Kinsoku(e.Text, Theme.Serif, 21, FontStyle.Normal, 512);
+                    var t = UiKit.Label(row, instant ? wrapped : "", 21, Theme.Hex("efe3c8"), serif: true);
                     t.lineSpacing = 1.15f;
-                    if (!instant) { _typing = t; _typingFull = e.Text; _typingPos = 0; }
+                    t.horizontalOverflow = HorizontalWrapMode.Overflow;
+                    if (!instant) { _typing = t; _typingFull = wrapped; _typingPos = 0; }
                     break;
                 }
                 case LogKind.Declaration:
@@ -661,14 +663,26 @@ namespace Tavern.Unity.App
             UiKit.Clear(_overlay.transform);
             var shade = UiKit.Box(_overlay.transform, "Shade", new Color(0, 0, 0, 0.6f));
             shade.rectTransform.Fill();
-            var panel = UiKit.Panel(_overlay.transform, "Order", 560, 320, 800, 360).transform;
+            var panel = UiKit.Panel(_overlay.transform, "Order", 560, 280, 800, 440).transform;
             UiKit.Label(panel, "語り部への注文", 28, Theme.Gold, 30, 20, 500, 40, serif: true);
-            UiKit.Label(panel, "物語の外から語り部に頼めます。次の語りから反映されます。\n例:「もう少し短く」「もっと怖く」「さっきの猟師をまた出して」", 17, Theme.Dim, 30, 70, 740, 60);
+            UiKit.Label(panel, "物語の外から語り部に頼めます。次の語りから反映されます。\n例:「もっと怖く」「さっきの猟師をまた出して」", 17, Theme.Dim, 30, 70, 740, 60);
             var field = UiKit.Input(panel, "注文を書く…", 30, 140, 740, 120, 20, multiline: true);
             field.text = _game.StorytellerRequest ?? "";
+
+            UiKit.Label(panel, "語りの長さ", 18, Theme.Dim, 30, 282, 140, 30);
+            var lengths = new[] { ("short", "短め"), ("normal", "普通"), ("long", "長め") };
+            var lengthButtons = new List<Button>();
+            for (int i = 0; i < lengths.Length; i++)
+            {
+                var (id, label) = lengths[i];
+                var b = UiKit.Button(panel, label, () => { _game.State.NarrationLength = id; foreach (var x in lengthButtons) x.GetComponent<Image>().color = Theme.Hex("2e241a");
+                    lengthButtons[Array.FindIndex(lengths, l => l.Item1 == id)].GetComponent<Image>().color = Theme.Hex("6b4f24"); }, 170 + i * 130, 276, 120, 40, 18);
+                b.GetComponent<Image>().color = _game.State.NarrationLength == id ? Theme.Hex("6b4f24") : Theme.Hex("2e241a");
+                lengthButtons.Add(b);
+            }
             UiKit.Button(panel, "頼む", () => { _game.StorytellerRequest = field.text.Trim(); UiKit.Clear(_overlay.transform);
-                if (field.text.Trim().Length > 0) Flash("語り部への注文を伝えた: " + field.text.Trim()); }, 560, 280, 210, 52, 20, gold: true);
-            UiKit.Button(panel, "やめる", () => UiKit.Clear(_overlay.transform), 330, 280, 210, 52, 20);
+                if (field.text.Trim().Length > 0) Flash("語り部への注文を伝えた: " + field.text.Trim()); }, 560, 362, 210, 52, 20, gold: true);
+            UiKit.Button(panel, "閉じる", () => UiKit.Clear(_overlay.transform), 330, 362, 210, 52, 20);
         }
 
         void ShowEnding()

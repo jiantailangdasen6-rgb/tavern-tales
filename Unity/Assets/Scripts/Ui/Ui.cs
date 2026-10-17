@@ -189,6 +189,49 @@ namespace Tavern.Unity.Ui
             return content;
         }
 
+        const string NoLineStart = "。、，．・：；？！ー」』）】〉》〕ゝゞヽヾぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ…‥";
+        const string NoLineEnd = "「『（【〈《〔";
+
+        /// <summary>
+        /// Wraps Japanese text by hand with simple kinsoku rules (no 。、」 at a line start, no 「 at a line end),
+        /// for a Text that then uses HorizontalWrapMode.Overflow. Unity's own wrapping ignores these rules.
+        /// </summary>
+        public static string Kinsoku(string text, Font font, int size, FontStyle style, float width)
+        {
+            font.RequestCharactersInTexture(text, size, style);
+            var sb = new System.Text.StringBuilder(text.Length + 16);
+            foreach (var para in text.Split('\n'))
+            {
+                if (sb.Length > 0) sb.Append('\n');
+                var line = new System.Text.StringBuilder();
+                float w = 0;
+                for (int i = 0; i < para.Length; i++)
+                {
+                    var ch = para[i];
+                    var adv = font.GetCharacterInfo(ch, out var info, size, style) ? info.advance : size;
+                    if (w + adv > width && line.Length > 0)
+                    {
+                        // Move the break back so the next line doesn't start with closing punctuation
+                        // and this line doesn't end with an opening bracket.
+                        int carry = 0;
+                        if (NoLineStart.IndexOf(ch) >= 0) carry = 1;
+                        while (carry < line.Length && NoLineEnd.IndexOf(line[line.Length - 1 - carry]) >= 0) carry++;
+                        if (carry >= line.Length) carry = 0;
+                        var moved = line.ToString(line.Length - carry, carry);
+                        line.Length -= carry;
+                        sb.Append(line).Append('\n');
+                        line.Clear().Append(moved);
+                        w = 0;
+                        foreach (var m in moved) w += font.GetCharacterInfo(m, out var mi, size, style) ? mi.advance : size;
+                    }
+                    line.Append(ch);
+                    w += adv;
+                }
+                sb.Append(line);
+            }
+            return sb.ToString();
+        }
+
         public static void Clear(Transform t)
         {
             for (int i = t.childCount - 1; i >= 0; i--) UnityEngine.Object.Destroy(t.GetChild(i).gameObject);

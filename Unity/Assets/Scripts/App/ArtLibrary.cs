@@ -44,7 +44,7 @@ namespace Tavern.Unity.App
                 return new Rect((1 - w) / 2, 0, w, 1);
             }
             var h = texAspect / boxAspect;
-            return new Rect(0, Mathf.Clamp01(focusY - h / 2) * (1 - h) / Mathf.Max(0.0001f, 1 - h), 1, h);
+            return new Rect(0, Mathf.Clamp(focusY - h / 2, 0, 1 - h), 1, h);
         }
     }
 }

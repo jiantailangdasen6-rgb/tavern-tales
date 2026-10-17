@@ -598,6 +598,8 @@ namespace Tavern.Core.Game
 
         async Task NarrateRoundAsync(List<string> summary, TurnReport report, CancellationToken ct, bool highlight = false)
         {
+            // The players see the rule results too (who hit whom for how much), before the storyteller's telling.
+            foreach (var line in summary.Where(l => !l.Contains("死のサイコロ"))) Add(report, LogEntry.Line(LogKind.Event, "", line));
             var text = Status() + "\n【この手番に起きたこと（ゲームが決めた結果）】\n" + string.Join("\n", summary) +
                 "\nこの結果のとおりに、戦いの一手番を短く迫力をもって語ってください（数字は書かない）。";
             var turn = await Gm.NarrateAsync(text, highlight, ct);
@@ -686,6 +688,8 @@ namespace Tavern.Core.Game
             }
             if (State.Combat != null)
                 sb.AppendLine("戦闘中（第" + State.Combat.Round + "手番）: " + string.Join("・", State.Combat.Enemies.Select(e => $"{e.Name}({e.Uid}) {(e.Alive ? $"HP {e.Hp}/{e.MaxHp}" : "倒れた")}")));
+            if (State.NarrationLength == "short") sb.AppendLine("【語りの長さ: 短め】いつもの語りは 1〜2 文・80 字まで。");
+            else if (State.NarrationLength == "long") sb.AppendLine("【語りの長さ: 長め】いつもの語りは 4〜6 文。情景をたっぷり描いてよい。");
             if (!string.IsNullOrWhiteSpace(StorytellerRequest))
             {
                 sb.AppendLine($"【語り部への注文（物語の外からの頼み。これからの語りに反映する）】{StorytellerRequest}");
