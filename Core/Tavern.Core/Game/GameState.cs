@@ -61,6 +61,8 @@ namespace Tavern.Core.Game
         public string? Ending;
         public CombatState? Combat;
         public List<LogEntry> Log = new List<LogEntry>();
+        /// <summary>Online: the host's player name (to reopen the room "continue another day").</summary>
+        public string HostPlayer = "";
         /// <summary>Online: character name -> player name (who plays it). Empty when played alone.</summary>
         public Dictionary<string, string> Owners = new Dictionary<string, string>();
         /// <summary>Narration length setting: short / normal / long.</summary>

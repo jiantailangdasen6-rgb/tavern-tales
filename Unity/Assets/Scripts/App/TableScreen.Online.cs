@@ -300,3 +300,12 @@ namespace Tavern.Unity.App
         }
     }
 }
+
+namespace Tavern.Unity.App
+{
+    public sealed partial class TableScreen
+    {
+        /// <summary>Host: sends the whole state to everyone (after reopening a saved evening).</summary>
+        public void SendStateToAll() => BroadcastTurn();
+    }
+}

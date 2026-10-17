@@ -32,7 +32,7 @@ namespace Tavern.Unity.App
             y += 92;
             UiKit.Button(root, "ひとりで新しい夜をはじめる", _app.ShowParty, 760, y, 400, 60, 22);
             y += 76;
-            var cont = UiKit.Button(root, "続きから（ひとり）", _app.ContinueEvening, 760, y, 400, 56, 22);
+            var cont = UiKit.Button(root, _app.SaveIsOnline ? "続きから（部屋を開き直す）" : "続きから（ひとり）", _app.ContinueEvening, 760, y, 400, 56, 22);
             cont.interactable = _app.HasSave;
             y += 72;
             UiKit.Button(root, "遊び方", () => ShowHelp(root), 760, y, 400, 56, 22);

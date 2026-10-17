@@ -133,12 +133,31 @@ namespace Tavern.Unity.App
             catch (Exception e) { ShowError("部屋に入れなかった: " + e.Message); }
         }
 
-        public void EnterAsHost(TavernGame game, string me, System.Collections.Generic.Dictionary<string, ulong> players)
+        public void EnterAsHost(TavernGame game, string me, System.Collections.Generic.Dictionary<string, ulong> players, bool opening = true)
         {
             UiKit.Clear(Root);
             _table = new TableScreen(this, game, NetRole.Host, me);
             _table.SetPlayers(players);
-            _table.Build(Root, opening: true);
+            _table.Build(Root, opening);
+            if (!opening) _table.SendStateToAll();
+        }
+
+        /// <summary>Reopens a saved online evening as a new room (friends rejoin by name).</summary>
+        public async void HostResume(TavernGame game)
+        {
+            try
+            {
+                var code = await Tavern.Unity.Net.NetSession.HostAsync();
+                if (Arg("-codefile") is string file) File.WriteAllText(file, code);
+                UiKit.Clear(Root);
+                new ResumeLobbyScreen(this, game).Build(Root);
+            }
+            catch (Exception e) { ShowError("部屋を作れなかった: " + e.Message); }
+        }
+
+        public bool SaveIsOnline
+        {
+            get { try { return HasSave && SaveData.FromJson(File.ReadAllText(SavePath)).State.Owners.Count > 0; } catch { return false; } }
         }
 
         public void EnterAsFriend(TurnMsg first, string me)
@@ -180,7 +199,8 @@ namespace Tavern.Unity.App
         {
             var save = SaveData.FromJson(File.ReadAllText(SavePath));
             var game = save.Load(Db, Scenario, Storyteller.Olwen, Ai.Everyday, Ai.Highlight, new Tavern.Core.Rules.SeededRandom((ulong)DateTime.Now.Ticks));
-            ShowTable(game, opening: false);
+            if (save.State.Owners.Count > 0) HostResume(game);
+            else ShowTable(game, opening: false);
         }
 
         void ShowTable(TavernGame game, bool opening)

@@ -126,6 +126,7 @@ namespace Tavern.Unity.App
             var game = TavernGame.New(_app.Db, _app.Scenario, Storyteller.Olwen, party, _app.Ai.Everyday, _app.Ai.Highlight,
                 new SeededRandom((ulong)DateTime.Now.Ticks));
             foreach (var p in _players) game.State.Owners[p.character.Name] = p.info.PlayerName;
+            game.State.HostPlayer = _me;
             _app.EnterAsHost(game, _me, _players.Where(p => p.info.PlayerName != _me).ToDictionary(p => p.info.PlayerName, p => p.info.Id));
         }
     }
