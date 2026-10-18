@@ -34,7 +34,9 @@ namespace Tavern.Core.Tests
             var (db, s) = Load();
             var names = new[] { "ガレス", "エリス", "ロッコ", "セラ" };
             var party = classes.Select((c, i) => TavernGame.CreateCharacter(db, names[i], c, "")).ToList();
-            return TavernGame.New(db, s, Storyteller.Olwen, party, llm, null, rng);
+            var game = TavernGame.New(db, s, Storyteller.Olwen, party, llm, null, rng);
+            game.RetellMissing = false;   // canned replies: one telling per turn
+            return game;
         }
 
         [Test]
@@ -75,6 +77,7 @@ namespace Tavern.Core.Tests
             var (db, s) = Load();
             var game = TavernGame.New(db, s, Storyteller.Olwen, new List<Character> { TavernGame.CreateCharacter(db, "ガレス", "warrior", "") }, narrator, null, new FixedRandom());
             game.SuggestLlm = suggester;
+            game.RetellMissing = false;
 
             var first = await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Text = "祠へ向かう" } });
             Assert.That(first.Suggestions, Is.EqualTo(new[] { "扉に耳を当てる", "碑文を読む" }));   // the knight was never told of
@@ -346,6 +349,81 @@ namespace Tavern.Core.Tests
             Assert.That(again.Background, Does.Contain("灰色の森の祠の英雄"));
         }
 
+
+        [Test]
+        public async Task Telling_ThatLeavesSomeoneOut_IsToldAgain()
+        {
+            var llm = new ScriptedLlm(Plan(),
+                Narr(new { text = "ガレスが扉を押し開けた。", suggestions = new string[0] }),
+                Narr(new { text = "ガレスが扉を押し開け、エリスは碑文を読み上げた。", suggestions = new string[0] }));
+            var game = NewGame(llm, new FixedRandom(), "warrior", "mage");
+            game.RetellMissing = true;
+            var report = await game.SubmitAsync(new[]
+            {
+                new Declaration { Character = "ガレス", Text = "扉を開ける" },
+                new Declaration { Character = "エリス", Text = "碑文を読む" },
+            });
+            Assert.That(report.Narration, Does.Contain("エリス"));
+            Assert.That(game.State.Log.Count(e => e.Kind == LogKind.Narration), Is.EqualTo(1));   // only the full telling is shown
+            Assert.That(llm.Sent.Last().Last().Content, Does.Contain("エリス の行動が入っていない"));
+        }
+
+        [Test]
+        public async Task People_AreNotShownOrSuggestedBeforeTheStoryNamesThem()
+        {
+            var llm = new ScriptedLlm(Plan(), Narr(new { text = "ガレスは辺りを見回した。", suggestions = new[] { "猟師エルダを訪ねる", "エルダに話を聞く", "辺りを調べる" } }),
+                Plan(), Narr(new { text = "村人が、森の外れに猟師エルダが住むと教えてくれた。", suggestions = new[] { "エルダを訪ねる", "辺りを調べる" } }));
+            var game = NewGame(llm, new FixedRandom(), "warrior");
+            var hunter = game.Scenario.Npcs.First(n => n.Name == "猟師エルダ");
+            var first = await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Text = "見回す" } });
+            Assert.That(first.Suggestions, Is.EqualTo(new[] { "辺りを調べる" }));
+            Assert.That(game.HasMet(hunter), Is.False);
+            var second = await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Text = "村人に聞く" } });
+            Assert.That(second.Suggestions, Is.EqualTo(new[] { "エルダを訪ねる", "辺りを調べる" }));
+            Assert.That(game.HasMet(hunter), Is.True);
+        }
+
+        [Test]
+        public async Task Rescued_People_AreNotCarriedAsItems()
+        {
+            var llm = new ScriptedLlm(Plan(), Narr(new { text = "ガレスは若者たちを連れ、燭台を拾った。", suggestions = new string[0],
+                items_gained = new[] { new { character = "ガレス", item = "若者たち" }, new { character = "ガレス", item = "猟師エルダ" }, new { character = "ガレス", item = "金の燭台" } } }));
+            var game = NewGame(llm, new FixedRandom(), "warrior");
+            await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Text = "牢を開ける" } });
+            Assert.That(game.Find("ガレス")!.Items, Is.EqualTo(new[] { "金の燭台" }));
+        }
+
+        [Test]
+        public async Task Roster_KeepsANewAdventurerApartFromAnOldOneOfTheSameName_AndDeathIsFinalAtOnce()
+        {
+            var (db, _) = Load();
+            var roster = new Roster();
+            var old = new RosterEntry { Id = Roster.NewId(), Name = "ガレス", ClassId = "warrior", Keepsakes = { "古い指輪" }, Nights = 2 };
+            roster.Characters.Add(old);
+
+            // tonight: a brand-new ガレス (not called from the roster) and an エリス called from it
+            var llm = new ScriptedLlm(Plan(), Narr(new { text = "ガレスとエリスは戦った。", suggestions = new string[0], end_story = "success" }),
+                Narr(new { text = "終わり。", suggestions = new string[0] }));
+            var game = NewGame(llm, new FixedRandom(), "warrior", "mage");
+            Assert.That(game.Find("ガレス")!.Items, Is.Empty);
+            var elis = new RosterEntry { Id = Roster.NewId(), Name = "エリス", ClassId = "mage" };
+            roster.Characters.Add(elis);
+            game.Find("エリス")!.RosterId = elis.Id;
+            game.Find("エリス")!.Restore(0, 0, 0, LifeState.Dead, 3, 0);
+            Assert.That(roster.RecordDeaths(game, _ => true), Is.True);   // before the evening is finished
+            Assert.That(elis.Dead, Is.True);
+
+            await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Text = "戦う" } });
+            roster.Record(game, _ => true);
+            Assert.That(old.Keepsakes, Is.EqualTo(new[] { "古い指輪" }));   // the old ガレス is untouched
+            Assert.That(old.Nights, Is.EqualTo(2));
+            Assert.That(roster.Living.Count(e => e.Name == "ガレス"), Is.EqualTo(2));
+            Assert.That(roster.Living.Any(e => e.Name == "エリス"), Is.False);
+
+            var reloaded = Roster.Load(roster.ToJson());
+            Assert.That(reloaded.Characters.Select(e => e.Id), Is.EqualTo(roster.Characters.Select(e => e.Id)));
+            Assert.That(reloaded.Characters.First(e => e.Id == old.Id).ToCharacter(db).RosterId, Is.EqualTo(old.Id));
+        }
         [Test]
         public async Task GeneratedScenario_IsRepairedIntoAPlayableSheet()
         {

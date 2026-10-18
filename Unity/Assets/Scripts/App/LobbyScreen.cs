@@ -20,7 +20,7 @@ namespace Tavern.Unity.App
     {
         readonly AppMain _app;
         readonly bool _host;
-        readonly string _me;
+        string _me;   // a friend takes the name the host gave them (a name already in the room gets a ＊)
         readonly CharacterSave _myCharacter;
         readonly List<(LobbyPlayer info, CharacterSave character)> _players = new List<(LobbyPlayer, CharacterSave)>();
         Transform _list = null!;
@@ -72,15 +72,20 @@ namespace Tavern.Unity.App
             NetSession.ClearHandlers();
             if (_host)
             {
-                _players.Add((new LobbyPlayer { Id = NetSession.LocalId, PlayerName = _me, CharacterName = _myCharacter.Name, ClassId = _myCharacter.ClassId, Portrait = _myCharacter.Portrait }, _myCharacter));
+                _players.Add((new LobbyPlayer { Id = NetSession.LocalId, PlayerName = _me, CharacterName = _myCharacter.Name, ClassId = _myCharacter.ClassId, Portrait = _myCharacter.Portrait, Version = GameVersion.Current }, _myCharacter));
                 NetSession.On("hello", OnHello);
                 NetSession.ClientLeft += OnLeft;
             }
             else
             {
-                NetSession.On("lobby", (_, json) => { var m = NetJson.Read<LobbyMsg>(json); ShowPlayers(m.Players); ShowHost(m); });
+                NetSession.On("lobby", (_, json) =>
+                {
+                    var m = NetJson.Read<LobbyMsg>(json);
+                    if (m.Players.FirstOrDefault(p => p.Id == NetSession.LocalId) is LobbyPlayer self) _me = self.PlayerName;
+                    ShowPlayers(m.Players); ShowHost(m);
+                });
                 NetSession.On("turn", (_, json) => { Detach(); _app.EnterAsFriend(NetJson.Read<TurnMsg>(json), _me); });
-                NetSession.Send("hello", NetJson.Json(new HelloMsg { PlayerName = _me, Character = _myCharacter }));
+                NetSession.Send("hello", NetJson.Json(new HelloMsg { PlayerName = _me, Character = _myCharacter, Version = GameVersion.Current }));
             }
             Refresh();
         }
@@ -98,7 +103,7 @@ namespace Tavern.Unity.App
             while (_players.Any(p => p.info.PlayerName == name)) name += "＊";
             var c = m.Character;
             while (_players.Any(p => p.character.Name == c.Name)) c.Name += "二";
-            _players.Add((new LobbyPlayer { Id = from, PlayerName = name, CharacterName = c.Name, ClassId = c.ClassId, Portrait = c.Portrait }, c));
+            _players.Add((new LobbyPlayer { Id = from, PlayerName = name, CharacterName = c.Name, ClassId = c.ClassId, Portrait = c.Portrait, Version = m.Version }, c));
             Refresh();
         }
 
@@ -129,7 +134,8 @@ namespace Tavern.Unity.App
                 var pic = UiKit.Picture(row, tex, 10, 8, pw, ph);
                 pic.uvRect = ArtLibrary.Cover(tex, pw, ph, 0.72f);
                 UiKit.Label(row, p.CharacterName, 30, Theme.Gold, pw + 30, step > 120 ? 18 : 6, 500, 44, serif: true);
-                UiKit.Label(row, $"{(_app.Db.Classes.TryGetValue(p.ClassId, out var cls) ? cls.Name : p.ClassId)}　—　{p.PlayerName}{(p.PlayerName == _me ? "（あなた）" : "")}", 20, Theme.Ink, pw + 30, step > 120 ? 70 : 54, 800, 34);
+                var old = p.Version != GameVersion.Current ? $"　<color=#c4553f>版が違う（{(p.Version.Length > 0 ? p.Version : "古い版")}。最新の版でないと絵や物語が欠けます）</color>" : "";
+                UiKit.Label(row, $"{(_app.Db.Classes.TryGetValue(p.ClassId, out var cls) ? cls.Name : p.ClassId)}　—　{p.PlayerName}{(p.PlayerName == _me ? "（あなた）" : "")}{old}", 20, Theme.Ink, pw + 30, step > 120 ? 70 : 54, 900, 34);
             }
             _status.text = _host
                 ? (players.Count < 2 ? "友人が入るのを待っています…（ひとりで始めることもできます）" : $"{players.Count} 人がそろいました")
@@ -166,6 +172,7 @@ namespace Tavern.Unity.App
             {
                 Players = _players.Select(p => p.info).ToList(), Code = NetSession.JoinCode ?? "",
                 Teller = _teller?.Invoke().Id ?? "", Story = story != null ? StoryLabel(story) : "", Request = story?.Request ?? "", Phase = _phase,
+                Version = GameVersion.Current,
             };
         }
 

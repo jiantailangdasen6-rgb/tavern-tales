@@ -261,8 +261,20 @@ namespace Tavern.Unity.App
             _timeText.text = $"経過 {m / 60}:{m % 60:00}";
         }
 
+        readonly HashSet<string> _deathsRecorded = new HashSet<string>();
+
+        /// <summary>One of this PC's adventurers died: they go to the memorial now, not only when the evening is finished.</summary>
+        void RecordDeaths()
+        {
+            if (!_game.Party.Any(p => p.State == LifeState.Dead && IsMine(p) && !_deathsRecorded.Contains(p.Name))) return;
+            foreach (var p in _game.Party.Where(p => p.State == LifeState.Dead)) _deathsRecorded.Add(p.Name);
+            var roster = _app.LoadRoster();
+            if (roster.RecordDeaths(_game, IsMine)) _app.SaveRoster(roster);
+        }
+
         void RefreshParty()
         {
+            RecordDeaths();
             for (int i = 0; i < _partyCards.Count; i++)
             {
                 var c = _partyCards[i];
@@ -330,7 +342,7 @@ namespace Tavern.Unity.App
             }
             else
             {
-                var npc = _game.Scenario.Npcs.FirstOrDefault(n => n.Where == _game.State.Location);
+                var npc = _game.Scenario.Npcs.FirstOrDefault(n => n.Where == _game.State.Location && _game.HasMet(n));
                 if (npc != null)
                 {
                     var art = ArtLibrary.Get(npc.Art);
@@ -358,7 +370,8 @@ namespace Tavern.Unity.App
             var draft = Draft(who);
             _actorHeader.text = $"{who.Name}の行動";
             _coinText.text = $"運命のコイン {new string('●', who.FateCoins)}{new string('○', 1 - Math.Min(1, who.FateCoins))}";
-            if (_input.text != draft.Text) _input.SetTextWithoutNotify(draft.Text);
+            // Never while the player is typing: a friend declaring refreshes this, and resetting the field mid-IME mixed old and new text.
+            if (_input.text != draft.Text && !_input.isFocused) _input.SetTextWithoutNotify(draft.Text);
 
             UiKit.Clear(_cardRow);
             for (int i = 0; i < who.Cards.Count; i++)
@@ -523,7 +536,16 @@ namespace Tavern.Unity.App
         bool _viewStale;
         bool Playing => _pending.Count > 0 || _diceRolling || _typing != null;
 
-        void RefreshView() { RefreshTop(); RefreshParty(); RefreshScene(); }
+        /// <summary>
+        /// Brings the board up to the game state. That state is already the end of the turn, so it waits for the telling of
+        /// the turn (the rule lines play over the old board), and for the host never runs while the turn is still being worked
+        /// out (the boss was gone and the ending music played before the dice).
+        /// </summary>
+        void RefreshView()
+        {
+            if (_busy && _role != NetRole.Client) { _viewStale = true; return; }
+            RefreshTop(); RefreshParty(); RefreshScene();
+        }
 
         void EnqueueNew(IEnumerable<LogEntry> entries)
         {
@@ -543,7 +565,7 @@ namespace Tavern.Unity.App
             if (!_game.Ended) _game.State.PlayMinutes += Time.unscaledDeltaTime / 60f;
             // the host hears when a free AI quota runs out and another model takes over
             if (_role != NetRole.Client) while (_app.Ai.Notices.TryDequeue(out var notice)) _pending.Enqueue(LogEntry.Line(LogKind.Warning, "", notice));
-            if (Time.frameCount % 30 == 0) { if (!Playing) RefreshTop(); if (_role == NetRole.Host && _pending.Count == 0 && _typing == null) TrySubmitHost(); }
+            if (Time.frameCount % 30 == 0) { if (!Playing && !_busy) RefreshTop(); if (_role == NetRole.Host && _pending.Count == 0 && _typing == null) TrySubmitHost(); }
             Playback();
             Autoplay();
         }
@@ -590,8 +612,8 @@ namespace Tavern.Unity.App
             HideDice();
             AppendLog(e, instant: false);
             if (e.Kind != LogKind.Narration) _holdUntil = Time.time + 0.15f / speed;
-            // results (damage, victory, a new place) and the telling come after the dice of the turn: the view may catch up now
-            if (e.Kind != LogKind.Declaration) { _viewStale = false; RefreshView(); }
+            // the board catches up with the telling of the turn (dice and rule lines play over the board as it was)
+            if (e.Kind == LogKind.Narration) { _viewStale = false; RefreshView(); }
         }
 
         void HideDice()
@@ -851,7 +873,8 @@ namespace Tavern.Unity.App
             ShowGrowthIfDue();
             if (_game.Ended)
             {
-                if (_pending.Count == 0 && _typing == null && !_diceRolling && _overlay.transform.childCount == 0) ShowEnding();
+                // not while the storyteller is still writing the closing (the ending is known before it is told)
+                if (!_busy && _pending.Count == 0 && _typing == null && !_diceRolling && _overlay.transform.childCount == 0) ShowEnding();
                 return;
             }
             if (_autoTurns <= 0 || _busy || _pending.Count > 0 || _typing != null || _diceRolling || _game.State.PendingGrowth.Count > 0) return;

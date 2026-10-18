@@ -105,6 +105,15 @@ namespace Tavern.Core.Tests
             Assert.That(reply.Content, Is.EqualTo("語り"));
             Assert.That(reply.ToolCalls[0].Name, Is.EqualTo("suggest_actions"));
         }
+
+        [Test]
+        public void Clean_DropsSuggestionListsWrittenIntoTheTelling()
+        {
+            Assert.That(GmSession.Clean("雨音の響く酒場で、老商人が声をかけた。\n（行動案）\n1. 話を聞く\n2. 出発する"),
+                Is.EqualTo("雨音の響く酒場で、老商人が声をかけた。"));
+            Assert.That(GmSession.Clean("扉が開いた。\n- 中へ進む"), Is.EqualTo("扉が開いた。"));
+            Assert.That(GmSession.Clean("  そのまま。  "), Is.EqualTo("そのまま。"));
+        }
     }
 }
 

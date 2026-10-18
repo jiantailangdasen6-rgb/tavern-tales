@@ -11,14 +11,14 @@ namespace Tavern.Core.Game
 {
     public sealed class CharacterSave
     {
-        public string Name = "", ClassId = "", Background = "", Portrait = "";
+        public string Name = "", ClassId = "", Background = "", Portrait = "", RosterId = "";
         public int Might, Skill, Wits, Spirit, MaxHp, MaxFocus, Hp, Focus, FateCoins, DeathSaveFailures, NextCheckBonus;
         public LifeState State;
         public List<string> Cards = new List<string>(), Items = new List<string>();
 
         public static CharacterSave From(Character c) => new CharacterSave
         {
-            Name = c.Name, ClassId = c.ClassId, Background = c.Background, Portrait = c.Portrait,
+            Name = c.Name, ClassId = c.ClassId, Background = c.Background, Portrait = c.Portrait, RosterId = c.RosterId,
             Might = c.Modifier(Stat.Might), Skill = c.Modifier(Stat.Skill), Wits = c.Modifier(Stat.Wits), Spirit = c.Modifier(Stat.Spirit),
             MaxHp = c.MaxHp, MaxFocus = c.MaxFocus, Hp = c.Hp, Focus = c.Focus, FateCoins = c.FateCoins,
             DeathSaveFailures = c.DeathSaveFailures, NextCheckBonus = c.NextCheckBonus, State = c.State,
@@ -27,7 +27,7 @@ namespace Tavern.Core.Game
 
         public Character ToCharacter()
         {
-            var c = new Character(Name, ClassId, Might, Skill, Wits, Spirit, MaxHp, MaxFocus, Background) { Portrait = Portrait };
+            var c = new Character(Name, ClassId, Might, Skill, Wits, Spirit, MaxHp, MaxFocus, Background) { Portrait = Portrait, RosterId = RosterId };
             c.Restore(Hp, Focus, FateCoins, State, DeathSaveFailures, NextCheckBonus);
             c.Cards.AddRange(Cards); c.Items.AddRange(Items);
             return c;

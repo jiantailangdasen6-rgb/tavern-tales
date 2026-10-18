@@ -81,6 +81,9 @@ namespace Tavern.Unity.App
                     Field.lineType != InputField.LineType.SingleLine, Field.characterLimit);
                 _open = this;
                 _version = 0;
+                // Unity's own field must not stay in edit mode under the HTML one: it would not redraw the text sent back to it.
+                Field.DeactivateInputField();
+                if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
             }
 
             void Update()

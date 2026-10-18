@@ -151,7 +151,7 @@ namespace Tavern.Core.Gm
             if (narrate != null)
             {
                 turn.NarrateArgs = narrate.Arguments;
-                turn.Narration = ((string?)narrate.Arguments["text"] ?? "").Trim();
+                turn.Narration = Clean((string?)narrate.Arguments["text"] ?? "");
                 if (narrate.Arguments["suggestions"] is JArray arr)
                     turn.Suggestions.AddRange(arr.Select(a => ((string?)a ?? "").Trim()).Where(a => a.Length > 0).Take(3));
                 _history.Add(new ChatMessage(Role.Assistant, reply.Content, new[] { narrate }, raw: reply.Raw));
@@ -160,9 +160,21 @@ namespace Tavern.Core.Gm
             else
             {
                 // A backend that cannot be forced (local model) may answer in plain text.
-                turn.Narration = reply.Content.Trim();
+                turn.Narration = Clean(reply.Content);
                 _history.Add(new ChatMessage(Role.Assistant, reply.Content));
             }
+        }
+
+        /// <summary>
+        /// The telling without what does not belong in it: a list of suggested actions written into the text (the model did that
+        /// when the narrate tool had no suggestions field) and numbered lines.
+        /// </summary>
+        public static string Clean(string text)
+        {
+            var cut = System.Text.RegularExpressions.Regex.Match(text, @"[（(【\[]?\s*(次の)?行動案\s*[）)】\]]?\s*[:：]?\s*\n");
+            if (cut.Success && cut.Index > 0) text = text.Substring(0, cut.Index);
+            var lines = text.Split('\n').Where(l => !System.Text.RegularExpressions.Regex.IsMatch(l, @"^\s*([0-9０-９]+[.．、)）]|[-・*]\s)"));
+            return string.Join("\n", lines).Trim();
         }
 
         /// <summary>A whole exploration turn with the default resolver (every planned check is rolled).</summary>

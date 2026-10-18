@@ -52,6 +52,8 @@ namespace Tavern.Core.Game
     /// <summary>A character kept between evenings: the class basics plus titles and keepsakes ("carry over a little").</summary>
     public sealed class RosterEntry
     {
+        /// <summary>Who this is, whatever the name (two adventurers may share one; a new one never takes over an old one's entry).</summary>
+        public string Id = "";
         public string Name = "", ClassId = "", Background = "", Portrait = "";
         public List<string> Titles = new List<string>();
         public List<string> Keepsakes = new List<string>();
@@ -68,6 +70,7 @@ namespace Tavern.Core.Game
             if (Titles.Count > 0) bg += $"（称号: {string.Join("・", Titles)}）";
             if (Nights > 0) bg += $"（これまでに {Nights} 晩の冒険を生き延びた）";
             var c = TavernGame.CreateCharacter(db, Name, ClassId, bg, Portrait);
+            c.RosterId = Id;
             c.Items.AddRange(Keepsakes);
             return c;
         }
@@ -77,11 +80,47 @@ namespace Tavern.Core.Game
     {
         public List<RosterEntry> Characters = new List<RosterEntry>();
 
-        public static Roster Load(string? json) => string.IsNullOrWhiteSpace(json) ? new Roster() : JsonConvert.DeserializeObject<Roster>(json!) ?? new Roster();
+        public static Roster Load(string? json)
+        {
+            var r = string.IsNullOrWhiteSpace(json) ? new Roster() : JsonConvert.DeserializeObject<Roster>(json!) ?? new Roster();
+            foreach (var e in r.Characters.Where(e => e.Id.Length == 0)) { e.Id = NewId(); r.GaveIds = true; }   // entries from before ids
+            return r;
+        }
         public string ToJson() => JsonConvert.SerializeObject(this, Formatting.Indented);
+        public static string NewId() => Guid.NewGuid().ToString("N");
+
+        /// <summary>Load gave ids to old entries: save it back so the ids stay the same.</summary>
+        [JsonIgnore] public bool GaveIds;
 
         public IEnumerable<RosterEntry> Living => Characters.Where(c => !c.Dead);
         public IEnumerable<RosterEntry> Fallen => Characters.Where(c => c.Dead);
+
+        /// <summary>
+        /// This PC's entry for an adventurer of tonight: the one it was called from (by id), else a new entry. Never by name:
+        /// a new adventurer who happens to share an old one's name must not inherit (or overwrite) the old one's keepsakes.
+        /// </summary>
+        RosterEntry EntryFor(Character c)
+        {
+            var e = c.RosterId.Length > 0 ? Characters.FirstOrDefault(x => x.Id == c.RosterId) : null;
+            if (e != null) return e;
+            e = new RosterEntry { Id = c.RosterId.Length > 0 ? c.RosterId : NewId(), Name = c.Name, ClassId = c.ClassId, Portrait = c.Portrait,
+                Background = StripNotes(c.Background) };
+            c.RosterId = e.Id;   // the same evening recorded again finds this entry
+            Characters.Add(e);
+            return e;
+        }
+
+        /// <summary>Death is final at once: an adventurer who died tonight is on the memorial even if the evening is never finished.</summary>
+        public bool RecordDeaths(TavernGame game, Func<Character, bool> mine)
+        {
+            var changed = false;
+            foreach (var c in game.Party.Where(mine).Where(c => c.State == LifeState.Dead))
+            {
+                var e = EntryFor(c);
+                if (!e.Dead) { e.Dead = true; changed = true; }
+            }
+            return changed;
+        }
 
         /// <summary>
         /// After an evening ends: this PC's characters are kept (or remembered as fallen). The background is stored without
@@ -92,9 +131,9 @@ namespace Tavern.Core.Game
             foreach (var c in game.Party.Where(mine))
             {
                 var stamp = game.Scenario.Id + game.State.Turn;
-                var e = Characters.FirstOrDefault(x => x.Name == c.Name && (!x.Dead || x.LastScenario == stamp));
-                if (e == null) { e = new RosterEntry { Name = c.Name, ClassId = c.ClassId, Portrait = c.Portrait }; Characters.Add(e); }
+                var e = EntryFor(c);
                 if (e.LastScenario == stamp) continue;   // already recorded this ending
+                e.Name = c.Name;
                 e.Background = StripNotes(c.Background);
                 e.Nights++;
                 e.LastScenario = stamp;

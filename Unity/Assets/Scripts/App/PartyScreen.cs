@@ -173,7 +173,7 @@ namespace Tavern.Unity.App
             }
         }
 
-        void SetEnabled(Slot s, bool on) { s.Enabled = on; s.Body.SetActive(on); s.Empty.SetActive(!on); }
+        void SetEnabled(Slot s, bool on) { s.Enabled = on; s.Body.SetActive(on); s.Empty.SetActive(!on); if (!on) s.FromRoster = null; }
 
         void FillSamples()
         {
@@ -211,7 +211,9 @@ namespace Tavern.Unity.App
                 var name = s.Name.text.Trim();
                 if (name.Length == 0) name = _app.Db.Classes[s.ClassId].Name;
                 while (!used.Add(name)) name += "二";
-                if (s.FromRoster != null && s.FromRoster.Name == name && s.FromRoster.ClassId == s.ClassId) party.Add(s.FromRoster.ToCharacter(_app.Db));
+                // The called adventurer only while the seat still shows them; changing the name, class or story makes a new one.
+                if (s.FromRoster != null && s.FromRoster.Name == name && s.FromRoster.ClassId == s.ClassId && s.FromRoster.Background.Trim() == s.Background.text.Trim())
+                    party.Add(s.FromRoster.ToCharacter(_app.Db));
                 else party.Add(TavernGame.CreateCharacter(_app.Db, name, s.ClassId, s.Background.text.Trim(), s.Art));
             }
             return party;
@@ -242,7 +244,7 @@ namespace Tavern.Unity.App
             var roster = _app.LoadRoster();
             foreach (var c in party)
                 if (!roster.Living.Any(e => e.Name == c.Name))
-                    roster.Characters.Add(new Tavern.Core.Game.RosterEntry { Name = c.Name, ClassId = c.ClassId, Background = c.Background, Portrait = c.Portrait });
+                    roster.Characters.Add(new Tavern.Core.Game.RosterEntry { Id = Tavern.Core.Game.Roster.NewId(), Name = c.Name, ClassId = c.ClassId, Background = c.Background, Portrait = c.Portrait });
             _app.SaveRoster(roster);
             _app.ShowRoster();
         }

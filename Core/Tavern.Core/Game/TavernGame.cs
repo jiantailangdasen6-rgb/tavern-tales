@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
@@ -116,6 +117,8 @@ namespace Tavern.Core.Game
         }
 
         ILlmClient? _suggestLlm;
+        /// <summary>Tell a turn once more when the telling left out someone who declared (tests with canned replies turn it off).</summary>
+        public bool RetellMissing { get; set; } = true;
 
         /// <summary>
         /// Set to make the suggested actions with a separate call that only sees PublicView (Suggester), so they cannot give
@@ -154,7 +157,7 @@ namespace Tavern.Core.Game
             var here = Here;
             sb.AppendLine($"いる場所: {here.Name}。{here.Description}");
             sb.AppendLine("ここから行ける場所: " + string.Join("・", here.Exits.Select(x => Scenario.Location(x).Name)));
-            var people = Scenario.Npcs.Where(n => n.Where == State.Location).Select(n => n.Name).ToList();
+            var people = Scenario.Npcs.Where(n => n.Where == State.Location && HasMet(n)).Select(n => n.Name).ToList();
             if (people.Count > 0) sb.AppendLine("ここにいる人物: " + string.Join("・", people));
             sb.AppendLine("見つけた手がかり: " + (State.Clues.Count == 0 ? "なし" : string.Join(" / ", State.Clues.Select(id => Scenario.Clues.First(c => c.Id == id).Text))));
             foreach (var p in Party)
@@ -213,8 +216,23 @@ namespace Tavern.Core.Game
                     Add(report, RollEntry(again));
                 }
             }
-            Gm.AnswerPlan(GmSession.ChecksAnswer(turn));
+            var names = decls.Select(d => d.Character).Distinct().ToList();
+            Gm.AnswerPlan(GmSession.ChecksAnswer(turn) + $"\n語りには、宣言した全員（{string.Join("・", names)}）の行動とその結末を 1 人ずつ必ず入れること。" +
+                "判定のない人も省かず、誰かの行動を次の手番に回さない。");
             var narrated = await Gm.NarrateAsync(null, ct: ct);
+            // Everyone who declared must be in the telling; a turn that leaves someone out is told once more.
+            var missing = names.Where(n => !narrated.Narration.Contains(n)).ToList();
+            if (RetellMissing && missing.Count > 0 && narrated.Narration.Length > 0)
+            {
+                try
+                {
+                    var retold = await Gm.NarrateAsync($"今の語りに {string.Join("・", missing)} の行動が入っていない。" +
+                        $"宣言した全員（{string.Join("・", names)}）の行動と結末を入れて、この手番の語りを書き直すこと（効果の欄も書き直す）。", ct: ct);
+                    if (retold.Narration.Length > 0) narrated = retold;
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception) { }   // the first telling stands (a quota or a slow model must not cost the turn)
+            }
             Finish(report, narrated);
             await AfterNarrationAsync(report, narrated, ct);
         }
@@ -280,7 +298,7 @@ namespace Tavern.Core.Game
                     Add(report, LogEntry.Line(LogKind.Event, c.Name, $"{c.Name} の HP が {c.Hp}/{c.MaxHp} に回復した。"));
                 }
             foreach (var e in Entries(a, "items_gained").Take(3))
-                if (Find((string?)e["character"]) is Character c && (string?)e["item"] is string item && item.Length > 0)
+                if (Find((string?)e["character"]) is Character c && (string?)e["item"] is string item && item.Length > 0 && IsThing(item))
                 {
                     c.Items.Add(item);
                     Add(report, LogEntry.Line(LogKind.Event, c.Name, $"{c.Name} は「{item}」を手に入れた。"));
@@ -310,6 +328,10 @@ namespace Tavern.Core.Game
             if (end == "success" || end == "bitter" || end == "failure") await EndAsync(end, report, ct);
             else if (Party.All(p => !p.CanAct)) await EndAsync("failure", report, ct);
         }
+
+        /// <summary>A carried thing, not a person: the rescued youths once ended up in the warrior's pack.</summary>
+        bool IsThing(string item) =>
+            !item.EndsWith("たち") && !item.EndsWith("達") && !Scenario.Npcs.Any(n => n.Name == item || n.Name.EndsWith(item)) && Find(item) == null;
 
         static IEnumerable<JObject> Entries(JObject args, string key) => (args[key] as JArray)?.OfType<JObject>() ?? Enumerable.Empty<JObject>();
 
@@ -703,15 +725,20 @@ namespace Tavern.Core.Game
             var bossDown = State.Combat!.Enemies.Any(e => e.Boss);
             State.Combat = null;
             summary.Add(bossDown ? "ボスを倒した。戦いは終わった。" : "敵をすべて倒した。戦いは終わった。");
-            Add(report, LogEntry.Line(LogKind.Event, "", "勝利"));
-            await NarrateRoundAsync(summary, report, ct, highlight: bossDown);
+            await NarrateRoundAsync(summary, report, ct, highlight: bossDown, won: true);
         }
 
-        async Task NarrateRoundAsync(List<string> summary, TurnReport report, CancellationToken ct, bool highlight = false)
+        async Task NarrateRoundAsync(List<string> summary, TurnReport report, CancellationToken ct, bool highlight = false, bool won = false)
         {
             // The players see the rule results too (who hit whom for how much), before the storyteller's telling.
             foreach (var line in summary.Where(l => !l.Contains("死のサイコロ"))) Add(report, LogEntry.Line(LogKind.Event, "", line));
-            var text = Status() + "\n【この手番に起きたこと（ゲームが決めた結果）】\n" + string.Join("\n", summary) +
+            // "Victory" (its line and fanfare) only after the blows that won it.
+            if (won) Add(report, LogEntry.Line(LogKind.Event, "", "勝利"));
+            // A telling once ended the fight (and the story) while the foes still stood; the game decides when a fight is over.
+            var standing = State.Combat?.Enemies.Where(e => e.Alive).Select(e => e.Name).ToList() ?? new List<string>();
+            var still = standing.Count > 0 ? $"\nまだ戦いは続いている（立っている敵: {string.Join("・", standing)}）。" +
+                "敵を倒した・勝った・幕を閉じたなど、戦いの終わりや物語の結末は語らないこと。" : "";
+            var text = Status() + "\n【この手番に起きたこと（ゲームが決めた結果）】\n" + string.Join("\n", summary) + still +
                 "\nこの結果のとおりに、戦いの一手番を短く迫力をもって語ってください（HP・ダメージなどの数字やゲームの言葉は書かず、傷や疲れの様子で描く）。";
             var turn = await Gm.NarrateAsync(text, highlight, ct);
             Finish(report, turn);
@@ -798,9 +825,24 @@ namespace Tavern.Core.Game
         List<string> KnownOnly(IEnumerable<string> suggestions)
         {
             var known = string.Join("\n", State.Log.Select(e => e.Text)) + string.Join("", State.Combat?.Enemies.Select(e => e.Name) ?? Enumerable.Empty<string>());
-            var words = Db.Enemies.Values.Select(e => e.Name).Concat(Telling).Distinct().ToList();
+            var words = Db.Enemies.Values.Select(e => e.Name).Concat(Telling)
+                .Concat(Scenario.Npcs.Where(n => !Met(n, known)).SelectMany(NameParts)).Distinct().ToList();
             return suggestions.Where(s => !words.Any(w => s.Contains(w) && !known.Contains(w))).ToList();
         }
+
+        /// <summary>A person's full name and, for "村長オズリック", the name alone ("オズリック"), which is how the telling often says it.</summary>
+        static IEnumerable<string> NameParts(NpcDef n)
+        {
+            yield return n.Name;
+            var m = Regex.Match(n.Name, "[ァ-ヴー]{2,}$");
+            if (m.Success && m.Value != n.Name) yield return m.Value;
+        }
+
+        /// <summary>Whether the players have heard of this person (their name was told, shown or said).</summary>
+        static bool Met(NpcDef n, string known) => NameParts(n).Any(known.Contains);
+
+        /// <summary>Whether the story has named this person yet (the table shows them and suggestions may mention them only then).</summary>
+        public bool HasMet(NpcDef n) => Met(n, string.Join("\n", State.Log.Select(e => e.Text)));
 
         /// <summary>The compact state the AI sees at the top of each request.</summary>
         public string Status()

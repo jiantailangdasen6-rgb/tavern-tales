@@ -16,6 +16,8 @@ namespace Tavern.Core.Rules
         public string Background { get; set; }
         /// <summary>Portrait art id (e.g. pc_warrior_f).</summary>
         public string Portrait { get; set; } = "";
+        /// <summary>The roster entry this adventurer came from (empty for one made tonight); the roster matches by this, never by name.</summary>
+        public string RosterId { get; set; } = "";
         readonly Dictionary<Stat, int> _stats = new Dictionary<Stat, int>();
 
         public int MaxHp { get; private set; }

@@ -7,16 +7,22 @@ namespace Tavern.Core.Game
 {
     // Messages of online play (Docs/04_Online.md). All are JSON; the host owns the game, friends mirror it.
 
+    /// <summary>The released version (bump with each GitHub release). Host and friends compare it in the lobby: a friend on an
+    /// older version misses the art and stories added since, which looked like a bug.</summary>
+    public static class GameVersion { public const string Current = "0.1.3"; }
+
     public sealed class HelloMsg
     {
         public string PlayerName = "";
         public CharacterSave Character = new CharacterSave();
+        /// <summary>GameVersion.Current of the friend (empty from versions before it was sent).</summary>
+        public string Version = "";
     }
 
     public sealed class LobbyPlayer
     {
         public ulong Id;
-        public string PlayerName = "", CharacterName = "", ClassId = "", Portrait = "";
+        public string PlayerName = "", CharacterName = "", ClassId = "", Portrait = "", Version = "";
     }
 
     public sealed class LobbyMsg
@@ -26,6 +32,8 @@ namespace Tavern.Core.Game
         // What the host is choosing, so friends see it too: the storyteller (id), the story ("用意された物語「…」" etc.),
         // the one-line request, and what the host is doing ("" choosing, "writing" the storyteller is writing the story).
         public string Teller = "", Story = "", Request = "", Phase = "";
+        /// <summary>The host's GameVersion.Current.</summary>
+        public string Version = "";
     }
 
     public sealed class DeclareMsg

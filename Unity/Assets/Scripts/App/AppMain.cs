@@ -10,7 +10,6 @@ using Tavern.Unity.Dice;
 using Tavern.Unity.Ui;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 
 namespace Tavern.Unity.App
@@ -68,7 +67,12 @@ namespace Tavern.Unity.App
 
         void Start()
         {
-            var es = new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
+            // Windows: the classic input module, through which uGUI input fields take Japanese IME text (with the Input System module
+            // the text being converted and the converted text could both end up in the field). The browser gets no input through
+            // the classic module at all, and types in HTML fields anyway (WebPage), so it keeps the Input System module.
+            var es = new GameObject("EventSystem", typeof(EventSystem));
+            if (WebPage.IsBrowser) es.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+            else es.AddComponent<StandaloneInputModule>();
             es.transform.SetParent(transform);
 
             var canvasGo = new GameObject("Canvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -317,7 +321,11 @@ namespace Tavern.Unity.App
         // The chronicle and the roster live next to the save (tests point them elsewhere with -savefile).
         string RecordPath(string name) => Path.Combine(Path.GetDirectoryName(SavePath) ?? Application.persistentDataPath, name);
         public Chronicle LoadChronicle() { try { var p = RecordPath("chronicle.json"); return Chronicle.Load(File.Exists(p) ? File.ReadAllText(p) : null); } catch { return new Chronicle(); } }
-        public Roster LoadRoster() { try { var p = RecordPath("roster.json"); return Roster.Load(File.Exists(p) ? File.ReadAllText(p) : null); } catch { return new Roster(); } }
+        public Roster LoadRoster()
+        {
+            try { var p = RecordPath("roster.json"); var r = Roster.Load(File.Exists(p) ? File.ReadAllText(p) : null); if (r.GaveIds) SaveRoster(r); return r; }
+            catch { return new Roster(); }
+        }
         public void SaveChronicle(Chronicle c) { try { File.WriteAllText(RecordPath("chronicle.json"), c.ToJson()); WebPage.Flush(); } catch (Exception e) { Debug.LogWarning("[Records] " + e.Message); } }
         public void SaveRoster(Roster r) { try { File.WriteAllText(RecordPath("roster.json"), r.ToJson()); WebPage.Flush(); } catch (Exception e) { Debug.LogWarning("[Records] " + e.Message); } }
 

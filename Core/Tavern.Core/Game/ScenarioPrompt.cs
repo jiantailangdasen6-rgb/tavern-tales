@@ -56,7 +56,7 @@ namespace Tavern.Core.Game
             sb.AppendLine("- 一行が別の場所に着いたら move_to。行き先は今いる場所の「行き先」から選ぶ。");
             sb.AppendLine("- 冒険者が手がかりを知ったら clues_found。秘密は、冒険者が調べたり聞いたりして見つけるまで語らない。");
             sb.AppendLine("- 敵が襲ってきたら start_combat に敵の id を入れる。戦いの中身（命中・ダメージ）はゲームが決めるので、語りでは始まりだけを描く。");
-            sb.AppendLine("- 罠や落下で傷を負ったら damage、物を得たら items_gained。");
+            sb.AppendLine("- 罠や落下で傷を負ったら damage、持ち運べる物を得たら items_gained（人や生き物は物ではないので入れない）。");
             sb.AppendLine("- 幕の目標を果たしたら next_act。若者を連れ帰るか、全滅・撤退で物語が終わるなら end_story。");
             return sb.ToString();
         }
