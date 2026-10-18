@@ -37,7 +37,7 @@
 - 送る量を抑える（`GmSession.KeepTurns`、`TavernGame.RecentTurns` = 10）: 直近 10 件のプレイヤーの発言（戦闘は 1 手番 2 件）とその後だけをそのまま送り、
   それより前は語りの頭を 100 字までに縮めた「これまでのあらすじ」と語り部への注文としてシステムの指示に足す。保存する履歴は全部のまま。
   同じ条件の 1 晩で、1 回の入力の最大 19,821 → 11,053 トークン（平均 10,806 → 8,479）。後半も前半の出来事（騎士の名など）を覚えていた。
-- 配布（2026-10-18）: GitHub Releases に v0.1.0（無音の不具合あり）と v0.1.1（音の直し、最新）。zip は `Tools/Package.ps1` で作る。https://github.com/jiantailangdasen6-rgb/tavern-tales/releases/latest
+- 配布（2026-10-18）: GitHub Releases に v0.1.1（最新。無音の不具合があった v0.1.0 はリリースもタグも消した）。zip は `Tools/Package.ps1` で作る。https://github.com/jiantailangdasen6-rgb/tavern-tales/releases/latest
   中継ページの「ゲームを持っていないとき」からも飛べる。新しい版は `gh release create vX.Y.Z dist/…zip` で出す（鍵が入っていないことを確かめてから）。
 - 招待リンク（2026-10-18）: ロビーの「招待リンクをコピー」で https://jiantailangdasen6-rgb.github.io/tavern-tales/join.html#CODE。
   中継ページ（`Web/`、`Tools/DeployPages.ps1` で gh-pages ブランチへ。GitHub Pages）が tavern-tales://join/CODE を開き、ゲームは部屋に入る画面にコードを入れて開く。
