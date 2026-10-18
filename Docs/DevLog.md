@@ -45,6 +45,15 @@
 - 音量（2026-10-18）: 前の既定「小」は曲が約 -45 dBFS でほぼ聞こえなかった。AudioListener 1、MusicBase 0.6・SfxBase 0.7・炉の火 0.5、
   段階 0 / 0.4 / 0.7 / 1 で、曲は「小」約 -31・「大」約 -23 dBFS。タイトル画面にも「設定」（`SettingsPanel`）。music.json が壊れていても合成の音に戻るだけにし、
   テスト `MusicMap_IsValidJsonAndPointsAtFiles` で中身とファイルを確かめる（説明文の引用符でファイルを壊し、タイトルが真っ黒になったことがある）。
+- 中身を増やす・4 人・ダイス（2026-10-18）:
+  - 4 人まで: キャラ作りは 4 席（幅 420）、Relay は 4 人、4 人のときは仲間のカードとロビーの行を小さく。`OnlineTest.ps1 -Friends 3` で 4 台を確認。
+  - ダイス: 見えない物理の盆（`DiceRoller.BuildTray`、ローカルの PhysicsScene）で先に投げて記録し、止まった面に決めた目が来るよう
+    見た目を 20 面体の対称で回して（`Throw.Look`）再生する。場面いっぱいに転がり、跳ねるたびにコツン（`Bounced`）、影、止まったら少し浮いて目をこちらに向ける。
+    `-dicetest N -dicelog`。
+  - 用意された物語 4 本（灰色の森の祠・灯りのともる古城・白牙の峰の飛竜・銀の白鳥号の歌）。「用意された物語（次へ）」で選ぶ。物語は毎晩の保存に入る
+    （`GameState.ScenarioJson`、友人の画面も同じ物語）。テスト `PreparedStories_AreConsistent`。CLI `--scenario <id>`、Unity `-story prepared:<id>`。
+  - 物語の型 14 本（新しく 6 本: 古城・竜討ち・眠り病・魔女との取引・地下水路・冬の砦）。敵 22（新しく 10: 屍食鬼・嵐の怪鳥・大鼠・リザードマン・
+    動く甲冑・大熊、ボス 吸血の伯爵・黒沼の魔女・深海の大蛇・白牙の飛竜）、場所の絵 28、人物 15（仮絵 `Tools/ArtGen/jobs/m4.json`）。テスト `EveryFoePlaceAndPersonHasArt`。
 - テストプレイの感想への対応（2026-10-18）:
   - 行動案が答えを教える（「現れたアンデッドと戦う準備をする」）: 指示を例つきで強め、ゲーム側でも、まだ語られていない敵の名前や「罠」「アンデッド」などを含む案を落とす（`TavernGame.KnownOnly`）。
   - さらに、行動案は答えを知らない別の呼び出し（`Suggester`、Flash-Lite）が作る。渡すのは `TavernGame.PublicView`（場所の見た目・行き先・その場の人物の名前・

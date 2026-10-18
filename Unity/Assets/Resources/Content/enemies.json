@@ -32,7 +32,7 @@
       "bigMove": { "name": "地響きの踏みつけ", "every": 3, "dc": 14, "damage": 4, "warning": "トロルが片足を高く持ち上げた……" } },
     { "id": "ghoul", "name": "屍食鬼", "art": "en_ghoul", "hp": 8, "defense": 12, "undead": true,
       "attacks": [ { "name": "腐った爪", "dc": 13, "damage": 3 } ], "pattern": "weakest" },
-    { "id": "harpy", "name": "ハーピー", "art": "en_harpy", "hp": 6, "defense": 13, "undead": false,
+    { "id": "harpy", "name": "嵐の怪鳥", "art": "en_harpy", "hp": 6, "defense": 13, "undead": false,
       "attacks": [ { "name": "急降下の鉤爪", "dc": 13, "damage": 2 } ], "pattern": "random" },
     { "id": "giant_rat", "name": "大鼠", "art": "en_giant_rat", "hp": 4, "defense": 10, "undead": false,
       "attacks": [ { "name": "病の牙", "dc": 11, "damage": 1 } ], "pattern": "random" },

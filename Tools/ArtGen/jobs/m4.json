@@ -1,6 +1,6 @@
 [
   { "id": "en_ghoul", "kind": "creature", "aspect": "2:3", "prompt": "A gaunt grey ghoul crouching among broken gravestones, long claws, hollow glowing eyes, torn burial rags, mist." },
-  { "id": "en_harpy", "kind": "creature", "aspect": "2:3", "prompt": "A harpy with ragged dark wings and a wild-haired woman's face, talons gripping a sea cliff, storm clouds behind." },
+  { "id": "en_harpy", "kind": "creature", "aspect": "2:3", "prompt": "A monstrous harpy, a bird creature covered in dark ragged feathers from neck to talons, hag-like grey face with wild hair and a hooked nose, huge tattered wings, clawed bird feet gripping a sea cliff, storm clouds behind, fully feathered body." },
   { "id": "en_giant_rat", "kind": "creature", "aspect": "2:3", "prompt": "A swarm of huge sewer rats with red eyes in a dark stone tunnel, one enormous rat in front baring its teeth, dripping water." },
   { "id": "en_lizardman", "kind": "creature", "aspect": "2:3", "prompt": "A scaled lizardman warrior standing in black marsh water, bone spear and reed shield, cold yellow eyes, fog and reeds." },
   { "id": "en_animated_armor", "kind": "creature", "aspect": "2:3", "prompt": "An empty suit of ancient plate armour moving on its own in a dim castle hall, a faint blue light inside the helmet, rusted greatsword." },

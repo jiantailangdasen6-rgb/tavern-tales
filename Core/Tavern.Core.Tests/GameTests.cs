@@ -94,6 +94,17 @@ namespace Tavern.Core.Tests
         }
 
         [Test]
+        public void EveryFoePlaceAndPersonHasArt()
+        {
+            var dir = ContentDir();
+            var art = Path.Combine(Path.GetDirectoryName(dir)!, "Art");
+            var db = ContentDb.LoadFolder(dir);
+            var story = StoryContent.LoadFolder(dir);
+            var ids = db.Enemies.Values.Select(e => e.Art).Concat(story.Catalog.Backgrounds.Select(b => b.Id)).Concat(story.Catalog.Portraits.Select(p => p.Id));
+            foreach (var id in ids) Assert.That(File.Exists(Path.Combine(art, id + ".jpg")), id);
+        }
+
+        [Test]
         public void PreparedStories_AreConsistent()
         {
             var dir = ContentDir();
