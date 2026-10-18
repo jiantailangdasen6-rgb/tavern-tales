@@ -6,6 +6,15 @@
   id は grey_shrine / castle_lights / white_fang / silver_swan。castle_lights は成功の結末まで確認済み）、AI が作る物語（新しい型）も何本か、
   Unity でも 4 人・オンライン 4 台（`Tools/OnlineTest.ps1 -Friends 3`）とダイスを見て、気になった点を報告する。
 - 保留: AI の乗り換え（語りだけ Gemini Flash 系 3.7→3.6→3.5 の順に使う案。Flash 系は各 1 日 20 回）、本番の絵（fal.ai、約 10 ドル）。
+- **ブラウザ版（2026-10-18 夜、オーナー決定: 友人だけブラウザ、部屋を作るのは Windows 版）**:
+  `BuildScript.BuildWeb` → `Builds/web`（約 90 MB、gzip + 展開の予備。GitHub Pages は Content-Encoding を付けないため）。
+  通信は全員 WebSocket の Relay（`wss`）にした。**古い exe（v0.1.2 以前、dtls）とはつながらない** → ブラウザ版を使うには新しい Windows 版の配布が要る。
+  タイトルは「友人の部屋に入る」と名簿・記録帳・遊び方・クレジット・設定だけ。招待リンクの中継ページは「ブラウザで部屋に入る」（`play/#CODE`）を先に出す。
+  入力欄はブラウザでは HTML の入力欄を重ねる（`WebPage.HtmlInput`、`Plugins/WebGL/TavernWeb.jslib`。日本語の変換のため）。
+  文字は Noto Sans/Serif JP（`Resources/Fonts`、SIL OFL）。名簿などは IndexedDB に同期（`WebPage.Flush`）。
+  確認: 手元（`Tools/ServeWeb.ps1` → http://localhost:8080/#CODE）で、exe のホストの部屋にブラウザから入り、日本語で名前と生い立ちを書き、
+  行動案を選んで宣言し、ダイスと語りが届いた。exe 同士（`OnlineTest.ps1 -Friends 1`）も wss でつながった。
+  公開は `Tools/DeployPages.ps1`（gh-pages を毎回作り直して強制 push）。**まだ公開していない**（新しい Windows 版と一緒に出すかオーナーに確認）。
 - **テストプレイ（2026-10-18 午後）はオーナーの指示で途中止め**（再開はオーナーの OK を待つ）。記録は `Logs/playtest/`。
   - 済み: 最新でビルド、テスト 47 件合格、灰色の森の祠をボットで成功の結末まで（Flash-Lite 60 回、22 手番）、オンライン 4 台（エラーなし）、
     4 人のキャラ作りと 4 人の通し（見本の AI）、ダイス（`-dicetest 17` で 17 が上）、手元の AI だけで白牙の峰を 2 手番。
