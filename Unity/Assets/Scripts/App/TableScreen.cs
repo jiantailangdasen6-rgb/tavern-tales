@@ -122,6 +122,7 @@ namespace Tavern.Unity.App
             BuildActions(root);
             _overlay = UiKit.Rect("Overlay", root).Fill().gameObject;
             if (AppMain.Flag("-showsettings")) ShowSettings();   // screenshots
+            if (AppMain.Flag("-showsheet")) ShowSheet(_game.Party[0]);
 
             if (opening) _ = OpenAsync();
             else if (_role == NetRole.Client && _game.State.Log.Count <= 12) { EnqueueNew(_game.State.Log); RefreshAll(); }
@@ -168,9 +169,10 @@ namespace Tavern.Unity.App
                 c.Focus = UiKit.Label(t, "", 13, Theme.Dim, 180, 80, 90, 18, align: TextAnchor.UpperRight);
                 c.FocusBar = UiKit.Bar(t, 116, 100, 152, 8, Theme.Blue);
                 c.Status = UiKit.Label(t, "", 14, Theme.Gold, 116, 116, 156, 54);
+                UiKit.Button(t, "詳しく", () => ShowSheet(_game.Party[idx]), 10, 146, 96, 24, 13);   // abilities, items, cards
                 _partyCards.Add(c);
             }
-            UiKit.Label(panel, "カードを押すと、その冒険者の行動を書けます", 14, Theme.Dim, 16, 620, 270, 44);
+            UiKit.Label(panel, "カードを押すと、その冒険者の行動を書けます。「詳しく」で能力値と持ち物", 14, Theme.Dim, 16, 610, 270, 54);
         }
 
         void BuildScene(Transform root)
@@ -499,18 +501,29 @@ namespace Tavern.Unity.App
             {
                 _busy = false;
                 _busyText.text = "";
-                RefreshTop(); RefreshParty(); RefreshActions();
+                if (Playing) _viewStale = true; else { RefreshTop(); RefreshParty(); }
+                RefreshActions();
                 if (_role == NetRole.Host) BroadcastTurn();
             }
         }
 
         /// <summary>Queues log lines not shown yet (by sequence number; game-less warnings have 0 and always show).</summary>
+        /// <summary>
+        /// The scene, the party and the top bar wait for the lines being played: the state is already the end of the turn, and
+        /// drawing it at once showed a fight won or a place left before the dice that decided it had rolled.
+        /// </summary>
+        bool _viewStale;
+        bool Playing => _pending.Count > 0 || _diceRolling || _typing != null;
+
+        void RefreshView() { RefreshTop(); RefreshParty(); RefreshScene(); }
+
         void EnqueueNew(IEnumerable<LogEntry> entries)
         {
             foreach (var e in entries)
             {
                 if (e.Seq != 0 && !_shownSeq.Add(e.Seq)) continue;
                 _pending.Enqueue(e);
+                _viewStale = true;
                 if (_autoTurns > 0) Debug.Log($"[Log] {e.Seq} {e.Kind} {e.Who}: {(e.Text.Length > 30 ? e.Text.Substring(0, 30) : e.Text)}");
             }
         }
@@ -522,7 +535,7 @@ namespace Tavern.Unity.App
             if (!_game.Ended) _game.State.PlayMinutes += Time.unscaledDeltaTime / 60f;
             // the host hears when a free AI quota runs out and another model takes over
             if (_role != NetRole.Client) while (_app.Ai.Notices.TryDequeue(out var notice)) _pending.Enqueue(LogEntry.Line(LogKind.Warning, "", notice));
-            if (Time.frameCount % 30 == 0) { RefreshTop(); if (_role == NetRole.Host && _pending.Count == 0 && _typing == null) TrySubmitHost(); }
+            if (Time.frameCount % 30 == 0) { if (!Playing) RefreshTop(); if (_role == NetRole.Host && _pending.Count == 0 && _typing == null) TrySubmitHost(); }
             Playback();
             Autoplay();
         }
@@ -542,6 +555,7 @@ namespace Tavern.Unity.App
             if (_diceRolling || Time.time < _holdUntil) return;
             if (_pending.Count == 0)
             {
+                if (_viewStale) { _viewStale = false; RefreshView(); }
                 if (_drained != null) { var d = _drained; _drained = null; d.TrySetResult(true); return; }
                 if (_diceImage.gameObject.activeSelf && Time.time > _holdUntil && _rerollBox == null) HideDice();
                 return;
@@ -552,7 +566,7 @@ namespace Tavern.Unity.App
                 _diceRolling = true;
                 _diceImage.gameObject.SetActive(true);
                 _diceCaption.transform.parent.gameObject.SetActive(true);
-                _diceCaption.text = e.Who + "　" + (e.Text.Contains("死のサイコロ") ? "死のサイコロ" : "判定") + "…";
+                _diceCaption.text = e.Who + "　" + (e.Text.Contains("死のサイコロ") ? "死のサイコロ" : e.Reason.Length > 0 ? e.Reason : "判定") + "…";
                 AudioDirector.Play("dice_roll");
                 _app.Dice.Roll(e.Natural, 1.1f / speed, () =>
                 {
@@ -568,7 +582,8 @@ namespace Tavern.Unity.App
             HideDice();
             AppendLog(e, instant: false);
             if (e.Kind != LogKind.Narration) _holdUntil = Time.time + 0.15f / speed;
-            RefreshScene();
+            // results (damage, victory, a new place) and the telling come after the dice of the turn: the view may catch up now
+            if (e.Kind != LogKind.Declaration) { _viewStale = false; RefreshView(); }
         }
 
         void HideDice()

@@ -708,6 +708,7 @@ namespace Tavern.Core.Game
         LogEntry RollEntry(CheckResult r) => new LogEntry
         {
             Kind = LogKind.Roll, Who = r.Request.CharacterName, Text = r.Describe(), Natural = r.Natural, Total = r.Total, Target = r.Dc,
+            Reason = r.Request.Reason,
             Outcome = r.Outcome switch { Outcome.Critical => "大成功", Outcome.Success => "成功", Outcome.Failure => "失敗", _ => "大失敗" },
         };
 
@@ -724,7 +725,22 @@ namespace Tavern.Core.Game
             if (turn.Narration.Length > 0) Add(report, LogEntry.Line(LogKind.Narration, Teller.Name, turn.Narration));
             report.Narration = turn.Narration;
             report.Model = turn.Model;
-            if (turn.Suggestions.Count > 0) { report.Suggestions = turn.Suggestions; State.Suggestions = turn.Suggestions.ToList(); }
+            var suggestions = KnownOnly(turn.Suggestions);
+            if (turn.Suggestions.Count > 0) { report.Suggestions = suggestions; State.Suggestions = suggestions; }
+        }
+
+        /// <summary>Words a suggestion may only use once the story has said them (a hint like "prepare to fight the undead" gives away what is ahead).</summary>
+        static readonly string[] Telling = { "罠", "アンデッド", "不死", "待ち伏せ", "ボス", "亡霊", "幽霊", "死霊", "呪い", "隠し扉", "隠し通路", "裏切" };
+
+        /// <summary>
+        /// Drops suggested actions that name a foe or a danger the players haven't met: every enemy name and the words above must
+        /// already appear in what was told or shown (the log, the current fight). The AI is told the same; this catches what it lets slip.
+        /// </summary>
+        List<string> KnownOnly(IEnumerable<string> suggestions)
+        {
+            var known = string.Join("\n", State.Log.Select(e => e.Text)) + string.Join("", State.Combat?.Enemies.Select(e => e.Name) ?? Enumerable.Empty<string>());
+            var words = Db.Enemies.Values.Select(e => e.Name).Concat(Telling).Distinct().ToList();
+            return suggestions.Where(s => !words.Any(w => s.Contains(w) && !known.Contains(w))).ToList();
         }
 
         /// <summary>The compact state the AI sees at the top of each request.</summary>

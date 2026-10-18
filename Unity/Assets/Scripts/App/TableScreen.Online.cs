@@ -183,15 +183,23 @@ namespace Tavern.Unity.App
             NetSession.Send("status", NetJson.Json(new StatusMsg { Declared = _declared.ToList(), Busy = _busy }));
         }
 
+        long _newestSeq;
+
         /// <summary>Client: the host's state after a turn (or on joining). Rebuild the mirror and play the new lines.</summary>
         void OnTurn(TurnMsg msg)
         {
             _game = Mirror.Build(msg, _app.Db, _app.Scenario);
             _declared.Clear(); foreach (var n in msg.Declared) _declared.Add(n);
             SetBusy(msg.Busy);
+            // The host also sends this when someone else declares; only a turn that really went on (new lines) clears what this
+            // player was choosing (it used to wipe it each time a friend declared, so choices seemed not to stick).
+            var newest = _game.State.Log.Count == 0 ? 0 : _game.State.Log.Max(e => e.Seq);
+            var turnWentOn = newest > _newestSeq;
+            _newestSeq = Math.Max(_newestSeq, newest);
             EnqueueNew(_game.State.Log);
-            if (!_declared.Any(n => _game.Find(n) is Character c && IsMine(c))) { _drafts.Clear(); _input.SetTextWithoutNotify(""); }
-            RefreshAll();
+            if (turnWentOn && !_declared.Any(n => _game.Find(n) is Character c && IsMine(c))) { _drafts.Clear(); _input.SetTextWithoutNotify(""); }
+            RefreshActions();
+            if (!Playing) RefreshView();   // otherwise the scene catches up as the new lines play (no spoilers before the dice)
         }
 
         void OnRejoin(ulong from, string json)

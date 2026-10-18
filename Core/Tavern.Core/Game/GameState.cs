@@ -17,6 +17,8 @@ namespace Tavern.Core.Game
         // Rolls only: the d20 face, the total and the target, for the dice and the log.
         public int Natural, Total, Target;
         public string Outcome = "";
+        /// <summary>Rolls only: what the roll is for ("急所狙い → 灰色狼A", "灰色狼Bの噛みつきをかわす").</summary>
+        public string Reason = "";
 
         public static LogEntry Line(LogKind kind, string who, string text) => new LogEntry { Kind = kind, Who = who, Text = text };
     }

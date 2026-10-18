@@ -37,11 +37,13 @@ namespace Tavern.Unity.App
             var cont = UiKit.Button(root, _app.SaveIsOnline ? "続きから（部屋を開き直す）" : "続きから（ひとり）", _app.ContinueEvening, 760, y, 400, 56, 22);
             cont.interactable = _app.HasSave;
             y += 72;
-            UiKit.Button(root, "遊び方", () => ShowHelp(root), 760, y, 195, 56, 22);
+            UiKit.Button(root, "冒険者の名簿", _app.ShowRoster, 760, y, 195, 56, 20);
             UiKit.Button(root, "語り部の記録帳", () => ShowChronicle(root), 965, y, 195, 56, 20);
             y += 72;
-            UiKit.Button(root, "クレジット", () => ShowCredits(root), 760, y, 195, 56, 22);
-            UiKit.Button(root, "終わる", Application.Quit, 965, y, 195, 56, 22);
+            UiKit.Button(root, "遊び方", () => ShowHelp(root), 760, y, 195, 56, 22);
+            UiKit.Button(root, "クレジット", () => ShowCredits(root), 965, y, 195, 56, 22);
+            y += 72;
+            UiKit.Button(root, "終わる", Application.Quit, 760, y, 400, 56, 22);
 
             UiKit.Label(root, _app.Ai.Description, 18, Theme.Dim, 0, 1030, 1900, 30, align: TextAnchor.MiddleRight);
             UiKit.Button(root, "設定", () =>

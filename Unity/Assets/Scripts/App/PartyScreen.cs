@@ -65,15 +65,17 @@ namespace Tavern.Unity.App
             var shade = UiKit.Box(root, "Shade", new Color(0.05f, 0.03f, 0.02f, 0.78f));
             shade.rectTransform.Fill();
 
-            UiKit.Label(root, "今宵の冒険者たち", 54, Theme.Gold, 0, 40, 1920, 80, serif: true, align: TextAnchor.MiddleCenter);
-            UiKit.Label(root, "職業と見た目を選び、名前と生い立ちを書いてください（1〜3 人）", 22, Theme.Dim, 0, 118, 1920, 40, align: TextAnchor.MiddleCenter);
+            var roster = _mode == OnlineMode.Roster;
+            UiKit.Label(root, roster ? "新しい冒険者を作る" : "今宵の冒険者たち", 54, Theme.Gold, 0, 40, 1920, 80, serif: true, align: TextAnchor.MiddleCenter);
+            UiKit.Label(root, roster ? "作った冒険者は名簿に入り、次の晩に「前の冒険者を呼ぶ」で連れて行けます（1〜3 人）" : "職業と見た目を選び、名前と生い立ちを書いてください（1〜3 人）",
+                22, Theme.Dim, 0, 118, 1920, 40, align: TextAnchor.MiddleCenter);
 
-            if (_mode == OnlineMode.None) for (int i = 0; i < 3; i++) _slots.Add(BuildSlot(root, i, 90 + i * 590));
+            if (_mode == OnlineMode.None || roster) for (int i = 0; i < 3; i++) _slots.Add(BuildSlot(root, i, 90 + i * 590));
             else BuildOnline(root);
             UiKit.Button(root, "おまかせで埋める", FillSamples, 90, 980, 300, 64, 22);
             if (_mode == OnlineMode.None) { _teller = StorytellerPicker.Build(root, 630, 966); _story = StoryChooser.Build(root, _app.Story, _app.Scenario.Title, 90, 876); }
-            UiKit.Button(root, "もどる", _app.ShowTitle, 410, 980, 200, 64, 22);
-            _start = UiKit.Button(root, _mode == OnlineMode.Host ? "部屋を作る" : _mode == OnlineMode.Join ? "部屋に入る" : "この顔ぶれで酒場へ", Begin, 1430, 980, 400, 70, 28, gold: true);
+            UiKit.Button(root, "もどる", roster ? _app.ShowRoster : (UnityEngine.Events.UnityAction)_app.ShowTitle, 410, 980, 200, 64, 22);
+            _start = UiKit.Button(root, _mode == OnlineMode.Host ? "部屋を作る" : _mode == OnlineMode.Join ? "部屋に入る" : roster ? "名簿に加える" : "この顔ぶれで酒場へ", Begin, 1430, 980, 400, 70, 28, gold: true);
             SetEnabled(_slots[0], true);
             Refresh();
             if (AppMain.Flag("-fillparty")) FillSamples();   // tests: fill the seats, then -beginat <s> presses start
@@ -228,11 +230,23 @@ namespace Tavern.Unity.App
             if (Time.unscaledTime - _stableSince > 4f) _app.PrefetchStory(CurrentParty(), story);
         }
 
+        /// <summary>Roster mode: the new adventurers join this PC's roster (a name already on it is kept as it is).</summary>
+        void AddToRoster(List<Character> party)
+        {
+            var roster = _app.LoadRoster();
+            foreach (var c in party)
+                if (!roster.Living.Any(e => e.Name == c.Name))
+                    roster.Characters.Add(new Tavern.Core.Game.RosterEntry { Name = c.Name, ClassId = c.ClassId, Background = c.Background, Portrait = c.Portrait });
+            _app.SaveRoster(roster);
+            _app.ShowRoster();
+        }
+
         void Begin()
         {
             var party = CurrentParty();
             if (party.Count == 0) return;
             if (_mode == OnlineMode.None) { _app.StartEvening(party, _teller?.Invoke(), _story?.Invoke()); return; }
+            if (_mode == OnlineMode.Roster) { AddToRoster(party); return; }
             var player = (_playerName?.text ?? "").Trim();
             if (player.Length == 0) player = party[0].Name + "の中の人";
             _start.interactable = false;
@@ -244,5 +258,6 @@ namespace Tavern.Unity.App
 
 namespace Tavern.Unity.App
 {
-    public enum OnlineMode { None, Host, Join }
+    /// <summary>None: a solo evening; Host / Join: online; Roster: making adventurers for the roster (no evening).</summary>
+    public enum OnlineMode { None, Host, Join, Roster }
 }

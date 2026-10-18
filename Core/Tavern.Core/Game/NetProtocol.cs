@@ -23,6 +23,9 @@ namespace Tavern.Core.Game
     {
         public List<LobbyPlayer> Players = new List<LobbyPlayer>();
         public string Code = "";
+        // What the host is choosing, so friends see it too: the storyteller (id), the story ("用意された物語「…」" etc.),
+        // the one-line request, and what the host is doing ("" choosing, "writing" the storyteller is writing the story).
+        public string Teller = "", Story = "", Request = "", Phase = "";
     }
 
     public sealed class DeclareMsg

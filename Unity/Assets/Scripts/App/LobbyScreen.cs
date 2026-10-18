@@ -29,6 +29,10 @@ namespace Tavern.Unity.App
         int _startWhen;
         Func<Storyteller>? _teller;
         Func<StoryChoice>? _story;
+        // friends: what the host is choosing and doing
+        Text? _hostView, _codeView;
+        RawImage? _hostTeller;
+        string _phase = "", _sentChoice = "";
 
         public LobbyScreen(AppMain app, bool host, string me, CharacterSave myCharacter)
         {
@@ -51,8 +55,16 @@ namespace Tavern.Unity.App
                 UiKit.Button(root, "コードをコピー", () => GUIUtility.systemCopyBuffer = NetSession.JoinCode ?? "", 700, 300, 240, 50, 20);
             UiKit.Button(root, "招待リンクをコピー", () => GUIUtility.systemCopyBuffer = InviteLink.For(NetSession.JoinCode ?? ""), 960, 300, 260, 50, 20, gold: true);
             }
+            if (!_host)
+            {
+                _codeView = UiKit.Label(root, "", 22, Theme.Dim, 0, 150, 1920, 36, align: TextAnchor.MiddleCenter);
+                UiKit.Label(root, "ホストの準備", 18, Theme.Dim, 300, 826, 300, 26);
+                var box = UiKit.Panel(root, "HostChoice", 300, 852, 1320, 110).transform;
+                _hostTeller = UiKit.Picture(box, null, 10, 8, 70, 94);
+                _hostView = UiKit.Label(box, "ホストが語り部と物語を選んでいます…", 20, Theme.Ink, 96, 12, 1210, 90);
+            }
             _list = UiKit.Rect("Players", root).Place(460, 390, 1000, 480);
-            _status = UiKit.Label(root, "", 20, Theme.Ink, 0, 922, 1920, 36, align: TextAnchor.MiddleCenter);
+            _status = UiKit.Label(root, "", 20, Theme.Ink, 0, _host ? 922 : 972, 1920, 36, align: TextAnchor.MiddleCenter);   // friends: under the host box
             UiKit.Button(root, "部屋を出る", () => { NetSession.ClearHandlers(); NetSession.Leave(); _app.ShowTitle(); }, 90, 980, 240, 64, 22);
             if (_host) { _start = UiKit.Button(root, "この顔ぶれで冒険をはじめる", Begin, 1380, 980, 450, 70, 26, gold: true); _teller = StorytellerPicker.Build(root, 400, 966); _story = StoryChooser.Build(root, _app.Story, _app.Scenario.Title, 300, 852); }
             if (_host) { _app.ResetPrefetch(); _app.Tick = Tick; }
@@ -66,7 +78,7 @@ namespace Tavern.Unity.App
             }
             else
             {
-                NetSession.On("lobby", (_, json) => ShowPlayers(NetJson.Read<LobbyMsg>(json).Players));
+                NetSession.On("lobby", (_, json) => { var m = NetJson.Read<LobbyMsg>(json); ShowPlayers(m.Players); ShowHost(m); });
                 NetSession.On("turn", (_, json) => { Detach(); _app.EnterAsFriend(NetJson.Read<TurnMsg>(json), _me); });
                 NetSession.Send("hello", NetJson.Json(new HelloMsg { PlayerName = _me, Character = _myCharacter }));
             }
@@ -100,7 +112,7 @@ namespace Tavern.Unity.App
         {
             ShowPlayers(_players.Select(p => p.info).ToList());
             if (!_host) return;
-            NetSession.Send("lobby", NetJson.Json(new LobbyMsg { Players = _players.Select(p => p.info).ToList(), Code = NetSession.JoinCode ?? "" }));
+            NetSession.Send("lobby", NetJson.Json(Snapshot()));
             if (_startWhen > 0 && _players.Count >= _startWhen) Begin();
         }
 
@@ -129,17 +141,53 @@ namespace Tavern.Unity.App
         void Tick()
         {
             if (_start == null) { _app.Tick = null; return; }   // the lobby is gone
-            if (!_start.interactable || _story == null || _players.Count < 2 || Time.frameCount % 15 != 0) return;
+            if (Time.frameCount % 15 != 0) return;
+            // friends see the host's choices as they change
+            var choice = ChoiceKey();
+            if (choice != _sentChoice) { _sentChoice = choice; Refresh(); }
+            if (!_start.interactable || _story == null || _players.Count < 2) return;
             var story = _story();
             var key = string.Join("|", _players.Select(p => p.character.Name + "/" + p.character.ClassId)) + story.Prepared + story.TemplateId + story.Request;
             if (key != _lastKey) { _lastKey = key; _stableSince = Time.unscaledTime; return; }
             if (Time.unscaledTime - _stableSince > 8f) _app.PrefetchStory(_players.Select(p => p.character.ToCharacter()).ToList(), story);
         }
 
+        string StoryLabel(StoryChoice s) => s.Prepared ? $"用意された物語「{_app.Scenario.Title}」"
+            : s.TemplateId == null ? "おまかせ（語り部が作る）" : $"型「{_app.Story.Template(s.TemplateId)?.Name ?? s.TemplateId}」";
+
+        string ChoiceKey() => (_teller?.Invoke().Id ?? "") + "|" + (_story?.Invoke() is StoryChoice s ? StoryLabel(s) + "|" + s.Request : "");
+
+        LobbyMsg Snapshot()
+        {
+            var story = _story?.Invoke();
+            return new LobbyMsg
+            {
+                Players = _players.Select(p => p.info).ToList(), Code = NetSession.JoinCode ?? "",
+                Teller = _teller?.Invoke().Id ?? "", Story = story != null ? StoryLabel(story) : "", Request = story?.Request ?? "", Phase = _phase,
+            };
+        }
+
+        /// <summary>Friends: the host's storyteller, story and request, and what the host is doing now.</summary>
+        void ShowHost(LobbyMsg m)
+        {
+            _phase = m.Phase;
+            if (_codeView != null && m.Code.Length > 0) _codeView.text = $"部屋のコード {m.Code}";
+            _status.text = _phase == "writing" ? "語り部が今宵の物語を考えています…（長くても 1 分ほど）" : "ホストが語り部と物語を選んでいます。そろったらホストが始めます";
+            if (_hostView == null || _hostTeller == null || m.Teller.Length == 0) return;
+            var t = Storyteller.Find(m.Teller);
+            var tex = ArtLibrary.Get(t.Portrait);
+            _hostTeller.texture = tex;
+            _hostTeller.uvRect = ArtLibrary.Cover(tex, 70, 94, 0.7f);
+            _hostView.text = $"今宵の語り部: <color=#c9a24a>{t.Name}</color>　<size=16><color=#a8977a>{t.Blurb}</color></size>\n今宵の物語: {m.Story}" +
+                (m.Request.Length > 0 ? $"　注文「{m.Request}」" : "");
+        }
+
         async void Begin()
         {
             if (!_host || _start == null || !_start.interactable) return;
             _start.interactable = false;
+            _phase = "writing";
+            NetSession.Send("lobby", NetJson.Json(Snapshot()));   // friends: "the storyteller is writing tonight's story"
             Detach();
             var party = _players.Select(p => p.character.ToCharacter()).ToList();
             var teller = _teller?.Invoke() ?? Storyteller.Olwen;

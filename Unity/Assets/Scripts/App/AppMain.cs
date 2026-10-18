@@ -89,6 +89,7 @@ namespace Tavern.Unity.App
             else if (Flag("-quickstart")) StartEvening(PartyScreen.Preset(Db), Storyteller.Find(Arg("-teller")), Arg("-story") is string st ? new StoryChoice { Prepared = st == "prepared", TemplateId = st == "auto" || st == "prepared" ? null : st } : null);
             else if (InviteCode != null) ShowParty(OnlineMode.Join);   // opened from an invite link
             else if (Flag("-partyscreen")) ShowParty();
+            else if (Flag("-roster")) ShowRoster();
             else if (int.TryParse(Arg("-dicetest"), out var face))
             {
                 UiKit.Box(Root, "Bg", Theme.Bg).rectTransform.Fill();
@@ -113,6 +114,13 @@ namespace Tavern.Unity.App
             _table = null;
             UiKit.Clear(Root);
             new TitleScreen(this).Build(Root);
+        }
+
+        public void ShowRoster()
+        {
+            _table = null;
+            UiKit.Clear(Root);
+            new RosterScreen(this).Build(Root);
         }
 
         public void ShowParty() => ShowParty(OnlineMode.None);

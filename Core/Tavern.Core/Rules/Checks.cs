@@ -51,7 +51,8 @@ namespace Tavern.Core.Rules
             {
                 Outcome.Critical => "大成功", Outcome.Success => "成功", Outcome.Failure => "失敗", _ => "大失敗",
             };
-            return $"{Request.CharacterName} {Request.Stat.Label()}の判定 {Natural}{(bonus >= 0 ? "+" : "")}{bonus} = {Total}（目標 {Dc}）{outcome}{(Rerolled ? "（振り直し）" : "")}";
+            var what = string.IsNullOrWhiteSpace(Request.Reason) ? " " : $"：{Request.Reason}　";   // which action the roll is for
+            return $"{Request.CharacterName}{what}{Request.Stat.Label()}の判定 {Natural}{(bonus >= 0 ? "+" : "")}{bonus} = {Total}（目標 {Dc}）{outcome}{(Rerolled ? "（振り直し）" : "")}";
         }
     }
 

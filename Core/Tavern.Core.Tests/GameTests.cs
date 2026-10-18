@@ -53,6 +53,18 @@ namespace Tavern.Core.Tests
         }
 
         [Test]
+        public async Task Suggestions_DoNotGiveAwayWhatIsAhead()
+        {
+            var llm = new ScriptedLlm(Plan(), Narr(new { text = "祠の前に着いた。古い扉がある。", suggestions = new[] { "現れたアンデッドと戦う準備をする", "扉を調べる", "罠を外して進む" } }),
+                Plan(), Narr(new { text = "扉の下に細い糸が張られている。罠だ。", suggestions = new[] { "罠を外す", "骨の騎士に挑む" } }));
+            var game = NewGame(llm, new FixedRandom(), "warrior");
+            var first = await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Text = "祠へ向かう" } });
+            Assert.That(first.Suggestions, Is.EqualTo(new[] { "扉を調べる" }));
+            var second = await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Text = "扉を調べる" } });
+            Assert.That(second.Suggestions, Is.EqualTo(new[] { "罠を外す" }));   // the trap was told of now; the knight still not
+        }
+
+        [Test]
         public void MusicMap_IsValidJsonAndPointsAtFiles()
         {
             var resources = Path.GetDirectoryName(ContentDir())!;

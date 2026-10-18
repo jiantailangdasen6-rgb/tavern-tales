@@ -189,7 +189,7 @@ namespace Tavern.Core.Gm
         public static string ChecksAnswer(GmTurn turn)
         {
             var lines = turn.Rejected.Select(r => "受け付けられない: " + r)
-                .Concat(turn.Checks.Select(r => $"- {r.Describe()}（{r.Request.Reason}）")).ToList();
+                .Concat(turn.Checks.Select(r => $"- {r.Describe()}")).ToList();   // Describe names the action
             return turn.Checks.Count == 0 && turn.Rejected.Count == 0 ? "判定なし。宣言どおりに語ること。"
                 : "判定の結果:\n" + string.Join("\n", lines) + "\nこの結果のとおりに語ること。";
         }

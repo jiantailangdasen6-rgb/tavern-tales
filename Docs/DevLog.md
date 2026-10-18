@@ -45,6 +45,14 @@
 - 音量（2026-10-18）: 前の既定「小」は曲が約 -45 dBFS でほぼ聞こえなかった。AudioListener 1、MusicBase 0.6・SfxBase 0.7・炉の火 0.5、
   段階 0 / 0.4 / 0.7 / 1 で、曲は「小」約 -31・「大」約 -23 dBFS。タイトル画面にも「設定」（`SettingsPanel`）。music.json が壊れていても合成の音に戻るだけにし、
   テスト `MusicMap_IsValidJsonAndPointsAtFiles` で中身とファイルを確かめる（説明文の引用符でファイルを壊し、タイトルが真っ黒になったことがある）。
+- テストプレイの感想への対応（2026-10-18）:
+  - 行動案が答えを教える（「現れたアンデッドと戦う準備をする」）: 指示を例つきで強め、ゲーム側でも、まだ語られていない敵の名前や「罠」「アンデッド」などを含む案を落とす（`TavernGame.KnownOnly`）。
+  - 友人の画面で選んだ行動が消える: ほかの人が宣言するたびに届く状態で、選びかけを消していた。手番が進んだとき（新しい行）だけ消す。
+  - 判定が何の行動か分からない: 判定の行とダイスの前の表示に行動（「急所狙い → 灰色狼A」「灰色狼Bの噛みつきをかわす」）を出す（`LogEntry.Reason`、`CheckResult.Describe`）。
+  - ダイスより先に結果が見える: 場面・仲間・上の帯は、ダイスと判定の行を流し終えて結果の行が出たときに描き直す（`_viewStale`、友人の画面も同じ）。
+  - 能力値と持ち物: 仲間のカードの「詳しく」（`TableScreen.Sheet.cs`）。
+  - タイトルに「冒険者の名簿」（`RosterScreen`、作るのは `PartyScreen` の Roster モード）。
+  - 友人のロビーに「ホストの準備」（語り部・物語・注文、物語を考え中）。`LobbyMsg` に Teller / Story / Request / Phase。
 - **音が鳴っていなかった（2026-10-18）**: 画面をコードで組み立てていて AudioListener がどこにもなく、音を入れた時から一度も鳴っていなかった。
   `AudioDirector.Create` が無ければ足す。確かめ方: `Tavern.exe -audiocheck [-volume 0..3] -autoquit 7` → Player.log の `[AudioCheck]`
   （`OutputMeter` が最後の出力を測ってから消すので、スピーカーからは何も出ない）。実測: なし 無音、小 -33 dBFS、大 -25 dBFS（RMS）。
