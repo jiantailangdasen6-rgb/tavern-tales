@@ -3,9 +3,9 @@ Tabletop Audio（https://tabletopaudio.com/）
   「Whispering Caverns」「Tomb Guardians」「Summoning」
   ライセンス: CC BY-NC-ND 4.0（https://creativecommons.org/licenses/by-nc-nd/4.0/）
 PeriTune（https://peritune.com/）
-  「Minstrel」「Minstrel 2 (Epic Orchestra)」「Pastorale」「Raid Ethnic」
+  「Harvest」「Minstrel」
 Juhani Junkala「Epic Boss Battle」（OpenGameArt、CC0）
-RandomMind「Medieval: Defeat Theme」（OpenGameArt、CC0）
+RandomMind「Medieval: Exploration」「Medieval: Battle」「Medieval: Defeat Theme」（OpenGameArt、CC0）
 
 ■ 効果音
 Kenney（https://kenney.nl/、CC0）「Casino Audio」「RPG Audio」

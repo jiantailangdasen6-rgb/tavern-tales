@@ -37,6 +37,10 @@
 - 送る量を抑える（`GmSession.KeepTurns`、`TavernGame.RecentTurns` = 10）: 直近 10 件のプレイヤーの発言（戦闘は 1 手番 2 件）とその後だけをそのまま送り、
   それより前は語りの頭を 100 字までに縮めた「これまでのあらすじ」と語り部への注文としてシステムの指示に足す。保存する履歴は全部のまま。
   同じ条件の 1 晩で、1 回の入力の最大 19,821 → 11,053 トークン（平均 10,806 → 8,479）。後半も前半の出来事（騎士の名など）を覚えていた。
+- 招待リンク（2026-10-18）: ロビーの「招待リンクをコピー」で https://jiantailangdasen6-rgb.github.io/tavern-tales/join.html#CODE。
+  中継ページ（`Web/`、`Tools/DeployPages.ps1` で gh-pages ブランチへ。GitHub Pages）が tavern-tales://join/CODE を開き、ゲームは部屋に入る画面にコードを入れて開く。
+  ゲームは起動のたびに tavern-tales:// を自分の exe に登録する（`InviteLink`、HKCU、管理者不要。自動の実行 `-autoquit` と `-noregister` では登録しない）。
+- 曲の確定（2026-10-18）: 酒場 PeriTune Harvest、探索 RandomMind Exploration、戦闘 RandomMind Battle、成功の結末 PeriTune Minstrel（ほかは前のまま）。
 - 遊びやすさの改善（2026-10-18 朝）:
   - ボス戦の長さ: 敵の HP を人数で変える（`TavernGame.PartyScale`: 3 人で 1、2 人で 0.67、1 人で 0.45）。骨の騎士 26→24、トロル 30→26、大蜘蛛 14→18。
     `BalanceTests` がボットで全ボス × 6 通りの顔ぶれを戦わせて手番数を測る（`--filter BalanceTests`）。調整後は 3 人で 3〜5 手番、1 人でも 4〜7 手番・勝率 5〜9 割

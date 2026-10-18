@@ -127,6 +127,7 @@ namespace Tavern.Unity.App
             {
                 UiKit.Label(panel, "部屋のコード（ホストから聞いた 6 文字）", 18, Theme.Dim, 30, 190, 600, 28);
                 _code = UiKit.Input(panel, "例: ABC123", 30, 220, 500, 60, 30);
+                if (_app.InviteCode != null) _code.text = _app.InviteCode;
             }
             UiKit.Label(panel, "一人一人が自分の冒険者を 1 人作って持ち寄ります。AI はホストの PC だけで動きます。", 17, Theme.Dim, 580, 120, 540, 120);
         }

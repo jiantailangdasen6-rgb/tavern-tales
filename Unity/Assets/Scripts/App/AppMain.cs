@@ -82,9 +82,12 @@ namespace Tavern.Unity.App
             Dice = DiceRoller.Create(transform);
             AudioDirector.Create(transform);
 
+            InviteLink.Register();
+            InviteCode = InviteLink.CodeFromArgs();
             if (Flag("-onlinehost") || Arg("-onlinejoinfile") != null) StartCoroutine(AutoOnline());
             else if (Flag("-continue") && File.Exists(SavePath)) ContinueEvening();
             else if (Flag("-quickstart")) StartEvening(PartyScreen.Preset(Db), Storyteller.Find(Arg("-teller")), Arg("-story") is string st ? new StoryChoice { Prepared = st == "prepared", TemplateId = st == "auto" || st == "prepared" ? null : st } : null);
+            else if (InviteCode != null) ShowParty(OnlineMode.Join);   // opened from an invite link
             else if (Flag("-partyscreen")) ShowParty();
             else if (int.TryParse(Arg("-dicetest"), out var face))
             {
@@ -97,6 +100,9 @@ namespace Tavern.Unity.App
 
         /// <summary>Per-frame work of the current menu screen (PartyScreen, LobbyScreen); it clears itself when its screen is gone.</summary>
         public Action? Tick;
+
+        /// <summary>The room code of the invite link the game was opened from (the join screen fills it in).</summary>
+        public string? InviteCode { get; private set; }
 
         void Update() { _table?.Update(); Tick?.Invoke(); }
 

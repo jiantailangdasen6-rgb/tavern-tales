@@ -42,7 +42,8 @@ namespace Tavern.Unity.App
             UiKit.Label(root, "続きの部屋を開いた", 48, Theme.Gold, 0, 60, 1920, 70, serif: true, align: TextAnchor.MiddleCenter);
             UiKit.Label(root, "前と同じ名前で入ってもらえば、前のキャラクターに戻れます", 22, Theme.Dim, 0, 150, 1920, 36, align: TextAnchor.MiddleCenter);
             UiKit.Label(root, NetSession.JoinCode ?? "", 72, Theme.GoldLight, 0, 190, 1920, 100, serif: true, align: TextAnchor.MiddleCenter);
-            UiKit.Button(root, "コードをコピー", () => GUIUtility.systemCopyBuffer = NetSession.JoinCode ?? "", 840, 300, 240, 50, 20);
+            UiKit.Button(root, "コードをコピー", () => GUIUtility.systemCopyBuffer = NetSession.JoinCode ?? "", 700, 300, 240, 50, 20);
+            UiKit.Button(root, "招待リンクをコピー", () => GUIUtility.systemCopyBuffer = InviteLink.For(NetSession.JoinCode ?? ""), 960, 300, 260, 50, 20, gold: true);
             _list = UiKit.Rect("Players", root).Place(460, 390, 1000, 480);
             _status = UiKit.Label(root, "", 22, Theme.Ink, 0, 890, 1920, 40, align: TextAnchor.MiddleCenter);
             UiKit.Button(root, "部屋を閉じる", () => { NetSession.ClearHandlers(); NetSession.Leave(); _app.ShowTitle(); }, 90, 980, 240, 64, 22);
