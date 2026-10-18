@@ -45,6 +45,9 @@
 - 音量（2026-10-18）: 前の既定「小」は曲が約 -45 dBFS でほぼ聞こえなかった。AudioListener 1、MusicBase 0.6・SfxBase 0.7・炉の火 0.5、
   段階 0 / 0.4 / 0.7 / 1 で、曲は「小」約 -31・「大」約 -23 dBFS。タイトル画面にも「設定」（`SettingsPanel`）。music.json が壊れていても合成の音に戻るだけにし、
   テスト `MusicMap_IsValidJsonAndPointsAtFiles` で中身とファイルを確かめる（説明文の引用符でファイルを壊し、タイトルが真っ黒になったことがある）。
+- **音が鳴っていなかった（2026-10-18）**: 画面をコードで組み立てていて AudioListener がどこにもなく、音を入れた時から一度も鳴っていなかった。
+  `AudioDirector.Create` が無ければ足す。確かめ方: `Tavern.exe -audiocheck [-volume 0..3] -autoquit 7` → Player.log の `[AudioCheck]`
+  （`OutputMeter` が最後の出力を測ってから消すので、スピーカーからは何も出ない）。実測: なし 無音、小 -33 dBFS、大 -25 dBFS（RMS）。
 - 曲の確定（2026-10-18）: 酒場 PeriTune Harvest、探索 RandomMind Exploration、戦闘 RandomMind Battle、成功の結末 PeriTune Minstrel（ほかは前のまま）。
 - 遊びやすさの改善（2026-10-18 朝）:
   - ボス戦の長さ: 敵の HP を人数で変える（`TavernGame.PartyScale`: 3 人で 1、2 人で 0.67、1 人で 0.45）。骨の騎士 26→24、トロル 30→26、大蜘蛛 14→18。

@@ -24,7 +24,7 @@ namespace Tavern.Unity.App
         /// <summary>0..3: off, quiet (default), normal, loud.</summary>
         public static int Level
         {
-            get => PlayerPrefs.GetInt("volume_level", 1);
+            get => int.TryParse(AppMain.Arg("-volume"), out var v) ? v : PlayerPrefs.GetInt("volume_level", 1);   // -volume: checks, not saved
             set { PlayerPrefs.SetInt("volume_level", Mathf.Clamp(value, 0, 3)); PlayerPrefs.Save(); }
         }
         static float LevelScale => new[] { 0f, 0.4f, 0.7f, 1f }[Mathf.Clamp(Level, 0, 3)];
@@ -36,9 +36,12 @@ namespace Tavern.Unity.App
             var go = new GameObject("Audio");
             go.transform.SetParent(parent, false);
             var a = go.AddComponent<AudioDirector>();
+            // Without a listener Unity plays nothing at all (the scene is built from code and had none: the game was silent).
+            if (FindAnyObjectByType<AudioListener>() == null) go.AddComponent<AudioListener>();
             a._musicA = a.NewSource(true); a._musicB = a.NewSource(true); a._ambience = a.NewSource(true);
             for (int i = 0; i < 8; i++) a._sfx.Add(a.NewSource(false));
             Instance = a;
+            if (AppMain.Flag("-audiocheck")) a.StartCoroutine(a.CheckOutput());
             return a;
         }
 
@@ -114,6 +117,23 @@ namespace Tavern.Unity.App
             var fire = ((string?)Map["ambience"] is string amb ? a.Clip(amb) : null) ?? a.Clip("Audio/bgm/fire");
             if (name == "tavern" && fire != null) { if (!a._ambience.isPlaying) { a._ambience.clip = fire; a._ambience.Play(); } }
             else a._ambience.Stop();
+        }
+
+        /// <summary>
+        /// -audiocheck: proves sound reaches the output without anyone listening (OutputMeter measures the final mix
+        /// and silences it) and logs its level.
+        /// </summary>
+        System.Collections.IEnumerator CheckOutput()
+        {
+            // The meter clears the mix after measuring it, so the listener can stay at full volume without a sound.
+            var meter = gameObject.AddComponent<OutputMeter>();
+            for (int i = 0; i < 3; i++) { AudioListener.volume = 1; yield return new WaitForSecondsRealtime(1.5f); }
+            var (rms, peak) = meter.Read();
+            foreach (var s in new[] { _musicA, _musicB, _ambience })
+                Debug.Log($"[AudioCheck] source clip={(s.clip != null ? s.clip.name + " " + s.clip.loadState + " " + s.clip.loadType : "none")} playing={s.isPlaying} time={s.time:0.00} volume={s.volume:0.000} mute={s.mute}");
+            var cfg = AudioSettings.GetConfiguration();
+            Debug.Log($"[AudioCheck] listener volume={AudioListener.volume} pause={AudioListener.pause} rate={AudioSettings.outputSampleRate} speaker={cfg.speakerMode} dsp={cfg.dspBufferSize} driver={AudioSettings.driverCapabilities} listeners={FindObjectsByType<AudioListener>(FindObjectsSortMode.None).Length}");
+            Debug.Log($"[AudioCheck] music \"{_music}\" level {Level}: output rms {rms:0.0} dBFS, peak {peak:0.0} dBFS");
         }
 
         void Update()
