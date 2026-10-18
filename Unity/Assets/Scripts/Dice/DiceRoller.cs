@@ -5,20 +5,35 @@ using System.Collections.Generic;
 using Tavern.Unity.Ui;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
+using UnityEngine.SceneManagement;
 
 namespace Tavern.Unity.Dice
 {
     /// <summary>
-    /// A 3D twenty-sided die drawn into a RenderTexture (shown by a RawImage over the scene). The game decides the
-    /// number first; the die tumbles and settles on that face so every player sees the same roll.
+    /// A 3D twenty-sided die thrown across a tray, drawn into a 16:9 RenderTexture over the scene. The game decides the
+    /// number first. Each throw is played out in a hidden physics scene (random start, real bounces and tumbling), the face
+    /// it comes to rest on is read, and the die's look is turned by one of its own symmetries so that the decided number is
+    /// on that face; the recorded throw is then replayed. The die really rolls, and every player sees the decided number.
     /// </summary>
     public sealed class DiceRoller : MonoBehaviour
     {
         const int Layer = 30;
         public RenderTexture Texture { get; private set; } = null!;
-        Transform _die = null!;
+        /// <summary>Width / height of the picture.</summary>
+        public const float Aspect = 16f / 9f;
+
+        /// <summary>The die hit the tray (strength 0..1), for a knock sound.</summary>
+        public event Action<float>? Bounced;
+
+        Transform _body = null!, _visual = null!, _shadow = null!, _cam = null!;
+        Mesh _mesh = null!;
         readonly List<(Vector3 normal, Vector3 up)> _faces = new List<(Vector3, Vector3)>();
         Coroutine? _rolling;
+
+        // the hidden tray where each throw is played out first
+        PhysicsScene _phys;
+        Rigidbody _simDie = null!;
+        const float TrayW = 12f, TrayD = 5.4f, DieScale = 1.6f, Step = 1f / 60f;
 
         public static DiceRoller Create(Transform parent)
         {
@@ -32,36 +47,105 @@ namespace Tavern.Unity.Dice
 
         void Build()
         {
-            Texture = new RenderTexture(512, 512, 24, RenderTextureFormat.ARGB32) { antiAliasing = 4, name = "DiceRT" };
+            Texture = new RenderTexture(1280, 720, 24, RenderTextureFormat.ARGB32) { antiAliasing = 4, name = "DiceRT" };
 
             var camGo = new GameObject("DiceCamera");
             camGo.transform.SetParent(transform, false);
-            camGo.transform.localPosition = new Vector3(0, 0, -6);
+            camGo.transform.localPosition = new Vector3(0, 10.5f, -6.8f);
+            _cam = camGo.transform;
+            camGo.transform.localRotation = Quaternion.LookRotation(new Vector3(0, 0, 0.5f) - camGo.transform.localPosition);
             var cam = camGo.AddComponent<Camera>();
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0, 0, 0, 0);
             cam.cullingMask = 1 << Layer;
-            cam.fieldOfView = 30;
+            cam.fieldOfView = 40;
             cam.targetTexture = Texture;
-            var data = camGo.AddComponent<UniversalAdditionalCameraData>();
-            data.renderPostProcessing = false;
+            camGo.AddComponent<UniversalAdditionalCameraData>().renderPostProcessing = false;
 
             var lightGo = new GameObject("DiceLight");
             lightGo.transform.SetParent(transform, false);
-            lightGo.transform.localRotation = Quaternion.Euler(35, -30, 0);
+            lightGo.transform.localRotation = Quaternion.Euler(55, -30, 0);
             var light = lightGo.AddComponent<Light>();
             light.type = LightType.Directional; light.intensity = 1.6f; light.color = new Color(1f, 0.9f, 0.75f);
             light.cullingMask = 1 << Layer;
             var fillGo = new GameObject("DiceFill");
             fillGo.transform.SetParent(transform, false);
-            fillGo.transform.localRotation = Quaternion.Euler(-20, 150, 0);
+            fillGo.transform.localRotation = Quaternion.Euler(20, 150, 0);
             var fill = fillGo.AddComponent<Light>();
             fill.type = LightType.Directional; fill.intensity = 0.5f; fill.color = new Color(0.55f, 0.6f, 0.8f);
             fill.cullingMask = 1 << Layer;
 
-            _die = BuildDie().transform;
-            _die.SetParent(transform, false);
+            _mesh = BuildMesh();
+            _body = new GameObject("D20") { layer = Layer }.transform;
+            _body.SetParent(transform, false);
+            var visual = new GameObject("Look") { layer = Layer };
+            visual.transform.SetParent(_body, false);
+            visual.transform.localScale = Vector3.one * DieScale;
+            visual.AddComponent<MeshFilter>().sharedMesh = _mesh;
+            // The material is an asset made by ProjectSetup (so the URP Lit shader is in builds); the numbers are baked into its texture.
+            var mat = new Material(Resources.Load<Material>("Materials/DiceBody"));
+            mat.SetTexture("_BaseMap", BakeNumbers());
+            mat.SetColor("_BaseColor", Color.white);
+            visual.AddComponent<MeshRenderer>().sharedMaterial = mat;
+            _visual = visual.transform;
+
+            _shadow = BuildShadow();
+            BuildTray();
             gameObject.SetActive(false);
+        }
+
+        /// <summary>A soft round shadow on the tray floor under the die (the picture has no floor of its own).</summary>
+        Transform BuildShadow()
+        {
+            var go = new GameObject("Shadow") { layer = Layer };
+            go.transform.SetParent(transform, false);
+            go.transform.localRotation = Quaternion.Euler(90, 0, 0);
+            var mesh = new Mesh { name = "shadow" };
+            mesh.SetVertices(new List<Vector3> { new Vector3(-0.5f, -0.5f, 0), new Vector3(0.5f, -0.5f, 0), new Vector3(-0.5f, 0.5f, 0), new Vector3(0.5f, 0.5f, 0) });
+            mesh.SetUVs(0, new List<Vector2> { new Vector2(0, 0), new Vector2(1, 0), new Vector2(0, 1), new Vector2(1, 1) });
+            mesh.SetTriangles(new[] { 0, 2, 1, 2, 3, 1 }, 0);
+            go.AddComponent<MeshFilter>().sharedMesh = mesh;
+            const int size = 64;
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            for (int y = 0; y < size; y++)
+                for (int x = 0; x < size; x++)
+                {
+                    var r = new Vector2(x - size / 2f + 0.5f, y - size / 2f + 0.5f).magnitude / (size / 2f);
+                    tex.SetPixel(x, y, new Color(1, 1, 1, Mathf.Clamp01(1 - r) * Mathf.Clamp01(1 - r)));
+                }
+            tex.Apply();
+            var mat = new Material(Resources.Load<Material>("Materials/DiceShadow"));
+            mat.SetTexture("_BaseMap", tex);
+            go.AddComponent<MeshRenderer>().sharedMaterial = mat;
+            return go.transform;
+        }
+
+        /// <summary>The hidden physics scene: a floor, four low walls and a die of the same shape.</summary>
+        void BuildTray()
+        {
+            var scene = SceneManager.CreateScene("DiceTray", new CreateSceneParameters(LocalPhysicsMode.Physics3D));
+            _phys = scene.GetPhysicsScene();
+            var felt = new PhysicsMaterial("tray") { bounciness = 0.3f, dynamicFriction = 0.4f, staticFriction = 0.55f, bounceCombine = PhysicsMaterialCombine.Average };
+            void Box(Vector3 centre, Vector3 size)
+            {
+                var b = new GameObject("TrayPart");
+                var c = b.AddComponent<BoxCollider>();
+                c.center = centre; c.size = size; c.sharedMaterial = felt;
+                SceneManager.MoveGameObjectToScene(b, scene);
+            }
+            Box(new Vector3(0, -0.5f, 0), new Vector3(TrayW + 4, 1, TrayD + 4));
+            Box(new Vector3(-(TrayW / 2 + 0.5f), 3, 0), new Vector3(1, 8, TrayD + 4));
+            Box(new Vector3(TrayW / 2 + 0.5f, 3, 0), new Vector3(1, 8, TrayD + 4));
+            Box(new Vector3(0, 3, -(TrayD / 2 + 0.5f)), new Vector3(TrayW + 4, 8, 1));
+            Box(new Vector3(0, 3, TrayD / 2 + 0.5f), new Vector3(TrayW + 4, 8, 1));
+
+            var die = new GameObject("SimDie");
+            die.transform.localScale = Vector3.one * DieScale;
+            var mc = die.AddComponent<MeshCollider>();
+            mc.sharedMesh = _mesh; mc.convex = true; mc.sharedMaterial = felt;
+            _simDie = die.AddComponent<Rigidbody>();
+            _simDie.mass = 1; _simDie.linearDamping = 0.05f; _simDie.angularDamping = 0.2f;
+            SceneManager.MoveGameObjectToScene(die, scene);
         }
 
         const int AtlasCols = 5, AtlasRows = 4, Cell = 256;
@@ -110,7 +194,8 @@ namespace Tavern.Unity.Dice
             return tex;
         }
 
-        GameObject BuildDie()
+        /// <summary>The icosahedron with each face's number cell mapped onto it; fills _faces (normal, "up" towards vertex a).</summary>
+        Mesh BuildMesh()
         {
             float p = (1 + Mathf.Sqrt(5)) / 2;
             var v = new[]
@@ -126,7 +211,6 @@ namespace Tavern.Unity.Dice
                 3,9,4, 3,4,2, 3,2,6, 3,6,8, 3,8,9, 4,9,5, 2,4,11, 6,2,10, 8,6,7, 9,8,1,
             };
             var verts = new List<Vector3>(); var tris = new List<int>(); var uvs = new List<Vector2>();
-            var go = new GameObject("D20") { layer = Layer };
             for (int i = 0; i < 20; i++)
             {
                 var a = v[f[i * 3]]; var b = v[f[i * 3 + 1]]; var c = v[f[i * 3 + 2]];
@@ -152,59 +236,138 @@ namespace Tavern.Unity.Dice
             }
             var mesh = new Mesh { name = "d20" };
             mesh.SetVertices(verts); mesh.SetTriangles(tris, 0); mesh.SetUVs(0, uvs); mesh.RecalculateNormals(); mesh.RecalculateBounds();
-            go.AddComponent<MeshFilter>().sharedMesh = mesh;
-            var mr = go.AddComponent<MeshRenderer>();
-            // The material is an asset made by ProjectSetup (so the URP Lit shader is in builds); the numbers are baked into its texture.
-            var mat = new Material(Resources.Load<Material>("Materials/DiceBody"));
-            mat.SetTexture("_BaseMap", BakeNumbers());
-            mat.SetColor("_BaseColor", Color.white);
-            mr.sharedMaterial = mat;
-            go.transform.localScale = Vector3.one * 1.25f;
-            return go;
+            return mesh;
         }
 
-        /// <summary>Tumbles the die and settles on face (1..20). duration in seconds.</summary>
+        struct Throw
+        {
+            public List<(Vector3 pos, Quaternion rot)> Frames;
+            public List<(float time, float strength)> Bounces;
+            public Quaternion Look;
+            public int Face;
+        }
+
+        /// <summary>Plays a random throw out in the hidden tray and turns the die's look so that face (1..20) ends on top.</summary>
+        Throw PlayOut(int face)
+        {
+            var rb = _simDie;
+            var start = new Vector3(-TrayW / 2 + 1.4f, UnityEngine.Random.Range(1.8f, 2.8f), UnityEngine.Random.Range(-1.4f, 1.4f));
+            var rot = UnityEngine.Random.rotation;
+            rb.transform.SetPositionAndRotation(start, rot);
+            rb.position = start; rb.rotation = rot;
+            rb.linearVelocity = new Vector3(UnityEngine.Random.Range(10f, 13f), UnityEngine.Random.Range(-0.5f, 1.5f), UnityEngine.Random.Range(-2.2f, 2.2f));
+            rb.angularVelocity = UnityEngine.Random.onUnitSphere * UnityEngine.Random.Range(14f, 22f);
+            rb.WakeUp();
+
+            var t = new Throw { Frames = new List<(Vector3, Quaternion)>(), Bounces = new List<(float, float)>() };
+            float prevVy = 0;
+            int still = 0;
+            for (int i = 0; i < 60 * 8; i++)
+            {
+                _phys.Simulate(Step);
+                t.Frames.Add((rb.position, rb.rotation));
+                var vy = rb.linearVelocity.y;
+                if (prevVy < -1.2f && vy > prevVy + 1.2f) t.Bounces.Add((i * Step, Mathf.Clamp01(-prevVy / 9f)));
+                prevVy = vy;
+                still = rb.linearVelocity.sqrMagnitude < 0.0025f && rb.angularVelocity.sqrMagnitude < 0.0025f ? still + 1 : 0;
+                if (still > 12) break;
+            }
+
+            // the face that came to rest on top, and the readable way round for the camera (the number's top away from it)
+            var final = t.Frames[t.Frames.Count - 1].rot;
+            int top = 0;
+            for (int i = 1; i < _faces.Count; i++) if ((final * _faces[i].normal).y > (final * _faces[top].normal).y) top = i;
+            var nTop = _faces[top].normal;
+            var best = _faces[top].up;
+            foreach (var angle in new[] { 120f, 240f })
+            {
+                var w = Quaternion.AngleAxis(angle, nTop) * _faces[top].up;
+                if ((final * w).z > (final * best).z) best = w;
+            }
+            var (nFace, upFace) = _faces[face - 1];
+            // a symmetry of the icosahedron: carries the decided face (and its number's top) onto the face that lands on top
+            t.Look = Quaternion.LookRotation(nTop, best) * Quaternion.Inverse(Quaternion.LookRotation(nFace, upFace));
+            t.Face = face;
+            if (Debug.isDebugBuild || Tavern.Unity.App.AppMain.Flag("-dicelog"))
+            {
+                var bodyEnd = t.Frames[t.Frames.Count - 1].rot;
+                int shownTop = 0;
+                for (int i = 1; i < _faces.Count; i++) if ((bodyEnd * (t.Look * _faces[i].normal)).y > (bodyEnd * (t.Look * _faces[shownTop].normal)).y) shownTop = i;
+                Debug.Log($"[Dice] wanted {face}, landed on {top + 1} (normal y {(final * nTop).y:0.00}), after the turn {shownTop + 1}, frames {t.Frames.Count}");
+            }
+            return t;
+        }
+
+        /// <summary>Throws the die across the tray and lets it settle on face (1..20); duration is the wanted playback length.</summary>
         public void Roll(int face, float duration, Action? done = null)
         {
             gameObject.SetActive(true);
             if (_rolling != null) StopCoroutine(_rolling);
-            _rolling = StartCoroutine(RollRoutine(Mathf.Clamp(face, 1, 20), duration, done));
+            _rolling = StartCoroutine(RollRoutine(PlayOut(Mathf.Clamp(face, 1, 20)), duration, done));
         }
 
         public void Hide() { if (_rolling != null) StopCoroutine(_rolling); gameObject.SetActive(false); }
 
-        IEnumerator RollRoutine(int face, float duration, Action? done)
+        IEnumerator RollRoutine(Throw t, float duration, Action? done)
         {
-            var (n, up) = _faces[face - 1];
-            var final = Quaternion.LookRotation(Vector3.back, Vector3.up) * Quaternion.Inverse(Quaternion.LookRotation(n, up));
-            var axis = UnityEngine.Random.onUnitSphere;
-            var spin = UnityEngine.Random.Range(900f, 1300f);
-            var start = UnityEngine.Random.rotation;
-            float t = 0;
-            float tumble = duration * 0.75f;
-            while (t < duration)
+            _visual.localRotation = t.Look;
+            var length = t.Frames.Count * Step;
+            var speed = Mathf.Max(0.8f, length / Mathf.Max(0.3f, duration));   // long throws are played a little faster
+            float time = 0;
+            int bounce = 0;
+            while (true)
             {
-                t += Time.deltaTime;
-                if (t < tumble)
-                {
-                    var k = t / tumble;
-                    var speed = spin * (1 - k) * (1 - k);
-                    _die.localRotation = Quaternion.AngleAxis(speed * Time.deltaTime, axis) * _die.localRotation;
-                    if (t == Time.deltaTime) _die.localRotation = start;
-                    _die.localPosition = new Vector3(0, Mathf.Abs(Mathf.Sin(k * Mathf.PI * 3)) * 0.35f * (1 - k), 0);
-                }
-                else
-                {
-                    var k = Mathf.SmoothStep(0, 1, (t - tumble) / (duration - tumble));
-                    _die.localRotation = Quaternion.Slerp(_die.localRotation, final, k);
-                    _die.localPosition = Vector3.Lerp(_die.localPosition, Vector3.zero, k);
-                }
+                time += Time.deltaTime * speed;
+                var at = Mathf.Min(time / Step, t.Frames.Count - 1);
+                var i = Mathf.FloorToInt(at);
+                var (p0, r0) = t.Frames[i];
+                var (p1, r1) = t.Frames[Mathf.Min(i + 1, t.Frames.Count - 1)];
+                var k = at - i;
+                Place(Vector3.Lerp(p0, p1, k), Quaternion.Slerp(r0, r1, k));
+                while (bounce < t.Bounces.Count && t.Bounces[bounce].time <= time) Bounced?.Invoke(t.Bounces[bounce++].strength);
+                if (time >= length) break;
                 yield return null;
             }
-            _die.localRotation = final;
-            _die.localPosition = Vector3.zero;
+            yield return Present(t);
             _rolling = null;
             done?.Invoke();
+        }
+
+        /// <summary>
+        /// After it settles the die rises a little and turns the rolled face to the camera, number upright: seen from above at an
+        /// angle, a side face looked bigger than the top one and could be misread.
+        /// </summary>
+        IEnumerator Present(Throw t)
+        {
+            var from = _body.localRotation;
+            var pos = _body.localPosition;
+            var (n, up) = _faces[t.Face - 1];
+            var normal = from * (t.Look * n);
+            var numberUp = from * (t.Look * up);
+            var toCam = (_cam.localPosition - pos).normalized;
+            var turn = Quaternion.FromToRotation(normal, toCam);
+            var screenUp = Vector3.ProjectOnPlane(_cam.localRotation * Vector3.up, toCam);
+            var twist = Vector3.SignedAngle(Vector3.ProjectOnPlane(turn * numberUp, toCam), screenUp, toCam);
+            var to = Quaternion.AngleAxis(twist, toCam) * turn * from;
+            for (float time = 0; time < 1; time += Time.deltaTime / 0.45f)
+            {
+                var k = Mathf.SmoothStep(0, 1, time);
+                _body.localRotation = Quaternion.Slerp(from, to, k);
+                _body.localPosition = pos + Vector3.up * (0.5f * k);
+                yield return null;
+            }
+            _body.localRotation = to;
+            _body.localPosition = pos + Vector3.up * 0.5f;
+        }
+
+        void Place(Vector3 pos, Quaternion rot)
+        {
+            _body.localPosition = pos;
+            _body.localRotation = rot;
+            // the shadow stays on the floor, smaller and fainter the higher the die is
+            var lift = Mathf.Clamp01((pos.y - DieScale * 0.8f) / 3f);
+            _shadow.localPosition = new Vector3(pos.x + 0.25f, 0.01f, pos.z + 0.2f);
+            _shadow.localScale = Vector3.one * DieScale * (2.4f - lift);
         }
     }
 }

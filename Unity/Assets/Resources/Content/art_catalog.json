@@ -18,7 +18,16 @@
     { "id": "bg_shrine_inside", "about": "小さな祠・礼拝堂の中（祭壇、燭台、地下への階段）" },
     { "id": "bg_flooded_hall", "about": "水没した地下の回廊（黒い水、崩れた柱）" },
     { "id": "bg_prison", "about": "地下牢（鉄格子、鎖、松明）" },
-    { "id": "bg_crypt", "about": "玄室・墓所（石棺、緑の炎、古い旗）" }
+    { "id": "bg_crypt", "about": "玄室・墓所（石棺、緑の炎、古い旗）" },
+    { "id": "bg_sewer", "about": "町の地下水路（石のトンネル、汚れた水路、松明、鉄格子）" },
+    { "id": "bg_library", "about": "魔術師の塔の書庫（高い本棚、巻物、ろうそく、丸窓の夜）" },
+    { "id": "bg_chapel", "about": "森の廃れた礼拝堂（割れたステンドグラス、倒れた長椅子、蔦）" },
+    { "id": "bg_graveyard", "about": "夜の墓地（傾いた墓石、枯れ木、霧、小さな霊廟、月）" },
+    { "id": "bg_castle_hall", "about": "古城の大広間（ゴシックの窓、赤い絨毯、空の玉座、燭台）" },
+    { "id": "bg_ship_hold", "about": "難破船の船倉（傾いた梁、海水、壊れた木箱と樽、揺れるランタン）" },
+    { "id": "bg_witch_hut", "about": "沼の魔女の小屋の中（大釜、吊るした薬草と頭骨、棚の瓶）" },
+    { "id": "bg_snow_forest", "about": "山の雪の森（深い雪、針葉樹、古い足跡の小道、灰色の光）" },
+    { "id": "bg_mine", "about": "廃坑の坑道（木の支柱、レールとトロッコ、ランタン、鉱石の光）" }
   ],
   "portraits": [
     { "id": "pt_elder", "about": "村長・年配の男" },
@@ -29,6 +38,12 @@
     { "id": "pt_noble", "about": "貴族の女・領主の一族" },
     { "id": "pt_guard", "about": "衛兵隊長・兵士" },
     { "id": "pt_witch", "about": "老いた魔女・まじない師" },
-    { "id": "pt_fisher", "about": "年老いた漁師・船乗り" }
+    { "id": "pt_fisher", "about": "年老いた漁師・船乗り" },
+    { "id": "pt_scholar", "about": "老学者・魔術の研究者（眼鏡、古い本）" },
+    { "id": "pt_knight", "about": "若い騎士・誠実な従者" },
+    { "id": "pt_child", "about": "村の子ども・少女（ランタンを持つ）" },
+    { "id": "pt_sailor", "about": "老水夫・船乗り（パイプ、ロープ）" },
+    { "id": "pt_blacksmith", "about": "鍛冶屋・職人の男" },
+    { "id": "pt_mercenary", "about": "女傭兵・頬に傷のある剣士" }
   ]
 }

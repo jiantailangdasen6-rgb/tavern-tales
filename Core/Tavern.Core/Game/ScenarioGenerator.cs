@@ -48,7 +48,7 @@ namespace Tavern.Core.Game
         static string Request(StoryContent story, ContentDb db, TemplateDef t, IReadOnlyList<Character> party, string? request, string boss, string twist)
         {
             var sb = new StringBuilder();
-            sb.AppendLine("今夜、最大 3 人の冒険者が 2〜3 時間で遊び終える一晩のシナリオの設定表を write_scenario で書いてください。");
+            sb.AppendLine("今夜、最大 4 人の冒険者が 2〜3 時間で遊び終える一晩のシナリオの設定表を write_scenario で書いてください。");
             sb.AppendLine();
             sb.AppendLine("【世界（必ずこの世界の中の話にする）】");
             sb.AppendLine(story.World.Describe());

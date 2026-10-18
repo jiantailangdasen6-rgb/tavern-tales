@@ -21,7 +21,7 @@ string? Opt(string n) { int i = a.IndexOf(n); return i >= 0 && i + 1 < a.Count ?
 var root = FindRoot();
 var contentDir = Path.Combine(root, "Unity", "Assets", "Resources", "Content");
 var db = ContentDb.LoadFolder(contentDir);
-ScenarioDef scenario = ContentDb.LoadScenario(File.ReadAllText(Path.Combine(contentDir, "Scenarios", "grey_shrine.json")));
+ScenarioDef scenario = ContentDb.LoadScenario(File.ReadAllText(Path.Combine(contentDir, "Scenarios", (Opt("--scenario") ?? "grey_shrine") + ".json")));   // --scenario castle_lights etc.
 
 using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
 var counters = new List<CountingLlm>();

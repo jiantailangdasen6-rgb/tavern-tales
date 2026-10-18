@@ -23,7 +23,7 @@ namespace Tavern.Unity.Net
     /// </summary>
     public static class NetSession
     {
-        public const int MaxPlayers = 3;
+        public const int MaxPlayers = 4;   // PartyScreen.MaxSeats
         static NetworkManager? _nm;
         static readonly Dictionary<string, Action<ulong, string>> Handlers = new Dictionary<string, Action<ulong, string>>();
 

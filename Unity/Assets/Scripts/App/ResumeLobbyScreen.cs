@@ -75,13 +75,15 @@ namespace Tavern.Unity.App
             {
                 var owner = _game.State.Owners.TryGetValue(c.Name, out var o) ? o : Me;
                 var here = owner == Me || _connected.ContainsKey(owner);
-                var row = UiKit.Panel(_list, "Player", 0, i++ * 150, 1000, 136).transform;
+                var step = _game.Party.Count > 3 ? 112f : 150f;   // four: shorter rows
+                var row = UiKit.Panel(_list, "Player", 0, i++ * step, 1000, step - 14).transform;
                 var tex = ArtLibrary.Get(c.Portrait);
-                var p = UiKit.Picture(row, tex, 10, 8, 88, 120);
-                p.uvRect = ArtLibrary.Cover(tex, 88, 120, 0.72f);
+                var ph = step - 30; var pw = ph * 0.73f;
+                var p = UiKit.Picture(row, tex, 10, 8, pw, ph);
+                p.uvRect = ArtLibrary.Cover(tex, pw, ph, 0.72f);
                 p.color = here ? Color.white : new Color(0.4f, 0.4f, 0.4f);
-                UiKit.Label(row, c.Name, 30, Theme.Gold, 120, 18, 500, 44, serif: true);
-                UiKit.Label(row, $"{owner}{(owner == Me ? "（あなた）" : "")}　{(here ? "<color=#9fd08a>いる</color>" : "まだ来ていない")}", 20, Theme.Ink, 120, 70, 800, 34);
+                UiKit.Label(row, c.Name, 30, Theme.Gold, pw + 30, step > 120 ? 18 : 6, 500, 44, serif: true);
+                UiKit.Label(row, $"{owner}{(owner == Me ? "（あなた）" : "")}　{(here ? "<color=#9fd08a>いる</color>" : "まだ来ていない")}", 20, Theme.Ink, pw + 30, step > 120 ? 70 : 54, 800, 34);
             }
             var missing = Friends.Count(f => !_connected.ContainsKey(f));
             _status.text = missing == 0 ? "全員そろいました" : $"あと {missing} 人（来ていない人は、始めてからでも同じ名前で入れます）";

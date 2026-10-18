@@ -33,6 +33,7 @@ namespace Tavern.Core.Tests
             new[] { "warrior" }, new[] { "thief" },
             new[] { "warrior", "mage" }, new[] { "thief", "priest" },
             new[] { "warrior", "mage", "thief" }, new[] { "warrior", "priest", "mage" },
+            new[] { "warrior", "mage", "thief", "priest" },
         };
 
         /// <summary>Average rounds of a fight against one boss, and how often the party wins.</summary>
@@ -44,7 +45,7 @@ namespace Tavern.Core.Tests
                 var narr = Narr(new { text = "…", suggestions = new string[0] });
                 var replies = new List<LlmReply> { Plan(), Narr(new { text = "", suggestions = new string[0], start_combat = new[] { boss } }) };
                 for (int i = 0; i < 80; i++) replies.Add(narr);
-                var names = new[] { "ガレス", "エリス", "ロッコ" };
+                var names = new[] { "ガレス", "エリス", "ロッコ", "セラ" };
                 var party = classes.Select((c, i) => TavernGame.CreateCharacter(db, names[i], c, "")).ToList();
                 var game = TavernGame.New(db, s, teller, party, new ScriptedLlm(replies.ToArray()), null, new SeededRandom((ulong)(f * 7919 + 17)));
                 await game.SubmitAsync(new[] { new Declaration { Character = names[0], Text = "玄室へ" } });

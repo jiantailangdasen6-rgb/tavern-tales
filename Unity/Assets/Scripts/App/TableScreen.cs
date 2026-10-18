@@ -7,6 +7,7 @@ using Tavern.Core.Content;
 using Tavern.Core.Game;
 using Tavern.Core.Gm;
 using Tavern.Core.Rules;
+using Tavern.Unity.Dice;
 using Tavern.Unity.Ui;
 using UnityEngine;
 using UnityEngine.UI;
@@ -148,6 +149,11 @@ namespace Tavern.Unity.App
             UiKit.Button(top, _role == NetRole.Client ? "部屋を出る" : "保存して酒場を出る", () => { if (_role != NetRole.Client) _app.Save(_game); LeaveRoom(); _app.ShowTitle(); }, 1596, 8, 284, 38, 18);
         }
 
+        bool Compact => _game.Party.Count > 3;
+        float CardH => Compact ? 152 : 176;
+        float PortraitW => Compact ? 80 : 96;
+        float PortraitH => Compact ? 108 : 132;
+
         void BuildParty(Transform root)
         {
             var panel = UiKit.Panel(root, "Party", 14, 76, 300, 672).transform;
@@ -156,23 +162,25 @@ namespace Tavern.Unity.App
                 var idx = i;
                 var c = new PartyCard();
                 c.Frame = UiKit.Box(panel, "Card" + i, Theme.Panel2, frame: true);
-                c.Frame.rectTransform.Place(12, 12 + i * 186, 276, 176);
+                c.Frame.rectTransform.Place(12, 12 + i * (CardH + 8), 276, CardH);
                 var btn = c.Frame.gameObject.AddComponent<Button>();
                 btn.onClick.AddListener(() => Select(idx));
                 var t = c.Frame.transform;
-                c.Portrait = UiKit.Picture(t, null, 10, 10, 96, 132);
-                c.Name = UiKit.Label(t, "", 22, Theme.Ink, 116, 8, 156, 30, serif: true);
-                UiKit.Label(t, "HP", 13, Theme.Dim, 116, 44, 40, 18);
-                c.Hp = UiKit.Label(t, "", 13, Theme.Dim, 180, 44, 90, 18, align: TextAnchor.UpperRight);
-                c.HpBar = UiKit.Bar(t, 116, 64, 152, 10, Theme.Red);
-                UiKit.Label(t, "気力", 13, Theme.Dim, 116, 80, 60, 18);
-                c.Focus = UiKit.Label(t, "", 13, Theme.Dim, 180, 80, 90, 18, align: TextAnchor.UpperRight);
-                c.FocusBar = UiKit.Bar(t, 116, 100, 152, 8, Theme.Blue);
-                c.Status = UiKit.Label(t, "", 14, Theme.Gold, 116, 116, 156, 54);
-                UiKit.Button(t, "詳しく", () => ShowSheet(_game.Party[idx]), 10, 146, 96, 24, 13);   // abilities, items, cards
+                // four adventurers get smaller cards so all fit the panel
+                var lx = PortraitW + 20; var dy = Compact ? -6f : 0f;
+                c.Portrait = UiKit.Picture(t, null, 10, 10, PortraitW, PortraitH);
+                c.Name = UiKit.Label(t, "", Compact ? 20 : 22, Theme.Ink, lx, 8, 266 - lx, 30, serif: true);
+                UiKit.Label(t, "HP", 13, Theme.Dim, lx, 44 + dy, 40, 18);
+                c.Hp = UiKit.Label(t, "", 13, Theme.Dim, 180, 44 + dy, 90, 18, align: TextAnchor.UpperRight);
+                c.HpBar = UiKit.Bar(t, lx, 64 + dy, 268 - lx, 10, Theme.Red);
+                UiKit.Label(t, "気力", 13, Theme.Dim, lx, 80 + dy * 2, 60, 18);
+                c.Focus = UiKit.Label(t, "", 13, Theme.Dim, 180, 80 + dy * 2, 90, 18, align: TextAnchor.UpperRight);
+                c.FocusBar = UiKit.Bar(t, lx, 100 + dy * 2, 268 - lx, 8, Theme.Blue);
+                c.Status = UiKit.Label(t, "", 14, Theme.Gold, lx, 116 + dy * 3, 266 - lx, CardH - 116 - dy * 3);
+                UiKit.Button(t, "詳しく", () => ShowSheet(_game.Party[idx]), 10, PortraitH + 14, PortraitW, Compact ? 20 : 24, 13);   // abilities, items, cards
                 _partyCards.Add(c);
             }
-            UiKit.Label(panel, "カードを押すと、その冒険者の行動を書けます。「詳しく」で能力値と持ち物", 14, Theme.Dim, 16, 610, 270, 54);
+            if (!Compact) UiKit.Label(panel, "カードを押すと、その冒険者の行動を書けます。「詳しく」で能力値と持ち物", 14, Theme.Dim, 16, 610, 270, 54);
         }
 
         void BuildScene(Transform root)
@@ -197,7 +205,7 @@ namespace Tavern.Unity.App
             _warnBanner = warn.gameObject;
             _warnBanner.SetActive(false);
 
-            _diceImage = UiKit.Picture(t, _app.Dice.Texture, 354, 150, 300, 300);
+            _diceImage = UiKit.Picture(t, _app.Dice.Texture, 0, 52, 1008, 1008 / DiceRoller.Aspect);   // the tray spans the scene
             _diceImage.gameObject.SetActive(false);
             var cap = UiKit.Box(t, "DiceCaption", new Color(0, 0, 0, 0.7f));
             cap.rectTransform.Place(154, 460, 700, 44);
@@ -261,7 +269,7 @@ namespace Tavern.Unity.App
                 var p = _game.Party[i];
                 var tex = ArtLibrary.Get(p.Portrait);
                 c.Portrait.texture = tex;
-                c.Portrait.uvRect = ArtLibrary.Cover(tex, 96, 132, 0.72f);
+                c.Portrait.uvRect = ArtLibrary.Cover(tex, PortraitW, PortraitH, 0.72f);
                 c.Portrait.color = p.State == LifeState.Active ? Color.white : new Color(0.45f, 0.45f, 0.45f);
                 c.Name.text = $"{p.Name} <size=14><color=#a8977a>{_app.Db.Classes[p.ClassId].Name}</color></size>";
                 c.Hp.text = $"{p.Hp} / {p.MaxHp}";
@@ -568,10 +576,10 @@ namespace Tavern.Unity.App
                 _diceCaption.transform.parent.gameObject.SetActive(true);
                 _diceCaption.text = e.Who + "　" + (e.Text.Contains("死のサイコロ") ? "死のサイコロ" : e.Reason.Length > 0 ? e.Reason : "判定") + "…";
                 AudioDirector.Play("dice_roll");
-                _app.Dice.Roll(e.Natural, 1.1f / speed, () =>
+                _app.Dice.Roll(e.Natural, 2.4f / speed, () =>
                 {
                     _diceRolling = false;
-                    AudioDirector.Play("dice_land");
+                    // (each bounce on the tray already knocked: AppMain hears Dice.Bounced)
                     if (e.Natural == 20) AudioDirector.Play("crit"); else if (e.Natural == 1) AudioDirector.Play("fumble");
                     _diceCaption.text = $"{e.Text}";
                     _holdUntil = Time.time + 0.9f / speed;

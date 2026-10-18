@@ -94,6 +94,44 @@ namespace Tavern.Core.Tests
         }
 
         [Test]
+        public void PreparedStories_AreConsistent()
+        {
+            var dir = ContentDir();
+            var db = ContentDb.LoadFolder(dir);
+            var story = StoryContent.LoadFolder(dir);
+            var bgs = story.Catalog.Backgrounds.Select(b => b.Id).ToHashSet();
+            var pts = story.Catalog.Portraits.Select(p => p.Id).ToHashSet();
+            var files = Directory.GetFiles(Path.Combine(dir, "Scenarios"), "*.json");
+            Assert.That(files.Length, Is.GreaterThanOrEqualTo(4));
+            foreach (var file in files)
+            {
+                var s = ContentDb.LoadScenario(File.ReadAllText(file));
+                var ids = s.Locations.Select(l => l.Id).ToHashSet();
+                Assert.That(ids, Does.Contain(s.Start), s.Id);
+                Assert.That(s.Acts.Select(a => a.N), Is.EqualTo(new[] { 1, 2, 3 }), s.Id);
+                foreach (var l in s.Locations)
+                {
+                    Assert.That(bgs, Does.Contain(l.Art), $"{s.Id}/{l.Id} art");
+                    foreach (var x in l.Exits)
+                    {
+                        Assert.That(ids, Does.Contain(x), $"{s.Id}/{l.Id} exit {x}");
+                        Assert.That(s.Location(x).Exits, Does.Contain(l.Id), $"{s.Id}: {x} leads back to {l.Id}");
+                    }
+                    Assert.That(l.Encounter.All(db.Enemies.ContainsKey), $"{s.Id}/{l.Id} foes");
+                }
+                Assert.That(db.Enemies[s.Boss].Boss, s.Id);
+                Assert.That(s.Locations.Any(l => l.Act == 3 && l.Encounter.Contains(s.Boss)), $"{s.Id}: the boss waits in act 3");
+                foreach (var n in s.Npcs) { Assert.That(pts, Does.Contain(n.Art), $"{s.Id}/{n.Id}"); Assert.That(ids, Does.Contain(n.Where), $"{s.Id}/{n.Id}"); }
+                foreach (var c in s.Clues) Assert.That(ids, Does.Contain(c.Where), $"{s.Id}/{c.Id}");
+                // every place can be reached from the tavern
+                var seen = new HashSet<string> { s.Start };
+                var todo = new Queue<string>(seen);
+                while (todo.Count > 0) foreach (var x in s.Location(todo.Dequeue()).Exits) if (seen.Add(x)) todo.Enqueue(x);
+                Assert.That(seen, Is.EquivalentTo(ids), $"{s.Id}: all places reachable");
+            }
+        }
+
+        [Test]
         public void MusicMap_IsValidJsonAndPointsAtFiles()
         {
             var resources = Path.GetDirectoryName(ContentDir())!;

@@ -77,6 +77,23 @@ namespace Tavern.Unity.Editor
             mat.SetColor("_BaseColor", new Color(0.93f, 0.85f, 0.66f));
             mat.SetFloat("_Smoothness", 0.55f);
             EditorUtility.SetDirty(mat);
+
+            // the soft shadow under the rolling die: URP Unlit, transparent (kept as an asset so the shader is in builds)
+            const string shadowPath = "Assets/Resources/Materials/DiceShadow.mat";
+            var shadow = AssetDatabase.LoadAssetAtPath<Material>(shadowPath);
+            if (shadow == null)
+            {
+                shadow = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+                AssetDatabase.CreateAsset(shadow, shadowPath);
+            }
+            shadow.SetFloat("_Surface", 1); shadow.SetFloat("_Blend", 0);
+            shadow.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+            shadow.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+            shadow.SetFloat("_ZWrite", 0); shadow.SetFloat("_Cull", 0);
+            shadow.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            shadow.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+            shadow.SetColor("_BaseColor", new Color(0, 0, 0, 0.55f));
+            EditorUtility.SetDirty(shadow);
         }
 
         /// <summary>Pictures in Resources/Art: no mipmaps blur, sensible sizes, compressed.</summary>

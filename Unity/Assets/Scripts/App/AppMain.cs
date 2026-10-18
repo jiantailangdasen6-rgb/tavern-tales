@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.IO;
+using System.Collections.Generic;
 using System.Linq;
 using Tavern.Core.Content;
 using Tavern.Core.Game;
@@ -27,7 +28,10 @@ namespace Tavern.Unity.App
     {
         public static AppMain Instance { get; private set; } = null!;
         public ContentDb Db { get; private set; } = null!;
+        /// <summary>The first prepared story (also what an old save without its story falls back to).</summary>
         public ScenarioDef Scenario { get; private set; } = null!;
+        public List<ScenarioDef> Prepared { get; private set; } = new List<ScenarioDef>();
+        public ScenarioDef PreparedStory(string? id) => Prepared.FirstOrDefault(s => s.Id == id) ?? Scenario;
         public StoryContent Story { get; private set; } = null!;
         public AiSetup.Backends Ai { get; private set; } = null!;
         public Transform Root { get; private set; } = null!;
@@ -48,7 +52,10 @@ namespace Tavern.Unity.App
             Instance = this;
             Application.targetFrameRate = 60;
             Db = ContentDb.Load(Text("Content/classes"), Text("Content/cards"), Text("Content/enemies"));
-            Scenario = ContentDb.LoadScenario(Text("Content/Scenarios/grey_shrine"));
+            // the prepared stories (Resources/Content/Scenarios), the first evening's story first
+            Prepared = Resources.LoadAll<TextAsset>("Content/Scenarios").Select(t => ContentDb.LoadScenario(t.text))
+                .OrderBy(s => s.Id == "grey_shrine" ? 0 : 1).ThenBy(s => s.Title).ToList();
+            Scenario = Prepared[0];
             Story = StoryContent.Load(Text("Content/world"), Text("Content/art_catalog"), Text("Content/templates"));
             ScenarioPrompt.World = Story.World.Describe();
             Ai = AiSetup.Create(Flag("-demo"));
@@ -80,20 +87,21 @@ namespace Tavern.Unity.App
             canvasGo.AddComponent<StageFitter>().Stage = stage;
             Root = stage;
             Dice = DiceRoller.Create(transform);
+            Dice.Bounced += strength => AudioDirector.Play("dice_land", 0.25f + 0.75f * strength);   // a knock each time the die hits the tray
             AudioDirector.Create(transform);
 
             InviteLink.Register();
             InviteCode = InviteLink.CodeFromArgs();
             if (Flag("-onlinehost") || Arg("-onlinejoinfile") != null) StartCoroutine(AutoOnline());
             else if (Flag("-continue") && File.Exists(SavePath)) ContinueEvening();
-            else if (Flag("-quickstart")) StartEvening(PartyScreen.Preset(Db), Storyteller.Find(Arg("-teller")), Arg("-story") is string st ? new StoryChoice { Prepared = st == "prepared", TemplateId = st == "auto" || st == "prepared" ? null : st } : null);
+            else if (Flag("-quickstart")) StartEvening(PartyScreen.Preset(Db, int.TryParse(Arg("-partysize"), out var ps) ? ps : 3), Storyteller.Find(Arg("-teller")), Arg("-story") is string st ? new StoryChoice { Prepared = st.StartsWith("prepared"), PreparedId = st.StartsWith("prepared:") ? st.Substring(9) : null, TemplateId = st == "auto" || st.StartsWith("prepared") ? null : st } : null);
             else if (InviteCode != null) ShowParty(OnlineMode.Join);   // opened from an invite link
             else if (Flag("-partyscreen")) ShowParty();
             else if (Flag("-roster")) ShowRoster();
             else if (int.TryParse(Arg("-dicetest"), out var face))
             {
                 UiKit.Box(Root, "Bg", Theme.Bg).rectTransform.Fill();
-                UiKit.Picture(Root, Dice.Texture, 660, 240, 600, 600);
+                UiKit.Picture(Root, Dice.Texture, 160, 90, 1600, 900);
                 Dice.Roll(face, 1.2f);
             }
             else ShowTitle();
@@ -203,7 +211,7 @@ namespace Tavern.Unity.App
         /// <summary>Test flags: -onlinehost / -onlinejoinfile with a preset character (-presetchar N, -playername S).</summary>
         System.Collections.IEnumerator AutoOnline()
         {
-            var preset = PartyScreen.Preset(Db);
+            var preset = PartyScreen.Preset(Db, PartyScreen.MaxSeats);
             var index = int.TryParse(Arg("-presetchar"), out var n) ? Mathf.Clamp(n, 0, preset.Count - 1) : 0;
             var name = Arg("-playername") ?? "旅人" + (index + 1);
             if (Flag("-onlinehost")) { HostOnline(name, preset[index]); yield break; }
@@ -228,7 +236,7 @@ namespace Tavern.Unity.App
         /// </summary>
         public async System.Threading.Tasks.Task<ScenarioDef?> PrepareScenarioAsync(System.Collections.Generic.IReadOnlyList<Tavern.Core.Rules.Character> party, StoryChoice? story, bool fallBackToPrepared = false)
         {
-            if (story == null || story.Prepared) return Scenario;
+            if (story == null || story.Prepared) return PreparedStory(story?.PreparedId);
             var key = StoryKey(party, story);
             var ahead = _prefetchKey == key ? _prefetch : null;
             _prefetch = null; _prefetchKey = null;

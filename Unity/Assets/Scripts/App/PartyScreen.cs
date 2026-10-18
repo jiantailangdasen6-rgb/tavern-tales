@@ -41,7 +41,12 @@ namespace Tavern.Unity.App
             ("ガレス", "warrior", false, "没落した騎士の家の三男。家名を取り戻したい。曲がったことが嫌い"),
             ("エリス", "mage", true, "魔法学院を追い出された。理由は語りたがらない。甘い物に目がない"),
             ("ロッコ", "thief", false, "港町の孤児。お調子者で、光る物を見るとつい手が伸びる"),
+            ("セラ", "priest", true, "辺境の小さな教会で育った見習い司祭。怖がりだが、仲間のためなら前に出る"),
         };
+
+        /// <summary>Up to four adventurers an evening (NetSession.MaxPlayers online).</summary>
+        public const int MaxSeats = 4;
+        const float SeatWidth = 420;
 
         readonly OnlineMode _mode;
         Func<Tavern.Core.Gm.Storyteller>? _teller;
@@ -51,7 +56,8 @@ namespace Tavern.Unity.App
         public PartyScreen(AppMain app, OnlineMode mode = OnlineMode.None) { _app = app; _mode = mode; }
 
         /// <summary>The sample party for -quickstart.</summary>
-        public static List<Character> Preset(ContentDb db) => Samples
+        /// <summary>The sample party for tests and quick starts (three by default, up to four).</summary>
+        public static List<Character> Preset(ContentDb db, int count = 3) => Samples.Take(Math.Max(1, Math.Min(MaxSeats, count)))
             .Select(s => TavernGame.CreateCharacter(db, s.name, s.cls, s.bg, $"pc_{s.cls}_{(s.female ? "f" : "m")}")).ToList();
 
         public void Build(Transform root)
@@ -67,13 +73,13 @@ namespace Tavern.Unity.App
 
             var roster = _mode == OnlineMode.Roster;
             UiKit.Label(root, roster ? "新しい冒険者を作る" : "今宵の冒険者たち", 54, Theme.Gold, 0, 40, 1920, 80, serif: true, align: TextAnchor.MiddleCenter);
-            UiKit.Label(root, roster ? "作った冒険者は名簿に入り、次の晩に「前の冒険者を呼ぶ」で連れて行けます（1〜3 人）" : "職業と見た目を選び、名前と生い立ちを書いてください（1〜3 人）",
+            UiKit.Label(root, roster ? "作った冒険者は名簿に入り、次の晩に「前の冒険者を呼ぶ」で連れて行けます（1〜4 人）" : "職業と見た目を選び、名前と生い立ちを書いてください（1〜4 人）",
                 22, Theme.Dim, 0, 118, 1920, 40, align: TextAnchor.MiddleCenter);
 
-            if (_mode == OnlineMode.None || roster) for (int i = 0; i < 3; i++) _slots.Add(BuildSlot(root, i, 90 + i * 590));
+            if (_mode == OnlineMode.None || roster) for (int i = 0; i < MaxSeats; i++) _slots.Add(BuildSlot(root, i, 90 + i * (SeatWidth + 20)));
             else BuildOnline(root);
             UiKit.Button(root, "おまかせで埋める", FillSamples, 90, 980, 300, 64, 22);
-            if (_mode == OnlineMode.None) { _teller = StorytellerPicker.Build(root, 630, 966); _story = StoryChooser.Build(root, _app.Story, _app.Scenario.Title, 90, 876); }
+            if (_mode == OnlineMode.None) { _teller = StorytellerPicker.Build(root, 630, 966); _story = StoryChooser.Build(root, _app.Story, _app.Prepared, 90, 876); }
             UiKit.Button(root, "もどる", roster ? _app.ShowRoster : (UnityEngine.Events.UnityAction)_app.ShowTitle, 410, 980, 200, 64, 22);
             _start = UiKit.Button(root, _mode == OnlineMode.Host ? "部屋を作る" : _mode == OnlineMode.Join ? "部屋に入る" : roster ? "名簿に加える" : "この顔ぶれで酒場へ", Begin, 1430, 980, 400, 70, 28, gold: true);
             SetEnabled(_slots[0], true);
@@ -85,32 +91,32 @@ namespace Tavern.Unity.App
         Slot BuildSlot(Transform root, int index, float x)
         {
             var s = new Slot();
-            var panel = UiKit.Panel(root, "Slot" + index, x, 180, 560, 680);
+            var panel = UiKit.Panel(root, "Slot" + index, x, 180, SeatWidth, 680);
             s.Body = UiKit.Rect("Body", panel.transform).Fill().gameObject;
             var body = s.Body.transform;
 
-            s.Portrait = UiKit.Picture(body, null, 20, 20, 220, 330);
+            s.Portrait = UiKit.Picture(body, null, 20, 20, 150, 225);
             UiKit.Box(s.Portrait.transform, "Edge", new Color(0, 0, 0, 0), frame: true).rectTransform.Fill();
-            s.ClassText = UiKit.Label(body, "", 30, Theme.Gold, 260, 20, 280, 44, serif: true);
-            s.Blurb = UiKit.Label(body, "", 18, Theme.Ink, 260, 70, 280, 110);
+            s.ClassText = UiKit.Label(body, "", 28, Theme.Gold, 186, 18, 220, 40, serif: true);
+            s.Blurb = UiKit.Label(body, "", 15, Theme.Ink, 186, 62, 220, 92);
             var classes = new[] { "warrior", "mage", "thief", "priest" };
             for (int c = 0; c < classes.Length; c++)
             {
                 var id = classes[c];
-                var b = UiKit.Button(body, _app.Db.Classes[id].Name, () => { s.ClassId = id; Refresh(); }, 260 + (c % 2) * 140, 190 + (c / 2) * 56, 130, 48, 20);
+                var b = UiKit.Button(body, _app.Db.Classes[id].Name, () => { s.ClassId = id; Refresh(); }, 186 + (c % 2) * 112, 160 + (c / 2) * 50, 104, 44, 18);
                 s.ClassButtons[id] = b.GetComponent<Image>();
             }
-            UiKit.Button(body, "男 / 女", () => { s.Female = !s.Female; Refresh(); }, 260, 310, 270, 40, 18);
+            UiKit.Button(body, "男 / 女", () => { s.Female = !s.Female; Refresh(); }, 186, 262, 216, 36, 16);
 
-            UiKit.Label(body, "名前", 18, Theme.Dim, 20, 370, 200, 28);
-            s.Name = UiKit.Input(body, "例: ガレス", 20, 398, 520, 48, 22);
-            UiKit.Label(body, "生い立ち・性格（自由に）", 18, Theme.Dim, 20, 458, 400, 28);
-            s.Background = UiKit.Input(body, "例: 没落した騎士の家の三男。家名を取り戻したい", 20, 486, 520, 120, 20, multiline: true);
-            UiKit.Button(body, "この席を空ける", () => { SetEnabled(s, false); Refresh(); }, 340, 620, 200, 44, 18);
-            UiKit.Button(body, "前の冒険者を呼ぶ", () => PickFromRoster(s), 20, 620, 300, 44, 18, gold: true);
+            UiKit.Label(body, "名前", 17, Theme.Dim, 20, 300, 200, 26);
+            s.Name = UiKit.Input(body, "例: ガレス", 20, 326, SeatWidth - 40, 44, 20);
+            UiKit.Label(body, "生い立ち・性格（自由に）", 17, Theme.Dim, 20, 382, 360, 26);
+            s.Background = UiKit.Input(body, "例: 没落した騎士の家の三男。家名を取り戻したい", 20, 408, SeatWidth - 40, 176, 18, multiline: true);
+            UiKit.Button(body, "前の冒険者を呼ぶ", () => PickFromRoster(s), 20, 610, 200, 46, 17, gold: true);
+            UiKit.Button(body, "この席を空ける", () => { SetEnabled(s, false); Refresh(); }, 230, 610, SeatWidth - 250, 46, 17);
 
             s.Empty = UiKit.Rect("Empty", panel.transform).Fill().gameObject;
-            UiKit.Button(s.Empty.transform, "＋ 冒険者を加える", () => { SetEnabled(s, true); Refresh(); }, 130, 300, 300, 80, 24);
+            UiKit.Button(s.Empty.transform, "＋ 冒険者を加える", () => { SetEnabled(s, true); Refresh(); }, (SeatWidth - 300) / 2, 300, 300, 80, 24);
             s.ClassId = classes[index % 4];
             SetEnabled(s, false);
             return s;
@@ -120,7 +126,7 @@ namespace Tavern.Unity.App
         void BuildOnline(Transform root)
         {
             _slots.Add(BuildSlot(root, 0, 90));
-            var panel = UiKit.Panel(root, "Online", 680, 180, 1150, 330).transform;
+            var panel = UiKit.Panel(root, "Online", 540, 180, 1290, 330).transform;
             UiKit.Label(panel, _mode == OnlineMode.Host ? "友人と遊ぶ: 部屋を作る" : "友人の部屋に入る", 32, Theme.Gold, 30, 24, 900, 44, serif: true);
             UiKit.Label(panel, "あなたの名前（友人に表示されます）", 18, Theme.Dim, 30, 90, 600, 28);
             _playerName = UiKit.Input(panel, "例: たろう", 30, 120, 500, 50, 22);
@@ -131,7 +137,7 @@ namespace Tavern.Unity.App
                 _code = UiKit.Input(panel, "例: ABC123", 30, 220, 500, 60, 30);
                 if (_app.InviteCode != null) _code.text = _app.InviteCode;
             }
-            UiKit.Label(panel, "一人一人が自分の冒険者を 1 人作って持ち寄ります。AI はホストの PC だけで動きます。", 17, Theme.Dim, 580, 120, 540, 120);
+            UiKit.Label(panel, "一人一人が自分の冒険者を 1 人作って持ち寄ります（4 人まで）。AI はホストの PC だけで動きます。", 17, Theme.Dim, 580, 120, 680, 120);
         }
 
         /// <summary>Lists the adventurers who survived earlier evenings on this PC; choosing one fills the seat.</summary>
@@ -190,7 +196,7 @@ namespace Tavern.Unity.App
                 s.Blurb.text = def.Blurb + $"\n力+{def.Might} 技+{def.Skill} 知+{def.Wits} 心+{def.Spirit}　HP {def.Hp}";
                 var tex = ArtLibrary.Get(s.Art);
                 s.Portrait.texture = tex;
-                s.Portrait.uvRect = ArtLibrary.Cover(tex, 220, 330, 0.7f);
+                s.Portrait.uvRect = ArtLibrary.Cover(tex, 150, 225, 0.7f);
                 foreach (var kv in s.ClassButtons) kv.Value.color = kv.Key == s.ClassId ? Theme.Hex("6b4f24") : Theme.Hex("2e241a");
             }
             _start.interactable = _slots.Any(s => s.Enabled);

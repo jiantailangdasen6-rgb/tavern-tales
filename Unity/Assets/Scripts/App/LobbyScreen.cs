@@ -66,7 +66,7 @@ namespace Tavern.Unity.App
             _list = UiKit.Rect("Players", root).Place(460, 390, 1000, 480);
             _status = UiKit.Label(root, "", 20, Theme.Ink, 0, _host ? 922 : 972, 1920, 36, align: TextAnchor.MiddleCenter);   // friends: under the host box
             UiKit.Button(root, "部屋を出る", () => { NetSession.ClearHandlers(); NetSession.Leave(); _app.ShowTitle(); }, 90, 980, 240, 64, 22);
-            if (_host) { _start = UiKit.Button(root, "この顔ぶれで冒険をはじめる", Begin, 1380, 980, 450, 70, 26, gold: true); _teller = StorytellerPicker.Build(root, 400, 966); _story = StoryChooser.Build(root, _app.Story, _app.Scenario.Title, 300, 852); }
+            if (_host) { _start = UiKit.Button(root, "この顔ぶれで冒険をはじめる", Begin, 1380, 980, 450, 70, 26, gold: true); _teller = StorytellerPicker.Build(root, 400, 966); _story = StoryChooser.Build(root, _app.Story, _app.Prepared, 300, 852); }
             if (_host) { _app.ResetPrefetch(); _app.Tick = Tick; }
 
             NetSession.ClearHandlers();
@@ -122,12 +122,14 @@ namespace Tavern.Unity.App
             for (int i = 0; i < players.Count; i++)
             {
                 var p = players[i];
-                var row = UiKit.Panel(_list, "Player", 0, i * 150, 1000, 136).transform;
+                var step = players.Count > 3 ? 112f : 150f;   // four players: shorter rows so the list stays above the host's pickers
+                var row = UiKit.Panel(_list, "Player", 0, i * step, 1000, step - 14).transform;
                 var tex = ArtLibrary.Get(p.Portrait);
-                var pic = UiKit.Picture(row, tex, 10, 8, 88, 120);
-                pic.uvRect = ArtLibrary.Cover(tex, 88, 120, 0.72f);
-                UiKit.Label(row, p.CharacterName, 30, Theme.Gold, 120, 18, 500, 44, serif: true);
-                UiKit.Label(row, $"{(_app.Db.Classes.TryGetValue(p.ClassId, out var cls) ? cls.Name : p.ClassId)}　—　{p.PlayerName}{(p.PlayerName == _me ? "（あなた）" : "")}", 20, Theme.Ink, 120, 70, 800, 34);
+                var ph = step - 30; var pw = ph * 0.73f;
+                var pic = UiKit.Picture(row, tex, 10, 8, pw, ph);
+                pic.uvRect = ArtLibrary.Cover(tex, pw, ph, 0.72f);
+                UiKit.Label(row, p.CharacterName, 30, Theme.Gold, pw + 30, step > 120 ? 18 : 6, 500, 44, serif: true);
+                UiKit.Label(row, $"{(_app.Db.Classes.TryGetValue(p.ClassId, out var cls) ? cls.Name : p.ClassId)}　—　{p.PlayerName}{(p.PlayerName == _me ? "（あなた）" : "")}", 20, Theme.Ink, pw + 30, step > 120 ? 70 : 54, 800, 34);
             }
             _status.text = _host
                 ? (players.Count < 2 ? "友人が入るのを待っています…（ひとりで始めることもできます）" : $"{players.Count} 人がそろいました")
@@ -152,7 +154,7 @@ namespace Tavern.Unity.App
             if (Time.unscaledTime - _stableSince > 8f) _app.PrefetchStory(_players.Select(p => p.character.ToCharacter()).ToList(), story);
         }
 
-        string StoryLabel(StoryChoice s) => s.Prepared ? $"用意された物語「{_app.Scenario.Title}」"
+        string StoryLabel(StoryChoice s) => s.Prepared ? $"用意された物語「{_app.PreparedStory(s.PreparedId).Title}」"
             : s.TemplateId == null ? "おまかせ（語り部が作る）" : $"型「{_app.Story.Template(s.TemplateId)?.Name ?? s.TemplateId}」";
 
         string ChoiceKey() => (_teller?.Invoke().Id ?? "") + "|" + (_story?.Invoke() is StoryChoice s ? StoryLabel(s) + "|" + s.Request : "");
