@@ -27,8 +27,9 @@ namespace Tavern.Unity.App
             get => PlayerPrefs.GetInt("volume_level", 1);
             set { PlayerPrefs.SetInt("volume_level", Mathf.Clamp(value, 0, 3)); PlayerPrefs.Save(); }
         }
-        static float LevelScale => new[] { 0f, 0.45f, 0.75f, 1f }[Mathf.Clamp(Level, 0, 3)];
-        const float MusicBase = 0.3f, SfxBase = 0.45f, AmbienceBase = 0.25f;
+        static float LevelScale => new[] { 0f, 0.4f, 0.7f, 1f }[Mathf.Clamp(Level, 0, 3)];
+        // Music measured at about -19 dBFS RMS (music.json gains): "小" plays it near -31 dBFS, "大" near -23 (the old "小" was about -45, too quiet to hear).
+        const float MusicBase = 0.6f, SfxBase = 0.7f, AmbienceBase = 0.5f;
 
         public static AudioDirector Create(Transform parent)
         {
@@ -61,7 +62,15 @@ namespace Tavern.Unity.App
         float Gain(AudioClip? c) => c != null && _gains.TryGetValue(c, out var g) ? g : 1f;
 
         static JObject? _map;
-        static JObject Map => _map ??= Resources.Load<TextAsset>("Music/music") is TextAsset t ? JObject.Parse(t.text) : new JObject();
+        static JObject Map => _map ??= LoadMap();
+
+        /// <summary>music.json; a broken file only means the synthesized audio plays (it must never stop the game).</summary>
+        static JObject LoadMap()
+        {
+            if (!(Resources.Load<TextAsset>("Music/music") is TextAsset t)) return new JObject();
+            try { return JObject.Parse(t.text); }
+            catch (Newtonsoft.Json.JsonException e) { Debug.LogWarning("[Audio] music.json: " + e.Message); return new JObject(); }
+        }
 
         /// <summary>The music scene of a place, by its background art ("cave", "crypt", "ritual"; "explore" for the rest).</summary>
         public static string Zone(string art) => (string?)Map["zones"]?[art] ?? "explore";

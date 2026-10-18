@@ -44,6 +44,11 @@ namespace Tavern.Unity.App
             UiKit.Button(root, "終わる", Application.Quit, 965, y, 195, 56, 22);
 
             UiKit.Label(root, _app.Ai.Description, 18, Theme.Dim, 0, 1030, 1900, 30, align: TextAnchor.MiddleRight);
+            UiKit.Button(root, "設定", () =>
+            {
+                var layer = UiKit.Rect("Settings", root).Fill();
+                SettingsPanel.Show(layer, null, () => Object.Destroy(layer.gameObject));
+            }, 1720, 30, 160, 50, 20);
             if (AppMain.Flag("-showcredits")) ShowCredits(root);   // for screenshots
         }
 
@@ -59,7 +64,7 @@ namespace Tavern.Unity.App
             "敵の絵を押すと狙う敵を選べます。敵の攻撃は「かわす」判定。ボスが大技の構えを見せたら、身を守るか、かばうか、先に倒すか。\n" +
             "HP が 0 になると倒れ、手番ごとに死のサイコロ（10 以上で持ちこたえ、3 回失敗で死亡）。仲間が起こせば助かります。全員倒れたら物語は失敗で終わります。\n\n" +
             "■ そのほか\n" +
-            "幕の終わりに成長できます。「語り部への注文」で、語りを短く・怖くなど物語の外から頼めます。手番ごとに自動で保存され、「続きから」で再開できます。右上の「設定」で、音量・文字の大きさ・語りの速さを変えられます。";
+            "幕の終わりに成長できます。「語り部への注文」で、語りを短く・怖くなど物語の外から頼めます。手番ごとに自動で保存され、「続きから」で再開できます。右上の「設定」（タイトル画面にもあります）で、音量・文字の大きさ・語りの速さを変えられます。";
 
         /// <summary>The storyteller's chronicle: every finished evening on this PC, and the memorial of the fallen.</summary>
         void ShowChronicle(Transform root)

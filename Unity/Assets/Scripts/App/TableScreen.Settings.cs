@@ -36,22 +36,22 @@ namespace Tavern.Unity.App
         public static float CharsPerSecond => new[] { 24f, 42f, 80f, float.PositiveInfinity }[Speed];
     }
 
-    public sealed partial class TableScreen
+    /// <summary>Sound, text size and narration speed for this PC (the table's top bar and the title screen).</summary>
+    public static class SettingsPanel
     {
-        /// <summary>Sound, text size and narration speed for this PC (the top bar's "設定").</summary>
-        void ShowSettings()
+        /// <summary>Fills layer with the panel; onTextSize redraws text after a size change, close removes the layer.</summary>
+        public static void Show(Transform layer, Action? onTextSize, Action close)
         {
-            UiKit.Clear(_overlay.transform);
-            var shade = UiKit.Box(_overlay.transform, "Shade", new Color(0, 0, 0, 0.6f));
+            var shade = UiKit.Box(layer, "Shade", new Color(0, 0, 0, 0.6f));
             shade.rectTransform.Fill();
-            var panel = UiKit.Panel(_overlay.transform, "Settings", 560, 300, 800, 400).transform;
+            var panel = UiKit.Panel(layer, "Settings", 560, 300, 800, 400).transform;
             UiKit.Label(panel, "設定（この PC だけ）", 28, Theme.Gold, 30, 20, 600, 40, serif: true);
 
             Row(panel, 90, "音", new[] { "なし", "小", "中", "大" }, () => AudioDirector.Level, v => AudioDirector.Level = v);
-            Row(panel, 160, "文字の大きさ", Reading.SizeNames, () => Reading.Size, v => { Reading.Size = v; RebuildLog(); });
+            Row(panel, 160, "文字の大きさ", Reading.SizeNames, () => Reading.Size, v => { Reading.Size = v; onTextSize?.Invoke(); });
             Row(panel, 230, "語りの速さ", Reading.SpeedNames, () => Reading.Speed, v => Reading.Speed = v);
 
-            UiKit.Button(panel, "閉じる", () => UiKit.Clear(_overlay.transform), 590, 330, 180, 50, 20, gold: true);
+            UiKit.Button(panel, "閉じる", () => close(), 590, 330, 180, 50, 20, gold: true);
         }
 
         static void Row(Transform panel, float y, string label, string[] names, Func<int> get, Action<int> set)
@@ -65,6 +65,15 @@ namespace Tavern.Unity.App
                 buttons.Add(UiKit.Button(panel, names[i], () => { set(v); Paint(); }, 200 + i * 140, y, 130, 46, 18));
             }
             Paint();
+        }
+    }
+
+    public sealed partial class TableScreen
+    {
+        void ShowSettings()
+        {
+            UiKit.Clear(_overlay.transform);
+            SettingsPanel.Show(_overlay.transform, RebuildLog, () => UiKit.Clear(_overlay.transform));
         }
 
         /// <summary>Draws the log again at the new text size (the last 30 lines, at once).</summary>

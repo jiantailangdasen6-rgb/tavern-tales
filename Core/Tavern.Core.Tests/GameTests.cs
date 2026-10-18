@@ -53,6 +53,15 @@ namespace Tavern.Core.Tests
         }
 
         [Test]
+        public void MusicMap_IsValidJsonAndPointsAtFiles()
+        {
+            var resources = Path.GetDirectoryName(ContentDir())!;
+            var map = JObject.Parse(File.ReadAllText(Path.Combine(resources, "Music", "music.json")));   // a broken file once blanked the title screen
+            foreach (var path in ((JObject)map["music"]!).Properties().Concat(((JObject)map["sfx"]!).Properties()).Select(p => (string)p.Value!).Append((string)map["ambience"]!))
+                Assert.That(Directory.GetFiles(Path.Combine(resources, Path.GetDirectoryName(path)!), Path.GetFileName(path) + ".*").Any(f => !f.EndsWith(".meta")), path);
+        }
+
+        [Test]
         public async Task Explore_NarrationEffectsChangeTheState()
         {
             var llm = new ScriptedLlm(

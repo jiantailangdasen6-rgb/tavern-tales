@@ -42,6 +42,9 @@
 - 招待リンク（2026-10-18）: ロビーの「招待リンクをコピー」で https://jiantailangdasen6-rgb.github.io/tavern-tales/join.html#CODE。
   中継ページ（`Web/`、`Tools/DeployPages.ps1` で gh-pages ブランチへ。GitHub Pages）が tavern-tales://join/CODE を開き、ゲームは部屋に入る画面にコードを入れて開く。
   ゲームは起動のたびに tavern-tales:// を自分の exe に登録する（`InviteLink`、HKCU、管理者不要。自動の実行 `-autoquit` と `-noregister` では登録しない）。
+- 音量（2026-10-18）: 前の既定「小」は曲が約 -45 dBFS でほぼ聞こえなかった。AudioListener 1、MusicBase 0.6・SfxBase 0.7・炉の火 0.5、
+  段階 0 / 0.4 / 0.7 / 1 で、曲は「小」約 -31・「大」約 -23 dBFS。タイトル画面にも「設定」（`SettingsPanel`）。music.json が壊れていても合成の音に戻るだけにし、
+  テスト `MusicMap_IsValidJsonAndPointsAtFiles` で中身とファイルを確かめる（説明文の引用符でファイルを壊し、タイトルが真っ黒になったことがある）。
 - 曲の確定（2026-10-18）: 酒場 PeriTune Harvest、探索 RandomMind Exploration、戦闘 RandomMind Battle、成功の結末 PeriTune Minstrel（ほかは前のまま）。
 - 遊びやすさの改善（2026-10-18 朝）:
   - ボス戦の長さ: 敵の HP を人数で変える（`TavernGame.PartyScale`: 3 人で 1、2 人で 0.67、1 人で 0.45）。骨の騎士 26→24、トロル 30→26、大蜘蛛 14→18。

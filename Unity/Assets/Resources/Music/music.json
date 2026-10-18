@@ -27,7 +27,7 @@
     "page": "Sfx/page_bookflip"
   },
   "ambience": "Sfx/ambience_fireplace",
-  "_gain": "Loudness correction per file, from Logs/audio-levels.txt (Tavern.Unity.Editor.AudioLevels.Report): music to about -19 dBFS RMS like the synthesized tracks; short sounds at most x2 (peaks).",
+  "_gain": "Loudness correction per file, from Logs/audio-levels.txt (Tavern.Unity.Editor.AudioLevels.Report): music to about -19 dBFS RMS like the synthesized tracks; short sounds at most x1.4 so loud peaks do not clip at the loudest level (x2 for quiet ones).",
   "gain": {
     "Music/tavern_peritune_harvest": 0.48,
     "Music/explore_randommind_exploration": 1.93,
@@ -38,10 +38,10 @@
     "Music/boss_junkala_epic_boss_battle": 0.3,
     "Music/ending_peritune_minstrel": 0.51,
     "Music/ending_randommind_defeat": 0.51,
-    "Sfx/dice_roll_kenney": 2.0,
-    "Sfx/hit_blade": 1.5,
+    "Sfx/dice_roll_kenney": 1.4,
+    "Sfx/hit_blade": 1.4,
     "Sfx/spell_magical": 2.0,
-    "Sfx/page_bookflip": 2.0,
+    "Sfx/page_bookflip": 1.4,
     "Sfx/ambience_fireplace": 6.0
   }
 }
