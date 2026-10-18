@@ -82,22 +82,23 @@ namespace Tavern.Core.Tests
         public async Task Combat_AttackThenEnemyAttacks_ThenWin()
         {
             var llm = new ScriptedLlm(
-                Plan(), Narr(new { text = "狼だ！", suggestions = new[] { "x" }, start_combat = new[] { "wolf" } }),
+                Plan(), Narr(new { text = "狼だ！", suggestions = new[] { "x" }, start_combat = new[] { "wolf", "wolf" } }),
                 Narr(new { text = "斬った。", suggestions = new[] { "x" } }),
                 Narr(new { text = "狼は倒れた。", suggestions = new[] { "x" } }));
-            // round 1: Gareth hits (15+3 vs 11) for 3; the wolf bites the weakest (Gareth alone) and he fails to dodge (2+1 vs 12)
-            // round 2: Gareth hits again (14+3) for 3 -> the wolf (6 HP) falls
+            // alone, Gareth meets wolves of 3 HP (6 for a party of three, PartyScale 0.45)
+            // round 1: Gareth hits the first (15+3 vs 11) for 3 and it falls; the other bites him and he fails to dodge (2+1 vs 12)
+            // round 2: Gareth hits the second (14+3) for 3 -> it falls too
             var game = NewGame(llm, new FixedRandom(15, 2, 14), "warrior");
 
             await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Text = "森を進む" } });
             Assert.That(game.InCombat);
-            Assert.That(game.State.Combat!.Enemies.Single().Name, Is.EqualTo("灰色狼"));
+            Assert.That(game.State.Combat!.Enemies.Select(e => e.Hp), Is.EqualTo(new[] { 3, 3 }));
 
-            await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Basic = "attack" } });
-            Assert.That(game.State.Combat!.Enemies.Single().Hp, Is.EqualTo(3));
+            await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Basic = "attack", Target = "wolf1" } });
+            Assert.That(game.State.Combat!.Enemies.Select(e => e.Hp), Is.EqualTo(new[] { 0, 3 }));
             Assert.That(game.Find("ガレス")!.Hp, Is.EqualTo(18 - 2));
 
-            await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Basic = "attack" } });
+            await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Basic = "attack", Target = "wolf2" } });
             Assert.That(game.InCombat, Is.False);
             Assert.That(game.State.Log.Any(e => e.Text == "勝利"));
         }
@@ -108,7 +109,7 @@ namespace Tavern.Core.Tests
             var llm = new ScriptedLlm(
                 Plan(), Narr(new { text = "", suggestions = new string[0], start_combat = new[] { "goblin", "goblin" } }),
                 Narr(new { text = "炎！", suggestions = new string[0] }));
-            var game = NewGame(llm, new FixedRandom(19, 19), "mage");   // the two goblins attack after: both dodged with 19
+            var game = NewGame(llm, new FixedRandom(0, 19, 0, 19), "mage", "warrior", "thief");   // three, so full-strength goblins; each picks Gareth (0) and is dodged with 19
             await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Text = "進む" } });
 
             await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", CardId = "fireball" } });
@@ -179,7 +180,7 @@ namespace Tavern.Core.Tests
             var narr = Narr(new { text = "…", suggestions = new string[0] });
             var llm = new ScriptedLlm(Plan(), Narr(new { text = "", suggestions = new string[0], start_combat = new[] { "goblin", "skeleton" } }), narr, narr);
             // mage: arcane x3 at the goblin (15, 15, 2 -> two hits of 2+... ), warrior taunts; then the enemies both attack the warrior
-            var game = NewGame(llm, new FixedRandom(15, 15, 2, 20, 20), "mage", "warrior");
+            var game = NewGame(llm, new FixedRandom(15, 15, 2, 20, 20), "mage", "warrior", "thief");   // three: full-strength enemies
             await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Text = "進む" } });
             var mage = game.Find("ガレス")!; var warrior = game.Find("エリス")!;
             mage.Cards.Add("arcane"); warrior.Cards.Add("taunt");

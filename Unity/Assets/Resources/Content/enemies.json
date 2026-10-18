@@ -8,12 +8,12 @@
       "attacks": [ { "name": "刃こぼれした剣", "dc": 13, "damage": 3 } ], "pattern": "random" },
     { "id": "drowned", "name": "溺れた屍", "art": "en_drowned", "hp": 9, "defense": 10, "undead": true,
       "attacks": [ { "name": "水底へ引く爪", "dc": 13, "damage": 3 } ], "pattern": "weakest" },
-    { "id": "boneknight", "name": "骨の騎士", "art": "en_boneknight", "hp": 26, "defense": 14, "undead": true, "boss": true,
+    { "id": "boneknight", "name": "骨の騎士", "art": "en_boneknight", "hp": 24, "defense": 14, "undead": true, "boss": true,
       "attacks": [ { "name": "大剣の振り下ろし", "dc": 14, "damage": 4 } ], "pattern": "strongest",
       "bigMove": { "name": "死者の大旋風", "every": 3, "dc": 14, "damage": 4, "warning": "骨の騎士が大剣を高く掲げた……" } },
     { "id": "bandit", "name": "山賊", "art": "en_bandit", "hp": 6, "defense": 12, "undead": false,
       "attacks": [ { "name": "短剣の一突き", "dc": 12, "damage": 2 } ], "pattern": "weakest" },
-    { "id": "spider", "name": "大蜘蛛", "art": "en_spider", "hp": 14, "defense": 12, "undead": false, "boss": true,
+    { "id": "spider", "name": "大蜘蛛", "art": "en_spider", "hp": 18, "defense": 12, "undead": false, "boss": true,
       "attacks": [ { "name": "毒の牙", "dc": 13, "damage": 3 } ], "pattern": "weakest",
       "bigMove": { "name": "糸の嵐", "every": 3, "dc": 13, "damage": 3, "warning": "大蜘蛛が腹を震わせ、糸を吐く構えを見せた……" } },
     { "id": "cultist", "name": "灰の兄弟団の信徒", "art": "en_cultist", "hp": 6, "defense": 11, "undead": false,
@@ -27,7 +27,7 @@
     { "id": "cult_leader", "name": "灰の兄弟団の司祭", "art": "en_cult_leader", "hp": 22, "defense": 13, "undead": false, "boss": true,
       "attacks": [ { "name": "冥府の炎", "dc": 14, "damage": 4 } ], "pattern": "random",
       "bigMove": { "name": "灰の災いの呪文", "every": 3, "dc": 15, "damage": 4, "warning": "司祭の仮面の奥で、紫の炎がふくれ上がった……" } },
-    { "id": "troll", "name": "山のトロル", "art": "en_troll", "hp": 30, "defense": 12, "undead": false, "boss": true,
+    { "id": "troll", "name": "山のトロル", "art": "en_troll", "hp": 26, "defense": 12, "undead": false, "boss": true,
       "attacks": [ { "name": "丸太の殴打", "dc": 13, "damage": 5 } ], "pattern": "strongest",
       "bigMove": { "name": "地響きの踏みつけ", "every": 3, "dc": 14, "damage": 4, "warning": "トロルが片足を高く持ち上げた……" } }
   ]

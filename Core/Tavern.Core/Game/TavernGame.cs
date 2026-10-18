@@ -312,6 +312,8 @@ namespace Tavern.Core.Game
         async Task StartCombatAsync(List<string> enemyIds, TurnReport report, CancellationToken ct)
         {
             var combat = new CombatState { FleeTo = State.Visited.Count > 1 ? State.Visited[State.Visited.Count - 2] : State.Location };
+            // Enemies are written for three adventurers; fewer face less of them (a lone hero against a full-strength boss lost 9 times in 10).
+            var scale = Teller.EnemyHpScale * PartyScale;
             foreach (var group in enemyIds.Take(4).GroupBy(id => id))
             {
                 int i = 0, count = group.Count();
@@ -322,7 +324,7 @@ namespace Tavern.Core.Game
                     combat.Enemies.Add(new EnemyInstance
                     {
                         Uid = id + i, DefId = id, Name = count > 1 ? $"{d.Name}{(char)('A' + i - 1)}" : d.Name, Art = d.Art,
-                        Hp = (int)Math.Ceiling(d.Hp * Teller.EnemyHpScale), MaxHp = (int)Math.Ceiling(d.Hp * Teller.EnemyHpScale), Defense = d.Defense, Boss = d.Boss, Undead = d.Undead,
+                        Hp = Math.Max(2, (int)Math.Ceiling(d.Hp * scale)), MaxHp = Math.Max(2, (int)Math.Ceiling(d.Hp * scale)), Defense = d.Defense, Boss = d.Boss, Undead = d.Undead,
                     });
                 }
             }
@@ -652,7 +654,7 @@ namespace Tavern.Core.Game
             // The players see the rule results too (who hit whom for how much), before the storyteller's telling.
             foreach (var line in summary.Where(l => !l.Contains("死のサイコロ"))) Add(report, LogEntry.Line(LogKind.Event, "", line));
             var text = Status() + "\n【この手番に起きたこと（ゲームが決めた結果）】\n" + string.Join("\n", summary) +
-                "\nこの結果のとおりに、戦いの一手番を短く迫力をもって語ってください（数字は書かない）。";
+                "\nこの結果のとおりに、戦いの一手番を短く迫力をもって語ってください（HP・ダメージなどの数字やゲームの言葉は書かず、傷や疲れの様子で描く）。";
             var turn = await Gm.NarrateAsync(text, highlight, ct);
             Finish(report, turn);
             // Effects other than combat (an ending, items) still apply after a fight.
@@ -678,6 +680,9 @@ namespace Tavern.Core.Game
                 _ => targets[_rng.Next(0, targets.Count)],
             };
         }
+
+        /// <summary>Enemy HP for the party's size: 1 for three, 0.67 for two, 0.45 for one (the dead don't count).</summary>
+        public double PartyScale => Math.Max(0.45, Party.Count(p => p.State != LifeState.Dead) / 3.0);
 
         static void Hurt(EnemyInstance e, int n) { e.Hp = Math.Max(0, e.Hp - n); }
         static string HpText(EnemyInstance e) => e.Alive ? $"残り {e.Hp}/{e.MaxHp}" : "倒れた";

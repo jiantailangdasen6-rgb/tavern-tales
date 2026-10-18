@@ -121,6 +121,7 @@ namespace Tavern.Unity.App
             BuildLog(root);
             BuildActions(root);
             _overlay = UiKit.Rect("Overlay", root).Fill().gameObject;
+            if (AppMain.Flag("-showsettings")) ShowSettings();   // screenshots
 
             if (opening) _ = OpenAsync();
             else if (_role == NetRole.Client && _game.State.Log.Count <= 12) { EnqueueNew(_game.State.Log); RefreshAll(); }
@@ -141,8 +142,7 @@ namespace Tavern.Unity.App
             _actText.verticalOverflow = VerticalWrapMode.Truncate;
             _timeText = UiKit.Label(top, "", 17, Theme.Dim, 940, 16, 160, 30, align: TextAnchor.UpperRight);
             UiKit.Button(top, "地図", ShowMap, 1236, 8, 110, 38, 18);
-            Button vol = null!;
-            vol = UiKit.Button(top, VolumeLabel(), () => { AudioDirector.Level = (AudioDirector.Level + 1) % 4; vol.SetText(VolumeLabel()); }, 1110, 8, 116, 38, 16);
+            UiKit.Button(top, "設定", ShowSettings, 1110, 8, 116, 38, 18);
             UiKit.Button(top, "語り部への注文", ShowOrder, 1356, 8, 230, 38, 18, gold: true);
             UiKit.Button(top, _role == NetRole.Client ? "部屋を出る" : "保存して酒場を出る", () => { if (_role != NetRole.Client) _app.Save(_game); LeaveRoom(); _app.ShowTitle(); }, 1596, 8, 284, 38, 18);
         }
@@ -532,7 +532,7 @@ namespace Tavern.Unity.App
             var speed = _autoTurns > 0 ? 3f : 1f;
             if (_typing != null)
             {
-                _typingPos += Time.deltaTime * 42f * speed;
+                _typingPos = float.IsPositiveInfinity(Reading.CharsPerSecond) ? _typingFull.Length : _typingPos + Time.deltaTime * Reading.CharsPerSecond * speed;
                 var n = Mathf.Min(_typingFull.Length, (int)_typingPos);
                 _typing.text = _typingFull.Substring(0, n);
                 if (n >= _typingFull.Length) { _typing = null; _holdUntil = Time.time + 0.2f; }
@@ -607,9 +607,9 @@ namespace Tavern.Unity.App
                 case LogKind.Narration:
                 {
                     fitter.spacing = 2;
-                    UiKit.Label(row, e.Who, 14, Theme.Gold, serif: true);
-                    var wrapped = UiKit.Kinsoku(e.Text, Theme.Serif, 21, FontStyle.Normal, 512);
-                    var t = UiKit.Label(row, instant ? wrapped : "", 21, Theme.Hex("efe3c8"), serif: true);
+                    UiKit.Label(row, e.Who, Reading.Font(14), Theme.Gold, serif: true);
+                    var wrapped = UiKit.Kinsoku(e.Text, Theme.Serif, Reading.Font(21), FontStyle.Normal, 512);
+                    var t = UiKit.Label(row, instant ? wrapped : "", Reading.Font(21), Theme.Hex("efe3c8"), serif: true);
                     t.lineSpacing = 1.15f;
                     t.horizontalOverflow = HorizontalWrapMode.Overflow;
                     if (!instant) { _typing = t; _typingFull = wrapped; _typingPos = 0; }
@@ -620,23 +620,23 @@ namespace Tavern.Unity.App
                     var color = DeclColor(e.Who);
                     fitter.padding = new RectOffset(10, 4, 4, 4);
                     var bg = row.gameObject.AddComponent<Image>(); bg.color = new Color(1, 1, 1, 0.035f);
-                    UiKit.Label(row, $"<color=#{ColorUtility.ToHtmlStringRGB(color)}>{e.Who}</color>：{e.Text}", 16, Theme.Ink);
+                    UiKit.Label(row, $"<color=#{ColorUtility.ToHtmlStringRGB(color)}>{e.Who}</color>：{e.Text}", Reading.Font(16), Theme.Ink);
                     break;
                 }
                 case LogKind.Roll:
                     fitter.padding = new RectOffset(12, 4, 0, 0);
-                    UiKit.Label(row, $"🎲 {e.Text}".Replace("🎲 ", "◆ "), 15, e.Outcome.Contains("成功") ? Theme.Hex("c8d6a0") : Theme.Hex("c9a39a"));
+                    UiKit.Label(row, $"🎲 {e.Text}".Replace("🎲 ", "◆ "), Reading.Font(15), e.Outcome.Contains("成功") ? Theme.Hex("c8d6a0") : Theme.Hex("c9a39a"));
                     break;
                 case LogKind.Warning:
                 {
                     // wrapped by hand like the narration (Unity would break only at the spaces in "Gemini 3.5 Flash-Lite")
-                    var w = UiKit.Label(row, UiKit.Kinsoku("⚠ " + e.Text, Theme.Serif, 17, FontStyle.Normal, 496), 17, Theme.Hex("ffb8a0"), serif: true);
+                    var w = UiKit.Label(row, UiKit.Kinsoku("⚠ " + e.Text, Theme.Serif, Reading.Font(17), FontStyle.Normal, 496), Reading.Font(17), Theme.Hex("ffb8a0"), serif: true);
                     w.horizontalOverflow = HorizontalWrapMode.Overflow;
                     break;
                 }
                 default:
                     fitter.padding = new RectOffset(12, 4, 0, 0);
-                    UiKit.Label(row, (e.Who.Length > 0 && !e.Text.StartsWith(e.Who) ? e.Who + "　" : "") + e.Text, 15, Theme.Gold);
+                    UiKit.Label(row, (e.Who.Length > 0 && !e.Text.StartsWith(e.Who) ? e.Who + "　" : "") + e.Text, Reading.Font(15), Theme.Gold);
                     break;
             }
             ScrollToEnd();

@@ -95,7 +95,12 @@ namespace Tavern.Unity.App
             else ShowTitle();
         }
 
-        void Update() { _table?.Update(); }
+        /// <summary>Per-frame work of the current menu screen (PartyScreen, LobbyScreen); it clears itself when its screen is gone.</summary>
+        public Action? Tick;
+
+        void Update() { _table?.Update(); Tick?.Invoke(); }
+
+        void OnApplicationQuit() => StartingOllama.StopStarted();   // a local AI the game started goes with it
 
         public void ShowTitle()
         {
@@ -209,6 +214,9 @@ namespace Tavern.Unity.App
         public async System.Threading.Tasks.Task<ScenarioDef?> PrepareScenarioAsync(System.Collections.Generic.IReadOnlyList<Tavern.Core.Rules.Character> party, StoryChoice? story, bool fallBackToPrepared = false)
         {
             if (story == null || story.Prepared) return Scenario;
+            var key = StoryKey(party, story);
+            var ahead = _prefetchKey == key ? _prefetch : null;
+            _prefetch = null; _prefetchKey = null;
             UiKit.Clear(Root);
             var bg = ArtLibrary.Get("bg_tavern");
             var pic = UiKit.Picture(Root, bg, 0, 0, 1920, 1080);
@@ -216,6 +224,11 @@ namespace Tavern.Unity.App
             UiKit.Box(Root, "Shade", new Color(0.05f, 0.03f, 0.02f, 0.72f)).rectTransform.Fill();
             UiKit.Label(Root, "語り部が今宵の物語を考えている……", 44, Theme.Gold, 0, 470, 1920, 70, serif: true, align: TextAnchor.MiddleCenter);
             UiKit.Label(Root, "（長くても 1 分ほど）", 22, Theme.Dim, 0, 550, 1920, 40, align: TextAnchor.MiddleCenter);
+            if (ahead != null)
+            {
+                try { var s = await ahead; Debug.Log("[Story] used the story written ahead"); return s; }   // written while the party was being made
+                catch (Exception e) { Debug.LogWarning("[Story] written ahead, failed: " + e.Message); }
+            }
             var rng = new Tavern.Core.Rules.SeededRandom((ulong)DateTime.Now.Ticks);
             var template = Story.Template(story.TemplateId) ?? Story.Templates[rng.Next(0, Story.Templates.Count)];
             try
@@ -230,6 +243,33 @@ namespace Tavern.Unity.App
                 ShowError((AiNotices.Failed(e, Ai.LocalOnly(), DateTimeOffset.UtcNow, AiSetup.LocalOffset) ?? "物語を作れなかった（" + e.Message + "）。") + "用意された物語で遊ぶこともできます。");
                 return null;
             }
+        }
+
+        // A story written ahead while the players make their characters (or wait in the lobby), keyed by what it was written for.
+        System.Threading.Tasks.Task<ScenarioDef>? _prefetch;
+        string? _prefetchKey;
+        int _prefetchCount;
+
+        static string StoryKey(System.Collections.Generic.IReadOnlyList<Tavern.Core.Rules.Character> party, StoryChoice story) =>
+            (story.TemplateId ?? "auto") + "|" + story.Request + "|" + string.Join("|", party.Select(p => p.Name + "/" + p.ClassId + "/" + p.Background));
+
+        /// <summary>A menu screen opens: up to two stories may be written ahead from here.</summary>
+        public void ResetPrefetch() { _prefetch = null; _prefetchKey = null; _prefetchCount = 0; }
+
+        /// <summary>
+        /// Starts writing the story for this party and choice in the background, so "start" doesn't wait for it. Each try costs
+        /// a call of the strong model (20 a day), so at most two per screen; a party changed after that is written at the start.
+        /// </summary>
+        public void PrefetchStory(System.Collections.Generic.IReadOnlyList<Tavern.Core.Rules.Character> party, StoryChoice? story)
+        {
+            if (story == null || story.Prepared || Ai.Demo || party.Count == 0) return;
+            var key = StoryKey(party, story);
+            if (key == _prefetchKey || _prefetchCount >= 2) return;
+            _prefetchKey = key; _prefetchCount++;
+            var rng = new Tavern.Core.Rules.SeededRandom((ulong)DateTime.Now.Ticks);
+            var template = Story.Template(story.TemplateId) ?? Story.Templates[rng.Next(0, Story.Templates.Count)];
+            Debug.Log("[Story] writing ahead: " + template.Id);
+            _prefetch = ScenarioGenerator.GenerateAsync(Ai.Highlight ?? Ai.Everyday, Story, Db, template, party, story.Request, rng);
         }
 
         public void ContinueEvening()

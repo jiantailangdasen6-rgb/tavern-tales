@@ -56,12 +56,17 @@ namespace Tavern.Unity.App
             }
             var key = Environment.GetEnvironmentVariable("GEMINI_API_KEY")
                 ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY", EnvironmentVariableTarget.User);
-            var local = new OllamaClient(Http);
-            if (string.IsNullOrWhiteSpace(key))
-                return new Backends { Everyday = local, Description = "AI: 手元の AI（Gemini の鍵が見つからない）" };
+            var b = new Backends();
+            var local = new StartingOllama(new OllamaClient(Http), b.Notices);
+            if (string.IsNullOrWhiteSpace(key) || AppMain.Flag("-localai"))   // -localai: tests of the local AI
+            {
+                b.Everyday = local; b.Description = "AI: 手元の AI（Gemini の鍵が見つからない）";
+                return b;
+            }
             var everyday = new FallbackLlm(new GeminiClient(Http, key!, "gemini-3.5-flash-lite", "minimal"), local);
             var highlight = new FallbackLlm(new GeminiClient(Http, key!, "gemini-3.8-flash", "low"), everyday) { Patience = TimeSpan.FromSeconds(40) };
-            var b = new Backends { Everyday = everyday, Highlight = highlight, Description = "AI: Gemini（無料枠）＋ 手元の AI", LocalOnly = () => everyday.Current is OllamaClient };
+            b.Everyday = everyday; b.Highlight = highlight; b.Description = "AI: Gemini（無料枠）＋ 手元の AI";
+            b.LocalOnly = () => everyday.Current is StartingOllama;
             b.Watch(everyday); b.Watch(highlight);
             return b;
         }

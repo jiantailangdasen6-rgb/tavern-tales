@@ -57,6 +57,8 @@ namespace Tavern.Unity.App
         public void Build(Transform root)
         {
             AudioDirector.Music("tavern");
+            _app.ResetPrefetch();
+            _app.Tick = Tick;
             var bg = ArtLibrary.Get("bg_tavern");
             var pic = UiKit.Picture(root, bg, 0, 0, 1920, 1080);
             pic.uvRect = ArtLibrary.Cover(bg, 1920, 1080);
@@ -74,6 +76,8 @@ namespace Tavern.Unity.App
             _start = UiKit.Button(root, _mode == OnlineMode.Host ? "部屋を作る" : _mode == OnlineMode.Join ? "部屋に入る" : "この顔ぶれで酒場へ", Begin, 1430, 980, 400, 70, 28, gold: true);
             SetEnabled(_slots[0], true);
             Refresh();
+            if (AppMain.Flag("-fillparty")) FillSamples();   // tests: fill the seats, then -beginat <s> presses start
+            _beginAt = float.TryParse(AppMain.Arg("-beginat"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var at) ? Time.unscaledTime + at : float.MaxValue;
         }
 
         Slot BuildSlot(Transform root, int index, float x)
@@ -189,7 +193,7 @@ namespace Tavern.Unity.App
             _start.interactable = _slots.Any(s => s.Enabled);
         }
 
-        void Begin()
+        List<Character> CurrentParty()
         {
             var party = new List<Character>();
             var used = new HashSet<string>();
@@ -201,6 +205,31 @@ namespace Tavern.Unity.App
                 if (s.FromRoster != null && s.FromRoster.Name == name && s.FromRoster.ClassId == s.ClassId) party.Add(s.FromRoster.ToCharacter(_app.Db));
                 else party.Add(TavernGame.CreateCharacter(_app.Db, name, s.ClassId, s.Background.text.Trim(), s.Art));
             }
+            return party;
+        }
+
+        // Writing the story ahead: once every adventurer has a name and nothing changed for a few seconds (solo evenings).
+        string _lastKey = "";
+        float _stableSince;
+
+        float _beginAt;
+
+        void Tick()
+        {
+            if (_start == null) { _app.Tick = null; return; }   // the screen is gone
+            if (Time.unscaledTime >= _beginAt) { _beginAt = float.MaxValue; Begin(); return; }
+            if (_mode != OnlineMode.None || _story == null || Time.frameCount % 15 != 0) return;
+            var enabled = _slots.Where(s => s.Enabled).ToList();
+            if (enabled.Count == 0 || enabled.Any(s => s.Name.text.Trim().Length == 0)) { _lastKey = ""; return; }
+            var story = _story();
+            var key = string.Join("|", enabled.Select(s => s.Name.text + "/" + s.ClassId + "/" + s.Background.text)) + story.Prepared + story.TemplateId + story.Request;
+            if (key != _lastKey) { _lastKey = key; _stableSince = Time.unscaledTime; return; }
+            if (Time.unscaledTime - _stableSince > 4f) _app.PrefetchStory(CurrentParty(), story);
+        }
+
+        void Begin()
+        {
+            var party = CurrentParty();
             if (party.Count == 0) return;
             if (_mode == OnlineMode.None) { _app.StartEvening(party, _teller?.Invoke(), _story?.Invoke()); return; }
             var player = (_playerName?.text ?? "").Trim();

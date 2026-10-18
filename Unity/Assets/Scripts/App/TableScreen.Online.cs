@@ -314,6 +314,5 @@ namespace Tavern.Unity.App
 {
     public sealed partial class TableScreen
     {
-        static string VolumeLabel() => "音: " + new[] { "なし", "小", "中", "大" }[AudioDirector.Level];
     }
 }

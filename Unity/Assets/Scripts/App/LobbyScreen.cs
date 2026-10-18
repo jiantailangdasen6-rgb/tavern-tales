@@ -54,6 +54,7 @@ namespace Tavern.Unity.App
             _status = UiKit.Label(root, "", 20, Theme.Ink, 0, 922, 1920, 36, align: TextAnchor.MiddleCenter);
             UiKit.Button(root, "部屋を出る", () => { NetSession.ClearHandlers(); NetSession.Leave(); _app.ShowTitle(); }, 90, 980, 240, 64, 22);
             if (_host) { _start = UiKit.Button(root, "この顔ぶれで冒険をはじめる", Begin, 1380, 980, 450, 70, 26, gold: true); _teller = StorytellerPicker.Build(root, 400, 966); _story = StoryChooser.Build(root, _app.Story, _app.Scenario.Title, 300, 852); }
+            if (_host) { _app.ResetPrefetch(); _app.Tick = Tick; }
 
             NetSession.ClearHandlers();
             if (_host)
@@ -118,6 +119,20 @@ namespace Tavern.Unity.App
             _status.text = _host
                 ? (players.Count < 2 ? "友人が入るのを待っています…（ひとりで始めることもできます）" : $"{players.Count} 人がそろいました")
                 : "ホストが冒険をはじめるのを待っています…";
+        }
+
+        // Writing the story ahead while friends sit in the lobby: once two or more are in and nobody came or left for a while.
+        string _lastKey = "";
+        float _stableSince;
+
+        void Tick()
+        {
+            if (_start == null) { _app.Tick = null; return; }   // the lobby is gone
+            if (!_start.interactable || _story == null || _players.Count < 2 || Time.frameCount % 15 != 0) return;
+            var story = _story();
+            var key = string.Join("|", _players.Select(p => p.character.Name + "/" + p.character.ClassId)) + story.Prepared + story.TemplateId + story.Request;
+            if (key != _lastKey) { _lastKey = key; _stableSince = Time.unscaledTime; return; }
+            if (Time.unscaledTime - _stableSince > 8f) _app.PrefetchStory(_players.Select(p => p.character.ToCharacter()).ToList(), story);
         }
 
         async void Begin()
