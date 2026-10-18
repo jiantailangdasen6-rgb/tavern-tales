@@ -40,5 +40,30 @@ namespace Tavern.Unity.Editor
             Debug.Log($"[BuildScript] {s.result} {output} {s.totalSize / 1024 / 1024} MB, {s.totalErrors} errors");
             if (s.result != BuildResult.Succeeded) EditorApplication.Exit(1);
         }
+
+        /// <summary>
+        /// The browser build (Builds/web). Gzip with the decompression fallback, because GitHub Pages serves the files
+        /// without a Content-Encoding header; the loader then unpacks them in JavaScript.
+        /// </summary>
+        public static void BuildWeb()
+        {
+            ProjectSetup.Apply();
+            var output = ArgValue("-out") ?? Path.Combine(RepoRoot, "Builds", "web");
+            PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Gzip;
+            PlayerSettings.WebGL.decompressionFallback = true;
+            PlayerSettings.WebGL.dataCaching = true;
+            PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly;
+            PlayerSettings.WebGL.template = "PROJECT:Tavern";
+            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+            {
+                scenes = new[] { ProjectSetup.ScenePath },
+                locationPathName = output,
+                target = BuildTarget.WebGL,
+                options = BuildOptions.None,
+            });
+            var s = report.summary;
+            Debug.Log($"[BuildScript] {s.result} {output} {s.totalSize / 1024 / 1024} MB, {s.totalErrors} errors");
+            if (s.result != BuildResult.Succeeded) EditorApplication.Exit(1);
+        }
     }
 }

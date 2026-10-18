@@ -16,3 +16,6 @@ PagDev「Fireplace Sound loop」（OpenGameArt、CC0）
 
 ■ 絵
 Juggernaut XL（試作の仮絵）で生成。
+
+■ 文字（ブラウザ版）
+Noto Sans JP・Noto Serif JP（Google、SIL Open Font License 1.1、https://github.com/notofonts/noto-cjk）

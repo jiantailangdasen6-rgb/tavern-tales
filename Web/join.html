@@ -31,7 +31,7 @@
     display: block; width: 100%; margin: 14px 0 0; padding: 16px; font-size: 20px; font-family: inherit;
     color: var(--gold-light); background: #3d2f1c; border: 1px solid var(--gold); text-decoration: none; cursor: pointer;
   }
-  button.sub { background: #2e241a; border-color: var(--edge); color: var(--ink); font-size: 16px; padding: 12px; }
+  a.button.sub, button.sub { background: #2e241a; border-color: var(--edge); color: var(--ink); font-size: 16px; padding: 12px; }
   a.button:hover, button:hover { filter: brightness(1.2); }
   .help { text-align: left; color: var(--dim); font-size: 15px; line-height: 1.8; margin-top: 26px; border-top: 1px solid var(--edge); padding-top: 18px; }
   .help b { color: var(--ink); }
@@ -46,13 +46,16 @@
   <div id="invite">
     <div class="label">ルームコード</div>
     <div class="code" id="code">------</div>
-    <a class="button" id="open" href="#">ゲームを開いて部屋に入る</a>
+    <a class="button" id="web" href="play/">ブラウザで部屋に入る（インストール不要）</a>
+    <a class="button sub" id="open" href="#">Windows 版のゲームで開く</a>
     <button class="sub" id="copy" type="button">コードをコピー</button>
     <div class="help">
-      <b>ゲームが開かないとき</b><br>
+      <b>ブラウザで入るとき</b><br>
+      パソコンの Chrome・Edge・Firefox で開いてください（初回の読み込みは 1〜2 分。2 回目からは速くなります）。部屋を作れるのは Windows 版だけです。<br>
+      <b>Windows 版が開かないとき</b><br>
       ゲームを起動して「友人の部屋に入る」を押し、上のコードを入れてください。<br>
       一度ゲームを起動した PC なら、次からはこのページからそのまま開けます。<br>
-      <b>ゲームを持っていないとき</b><br>
+      <b>Windows 版を持っていないとき（部屋を作る人）</b><br>
       <a href="https://github.com/jiantailangdasen6-rgb/tavern-tales/releases/latest" style="color: var(--gold-light)">ダウンロードのページ</a>
       で zip（tavern-tales-…zip）を落として展開し、Tavern.exe を一度起動してから、もう一度このページを開いてください。
     </div>
@@ -77,8 +80,7 @@
       var done = function () { document.getElementById("copy").textContent = "コピーしました"; };
       if (navigator.clipboard) navigator.clipboard.writeText(code).then(done, function () {});
     });
-    // Try once on arrival; the browser may ask before opening the game.
-    setTimeout(function () { location.href = link; }, 600);
+    document.getElementById("web").href = "play/#" + code;
   }
 </script>
 </body>

@@ -1,0 +1,6 @@
+<linker>
+  <!-- WebPage.Setup reaches WebGLInput by reflection (browser build); keep it from being stripped. -->
+  <assembly fullname="UnityEngine.WebGLModule" ignoreIfMissing="1">
+    <type fullname="UnityEngine.WebGLInput" preserve="all" />
+  </assembly>
+</linker>

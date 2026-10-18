@@ -29,6 +29,7 @@ namespace Tavern.Unity.App
             UiKit.Label(root, "炉端の語り部が、今宵の冒険を語りはじめる", 30, Theme.Ink, 0, 420, 1920, 50, serif: true, align: TextAnchor.MiddleCenter);
 
             float y = 520;
+            if (WebPage.IsBrowser) { BuildBrowserMenu(root, y); return; }
             UiKit.Button(root, "友人と遊ぶ: 部屋を作る", () => _app.ShowParty(OnlineMode.Host), 560, y, 400, 70, 26, gold: true);
             UiKit.Button(root, "友人の部屋に入る", () => _app.ShowParty(OnlineMode.Join), 980, y, 400, 70, 26, gold: true);
             y += 92;
@@ -52,6 +53,27 @@ namespace Tavern.Unity.App
                 SettingsPanel.Show(layer, null, () => Object.Destroy(layer.gameObject));
             }, 1720, 30, 160, 50, 20);
             if (AppMain.Flag("-showcredits")) ShowCredits(root);   // for screenshots
+        }
+
+        /// <summary>The browser build only joins a friend's room (the host plays the Windows version, which calls the AI).</summary>
+        void BuildBrowserMenu(Transform root, float y)
+        {
+            UiKit.Button(root, "友人の部屋に入る", () => _app.ShowParty(OnlineMode.Join), 760, y, 400, 76, 28, gold: true);
+            y += 98;
+            UiKit.Button(root, "冒険者の名簿", _app.ShowRoster, 760, y, 195, 56, 20);
+            UiKit.Button(root, "語り部の記録帳", () => ShowChronicle(root), 965, y, 195, 56, 20);
+            y += 72;
+            UiKit.Button(root, "遊び方", () => ShowHelp(root), 760, y, 195, 56, 22);
+            UiKit.Button(root, "クレジット", () => ShowCredits(root), 965, y, 195, 56, 22);
+            y += 90;
+            UiKit.Box(root, "NoteBack", new Color(0.05f, 0.03f, 0.02f, 0.8f)).rectTransform.Place(360, y - 6, 1200, 52);
+            UiKit.Label(root, "ブラウザ版は、友人が作った部屋に入るためのものです。部屋を作る（語り部の AI を動かす）のは Windows 版です。",
+                20, Theme.Ink, 360, y, 1200, 40, align: TextAnchor.MiddleCenter);
+            UiKit.Button(root, "設定", () =>
+            {
+                var layer = UiKit.Rect("Settings", root).Fill();
+                SettingsPanel.Show(layer, null, () => Object.Destroy(layer.gameObject));
+            }, 1720, 30, 160, 50, 20);
         }
 
         const string Help =

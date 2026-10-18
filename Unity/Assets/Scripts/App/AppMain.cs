@@ -91,7 +91,8 @@ namespace Tavern.Unity.App
             AudioDirector.Create(transform);
 
             InviteLink.Register();
-            InviteCode = InviteLink.CodeFromArgs();
+            WebPage.Setup();
+            InviteCode = InviteLink.CodeFromArgs() ?? WebPage.CodeFromUrl();
             if (Flag("-onlinehost") || Arg("-onlinejoinfile") != null) StartCoroutine(AutoOnline());
             else if (Flag("-continue") && File.Exists(SavePath)) ContinueEvening();
             else if (Flag("-quickstart")) StartEvening(PartyScreen.Preset(Db, int.TryParse(Arg("-partysize"), out var ps) ? ps : 3), Storyteller.Find(Arg("-teller")), Arg("-story") is string st ? new StoryChoice { Prepared = st.StartsWith("prepared"), PreparedId = st.StartsWith("prepared:") ? st.Substring(9) : null, TemplateId = st == "auto" || st.StartsWith("prepared") ? null : st } : null);
@@ -317,8 +318,8 @@ namespace Tavern.Unity.App
         string RecordPath(string name) => Path.Combine(Path.GetDirectoryName(SavePath) ?? Application.persistentDataPath, name);
         public Chronicle LoadChronicle() { try { var p = RecordPath("chronicle.json"); return Chronicle.Load(File.Exists(p) ? File.ReadAllText(p) : null); } catch { return new Chronicle(); } }
         public Roster LoadRoster() { try { var p = RecordPath("roster.json"); return Roster.Load(File.Exists(p) ? File.ReadAllText(p) : null); } catch { return new Roster(); } }
-        public void SaveChronicle(Chronicle c) { try { File.WriteAllText(RecordPath("chronicle.json"), c.ToJson()); } catch (Exception e) { Debug.LogWarning("[Records] " + e.Message); } }
-        public void SaveRoster(Roster r) { try { File.WriteAllText(RecordPath("roster.json"), r.ToJson()); } catch (Exception e) { Debug.LogWarning("[Records] " + e.Message); } }
+        public void SaveChronicle(Chronicle c) { try { File.WriteAllText(RecordPath("chronicle.json"), c.ToJson()); WebPage.Flush(); } catch (Exception e) { Debug.LogWarning("[Records] " + e.Message); } }
+        public void SaveRoster(Roster r) { try { File.WriteAllText(RecordPath("roster.json"), r.ToJson()); WebPage.Flush(); } catch (Exception e) { Debug.LogWarning("[Records] " + e.Message); } }
 
         public void Save(TavernGame game)
         {

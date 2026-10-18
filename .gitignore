@@ -5,6 +5,7 @@
 /Unity/[Bb]uild/
 /Unity/[Bb]uilds/
 /Unity/[Ll]ogs/
+/Unity/Data/
 /Unity/[Uu]ser[Ss]ettings/
 /Unity/[Mm]emoryCaptures/
 /Unity/*.csproj

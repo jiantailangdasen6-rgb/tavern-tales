@@ -46,6 +46,9 @@ namespace Tavern.Unity.Net
             var go = new GameObject("Network");
             UnityEngine.Object.DontDestroyOnLoad(go);
             var transport = go.AddComponent<UnityTransport>();
+            // WebSockets for everyone: a browser can only speak WebSockets, and the exe host must use the same kind of Relay
+            // connection as the browser friends it lets in.
+            transport.UseWebSockets = true;
             transport.MaxPayloadSize = 256 * 1024;
             transport.MaxSendQueueSize = 512 * 1024;
             _nm = go.AddComponent<NetworkManager>();
@@ -78,6 +81,11 @@ namespace Tavern.Unity.Net
             if (!AuthenticationService.Instance.IsSignedIn) await AuthenticationService.Instance.SignInAnonymouslyAsync();
         }
 
+        const string RelayKind = "wss";
+
+        /// <summary>A wait driven by the player loop (Task.Delay needs a timer thread, which the browser build does not have).</summary>
+        static async Task Delay(float seconds) => await Awaitable.WaitForSecondsAsync(seconds);
+
         /// <summary>Opens a room and returns its code.</summary>
         public static async Task<string> HostAsync()
         {
@@ -86,7 +94,7 @@ namespace Tavern.Unity.Net
             var nm = Manager();
             var allocation = await RelayService.Instance.CreateAllocationAsync(MaxPlayers - 1);
             var code = await RelayService.Instance.GetJoinCodeAsync(allocation.AllocationId);
-            nm.GetComponent<UnityTransport>().SetRelayServerData(allocation.ToRelayServerData("dtls"));
+            nm.GetComponent<UnityTransport>().SetRelayServerData(allocation.ToRelayServerData(RelayKind));
             if (!nm.StartHost()) throw new InvalidOperationException("部屋を作れなかった");
             RegisterHandlers();
             JoinCode = code;
@@ -104,18 +112,18 @@ namespace Tavern.Unity.Net
             {
                 var nm = Manager();
                 var join = await RelayService.Instance.JoinAllocationAsync(code);
-                nm.GetComponent<UnityTransport>().SetRelayServerData(join.ToRelayServerData("dtls"));
+                nm.GetComponent<UnityTransport>().SetRelayServerData(join.ToRelayServerData(RelayKind));
                 var connected = new TaskCompletionSource<bool>();
                 void OnConnected(ulong id) { if (id == nm.LocalClientId) connected.TrySetResult(true); }
                 nm.OnClientConnectedCallback += OnConnected;
                 if (!nm.StartClient()) throw new InvalidOperationException("接続を始められなかった");
-                var done = await Task.WhenAny(connected.Task, Task.Delay(25000));
+                var done = await Task.WhenAny(connected.Task, Delay(25));
                 nm.OnClientConnectedCallback -= OnConnected;
                 if (done == connected.Task) break;
                 Leave();
                 Debug.LogWarning($"[Online] join attempt {attempt} timed out");
                 if (attempt >= 3) throw new TimeoutException("部屋に入れなかった（コードを確かめてください）");
-                await Task.Delay(1500);
+                await Delay(1.5f);
             }
             RegisterHandlers();
             JoinCode = code;

@@ -19,7 +19,8 @@ namespace Tavern.Unity.App
                 string? forceTool = null, System.Threading.CancellationToken ct = default) => throw new LlmRateLimitException("fake daily quota", daily: true);
         }
 
-        static readonly HttpClient Http = new HttpClient { Timeout = TimeSpan.FromMinutes(3) };
+        static HttpClient? _http;
+        static HttpClient Http => _http ??= new HttpClient { Timeout = TimeSpan.FromMinutes(3) };
 
         public sealed class Backends
         {
@@ -40,8 +41,17 @@ namespace Tavern.Unity.App
         /// <summary>This PC's offset from UTC (for "back at 16:00").</summary>
         public static TimeSpan LocalOffset => TimeZoneInfo.Local.GetUtcOffset(DateTime.UtcNow);
 
+        /// <summary>The browser build only joins rooms; the host's PC calls the AI.</summary>
+        sealed class NoAi : ILlmClient
+        {
+            public string Name => "none";
+            public System.Threading.Tasks.Task<LlmReply> ChatAsync(System.Collections.Generic.IReadOnlyList<ChatMessage> messages, System.Collections.Generic.IReadOnlyList<ToolDef> tools,
+                string? forceTool = null, System.Threading.CancellationToken ct = default) => throw new InvalidOperationException("ブラウザ版は AI を呼ばない");
+        }
+
         public static Backends Create(bool demo)
         {
+            if (WebPage.IsBrowser) return new Backends { Everyday = new NoAi(), Description = "ブラウザ版（友人の部屋に入る専用）" };
             if (demo)
             {
                 var d = new DemoLlm();

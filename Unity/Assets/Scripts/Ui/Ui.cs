@@ -23,10 +23,12 @@ namespace Tavern.Unity.Ui
         public static readonly Color Warn = Hex("c4553f");
 
         static Font? _serif, _sans;
-        /// <summary>Narration and titles (Windows has Yu Mincho; the game is Windows-only for now).</summary>
-        public static Font Serif => _serif ??= Font.CreateDynamicFontFromOSFont(new[] { "Yu Mincho", "YuMincho", "MS Mincho" }, 32);
+        /// <summary>Narration and titles (Windows has Yu Mincho; the browser cannot use the PC's fonts, so it gets Noto, SIL OFL).</summary>
+        public static Font Serif => _serif ??= App.WebPage.IsBrowser ? Resources.Load<Font>("Fonts/NotoSerifJP-Regular")
+            : Font.CreateDynamicFontFromOSFont(new[] { "Yu Mincho", "YuMincho", "MS Mincho" }, 32);
         /// <summary>Everything else.</summary>
-        public static Font Sans => _sans ??= Font.CreateDynamicFontFromOSFont(new[] { "Yu Gothic UI", "Yu Gothic", "Meiryo UI", "MS Gothic" }, 24);
+        public static Font Sans => _sans ??= App.WebPage.IsBrowser ? Resources.Load<Font>("Fonts/NotoSansJP-Regular")
+            : Font.CreateDynamicFontFromOSFont(new[] { "Yu Gothic UI", "Yu Gothic", "Meiryo UI", "MS Gothic" }, 24);
 
         public static Color Hex(string hex) { ColorUtility.TryParseHtmlString("#" + hex, out var c); return c; }
         public static Color WithAlpha(Color c, float a) { c.a = a; return c; }
@@ -142,6 +144,7 @@ namespace Tavern.Unity.Ui
             field.lineType = multiline ? InputField.LineType.MultiLineNewline : InputField.LineType.SingleLine;
             field.caretColor = Theme.Gold;
             field.selectionColor = Theme.WithAlpha(Theme.Gold, 0.35f);
+            App.WebPage.UseHtmlInput(field);   // the browser types through an HTML field (Japanese IME)
             return field;
         }
 

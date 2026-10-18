@@ -29,3 +29,7 @@
 - Freesound のサイコロの音（CC0）: ダウンロードにアカウントが要るため。
 - 魔王魂・OpenTracks（旧 DOVA-SYNDROME）・効果音ラボ・Kevin MacLeod: 具体的な曲をまだ選んでいない。
   魔王魂は「音楽：魔王魂」の表記が必要、OpenTracks と効果音ラボは素材のファイルを公開の場（公開リポジトリ）に置けない。
+
+## 文字（ブラウザ版）
+- Noto Sans JP・Noto Serif JP（https://github.com/notofonts/noto-cjk の SubsetOTF/JP）。SIL Open Font License 1.1。
+  `Unity/Assets/Resources/Fonts/`（規約の全文は同じ場所の `OFL.txt`）。ブラウザは PC の游明朝・游ゴシックを使えないので、ブラウザ版だけがこれを使う。
