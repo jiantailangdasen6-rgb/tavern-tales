@@ -218,6 +218,7 @@ namespace Tavern.Unity.App
             var scenario = await PrepareScenarioAsync(party, story);
             if (scenario == null) return;
             var game = TavernGame.New(Db, scenario, teller ?? Storyteller.Olwen, party, Ai.Everyday, Ai.Highlight, new Tavern.Core.Rules.SeededRandom((ulong)DateTime.Now.Ticks));
+            game.SuggestLlm = Ai.Everyday;   // suggested actions only from what the players know (Suggester)
             ShowTable(game, opening: true);
         }
 
@@ -290,6 +291,7 @@ namespace Tavern.Unity.App
         {
             var save = SaveData.FromJson(File.ReadAllText(SavePath));
             var game = save.Load(Db, Scenarios.For(save.State, Scenario), Storyteller.Find(save.State.StorytellerId), Ai.Everyday, Ai.Highlight, new Tavern.Core.Rules.SeededRandom((ulong)DateTime.Now.Ticks));
+            game.SuggestLlm = Ai.Everyday;
             if (save.State.Owners.Count > 0) HostResume(game);
             else ShowTable(game, opening: false);
         }

@@ -65,6 +65,35 @@ namespace Tavern.Core.Tests
         }
 
         [Test]
+        public async Task BlindSuggester_NeverSeesWhatThePlayersDoNotKnow()
+        {
+            var narrator = new ScriptedLlm(Plan(), Narr(new { text = "祠の前に着いた。古い扉がある。", move_to = "shrine_front" }),
+                Plan(), Narr(new { text = "扉の奥は暗い。" }));
+            var suggester = new ScriptedLlm(
+                new LlmReply("", new[] { new ToolCall(Suggester.ToolName, JObject.FromObject(new { suggestions = new[] { "扉に耳を当てる", "碑文を読む", "骨の騎士に挑む" } })) }),
+                new LlmReply("", new[] { new ToolCall(Suggester.ToolName, JObject.FromObject(new { suggestions = new[] { "松明をかざす", "引き返す", "奥へ進む" } })) }));
+            var (db, s) = Load();
+            var game = TavernGame.New(db, s, Storyteller.Olwen, new List<Character> { TavernGame.CreateCharacter(db, "ガレス", "warrior", "") }, narrator, null, new FixedRandom());
+            game.SuggestLlm = suggester;
+
+            var first = await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Text = "祠へ向かう" } });
+            Assert.That(first.Suggestions, Is.EqualTo(new[] { "扉に耳を当てる", "碑文を読む" }));   // the knight was never told of
+            await game.SubmitAsync(new[] { new Declaration { Character = "ガレス", Text = "扉を開ける" } });
+
+            // the storyteller has no suggestions field any more; the suggester got only the public view, never a secret
+            Assert.That(narrator.Forced, Has.None.EqualTo(Suggester.ToolName));
+            var seen = string.Join("\n", suggester.Sent.SelectMany(m => m).Select(m => m.Content));
+            var secrets = new[] { s.Truth, s.Weakness }
+                .Concat(s.Locations.SelectMany(l => new[] { l.Secret, l.Trap }))
+                .Concat(s.Npcs.Select(n => n.Role))
+                .Concat(s.Clues.Where(c => !game.State.Clues.Contains(c.Id)).Select(c => c.Text))
+                .Append(db.Enemies[s.Boss].Name)
+                .Where(x => !string.IsNullOrWhiteSpace(x));
+            foreach (var secret in secrets) Assert.That(seen, Does.Not.Contain(secret), secret);
+            Assert.That(seen, Does.Contain("祠の前に着いた"));
+        }
+
+        [Test]
         public void MusicMap_IsValidJsonAndPointsAtFiles()
         {
             var resources = Path.GetDirectoryName(ContentDir())!;

@@ -47,6 +47,8 @@ namespace Tavern.Core.Gm
                   ""boss"": ""wraith"", ""endings"": { ""success"": ""鎮まった。"", ""bitter"": ""井戸は埋められた。"", ""failure"": ""村は捨てられた。"" } }");
                 return Task.FromResult(new LlmReply("", new[] { new ToolCall("write_scenario", sheet) }));
             }
+            if (forceTool == "suggest_actions")   // Game.Suggester
+                return Task.FromResult(new LlmReply("", new[] { new ToolCall("suggest_actions", new JObject { ["suggestions"] = new JArray("足跡を追って森の奥へ進む", "辺りを警戒しながら様子を見る", "村へ戻って話を聞き直す") }) }));
             if (forceTool == GmTools.PlanChecks)
             {
                 // Every declaring character rolls a normal skill check (names are read from the tool's enum).

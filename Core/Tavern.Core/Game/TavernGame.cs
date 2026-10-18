@@ -110,7 +110,63 @@ namespace Tavern.Core.Game
             var report = new TurnReport();
             var turn = await Gm.NarrateAsync(Status() + "\n物語を始めてください。依頼が舞い込む最初の場面を、語り部らしく語ってください。", highlight: true, ct);
             Finish(report, turn);
+            await SuggestAsync(report, ct);
             return report;
+        }
+
+        ILlmClient? _suggestLlm;
+
+        /// <summary>
+        /// Set to make the suggested actions with a separate call that only sees PublicView (Suggester), so they cannot give
+        /// away what the storyteller knows; the narrate tool then has no suggestions. Null: the storyteller suggests (tests).
+        /// </summary>
+        public ILlmClient? SuggestLlm
+        {
+            get => _suggestLlm;
+            set { _suggestLlm = value; Gm.NarrateTool = GameTools.Narrate(Scenario, Db, Party, withSuggestions: value == null); }
+        }
+
+        /// <summary>Asks the blind suggestion maker for the next actions (a failure only leaves no buttons).</summary>
+        async Task SuggestAsync(TurnReport report, CancellationToken ct)
+        {
+            if (_suggestLlm == null) return;
+            List<string> suggestions;
+            if (Ended) suggestions = new List<string>();
+            else
+            {
+                try { suggestions = KnownOnly(await Suggester.AskAsync(_suggestLlm, PublicView(), ct)); }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception) { suggestions = new List<string>(); }
+            }
+            report.Suggestions = suggestions;
+            State.Suggestions = suggestions;
+        }
+
+        /// <summary>
+        /// What the players know, and nothing else: the place as seen, the ways on, who is here, the clues found, the party,
+        /// the foes in front of them and the last lines of the evening. Never the truth, a place's secret or trap, a person's
+        /// role, the clues not found or the foes ahead (the suggestion maker is given only this).
+        /// </summary>
+        public string PublicView()
+        {
+            var sb = new StringBuilder("【冒険者が知っていること】\n");
+            var here = Here;
+            sb.AppendLine($"いる場所: {here.Name}。{here.Description}");
+            sb.AppendLine("ここから行ける場所: " + string.Join("・", here.Exits.Select(x => Scenario.Location(x).Name)));
+            var people = Scenario.Npcs.Where(n => n.Where == State.Location).Select(n => n.Name).ToList();
+            if (people.Count > 0) sb.AppendLine("ここにいる人物: " + string.Join("・", people));
+            sb.AppendLine("見つけた手がかり: " + (State.Clues.Count == 0 ? "なし" : string.Join(" / ", State.Clues.Select(id => Scenario.Clues.First(c => c.Id == id).Text))));
+            foreach (var p in Party)
+            {
+                var hurt = p.State == LifeState.Dead ? "死んでいる" : p.State == LifeState.Down ? "倒れている" : p.Hp <= p.MaxHp / 2 ? "傷が深い" : "動ける";
+                sb.AppendLine($"冒険者 {p.Name}（{Prompts.ClassLabel(p.ClassId)}）{hurt}{(p.Items.Count > 0 ? "。持ち物: " + string.Join("・", p.Items) : "")}");
+            }
+            if (State.Combat != null)
+                sb.AppendLine("戦っている相手: " + string.Join("・", State.Combat.Enemies.Where(e => e.Alive).Select(e => e.Name)));
+            sb.AppendLine("【これまでの流れ（新しいものが下）】");
+            foreach (var e in State.Log.Where(e => e.Kind == LogKind.Narration || e.Kind == LogKind.Declaration || e.Kind == LogKind.Event).TakeLast(12))
+                sb.AppendLine(e.Kind == LogKind.Declaration ? $"{e.Who}: {e.Text}" : e.Text);
+            return sb.ToString();
         }
 
         public async Task<TurnReport> SubmitAsync(IReadOnlyList<Declaration> declarations, CancellationToken ct = default)
@@ -122,6 +178,7 @@ namespace Tavern.Core.Game
             foreach (var d in acting) Add(report, LogEntry.Line(LogKind.Declaration, d.Character, DescribeDeclaration(d)));
             if (InCombat) await CombatRoundAsync(acting, report, ct);
             else await ExploreAsync(acting, report, ct);
+            await SuggestAsync(report, ct);
             return report;
         }
 
@@ -725,6 +782,7 @@ namespace Tavern.Core.Game
             if (turn.Narration.Length > 0) Add(report, LogEntry.Line(LogKind.Narration, Teller.Name, turn.Narration));
             report.Narration = turn.Narration;
             report.Model = turn.Model;
+            if (_suggestLlm != null) return;   // the blind suggestion maker answers after the turn (SuggestAsync)
             var suggestions = KnownOnly(turn.Suggestions);
             if (turn.Suggestions.Count > 0) { report.Suggestions = suggestions; State.Suggestions = suggestions; }
         }

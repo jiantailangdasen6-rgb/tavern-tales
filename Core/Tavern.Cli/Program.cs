@@ -69,6 +69,7 @@ if (Opt("--load") is string loadPath)
     game = SaveData.FromJson(File.ReadAllText(loadPath)).Load(db, scenario, Storyteller.Find(SaveData.FromJson(File.ReadAllText(loadPath)).State.StorytellerId), llm, highlight, new SeededRandom(seed));
 else
     game = TavernGame.New(db, scenario, Storyteller.Find(Opt("--teller")), presetParty, llm, highlight, new SeededRandom(seed));
+game.SuggestLlm = llm;   // suggested actions from a call that only sees what the players know
 
 game.Logged += e =>
 {

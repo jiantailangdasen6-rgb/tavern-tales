@@ -195,6 +195,7 @@ namespace Tavern.Unity.App
             var scenario = await _app.PrepareScenarioAsync(party, _story?.Invoke(), fallBackToPrepared: true) ?? _app.Scenario;
             var game = TavernGame.New(_app.Db, scenario, teller, party, _app.Ai.Everyday, _app.Ai.Highlight,
                 new SeededRandom((ulong)DateTime.Now.Ticks));
+            game.SuggestLlm = _app.Ai.Everyday;   // suggested actions only from what the players know
             foreach (var p in _players) game.State.Owners[p.character.Name] = p.info.PlayerName;
             game.State.HostPlayer = _me;
             _app.EnterAsHost(game, _me, _players.Where(p => p.info.PlayerName != _me).ToDictionary(p => p.info.PlayerName, p => p.info.Id));

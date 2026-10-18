@@ -27,14 +27,12 @@ namespace Tavern.Core.Game
         static JObject Obj(JObject props, params string[] required)
             => new JObject { ["type"] = "object", ["properties"] = props, ["required"] = new JArray(required) };
 
-        public static ToolDef Narrate(ScenarioDef s, ContentDb db, IEnumerable<Character> party)
+        /// <summary>The narrate tool; withSuggestions false when a separate, blind call makes the suggestions (Suggester).</summary>
+        public static ToolDef Narrate(ScenarioDef s, ContentDb db, IEnumerable<Character> party, bool withSuggestions = true)
         {
             var names = party.Select(c => c.Name).ToArray();
             var who = Enum(names);
-            return new ToolDef(GmTools.Narrate,
-                "判定の結果のとおりに全員の行動の結末を語り、次の行動の案を出す。語りの中で起きたことは、下の効果の欄にも必ず書く" +
-                "（書かなければゲームの状態は変わらない）。何も起きなければ効果の欄は空でよい。",
-                Obj(new JObject
+            var schema = Obj(new JObject
                 {
                     ["text"] = Str("語り（地の文と台詞だけ）。いつもは 2〜4 文・150 字まで。場面の始まりや山場だけ 6 文まで。長すぎる語りは遊びを止めてしまう"),
                     ["suggestions"] = ArrayOf(new JObject { ["type"] = "string" },
@@ -49,7 +47,11 @@ namespace Tavern.Core.Game
                     ["start_combat"] = ArrayOf(Enum(db.Enemies.Keys), "戦いが始まるときだけ、現れた敵の id（場所の敵の顔ぶれを基本に）"),
                     ["next_act"] = new JObject { ["type"] = "boolean", ["description"] = "物語が次の幕へ進むとき true" },
                     ["end_story"] = Enum(new[] { "none", "success", "bitter", "failure" }, "物語が結末を迎えたときだけ"),
-                }, "text", "suggestions"));
+                }, withSuggestions ? new[] { "text", "suggestions" } : new[] { "text" });
+            if (!withSuggestions) ((JObject)schema["properties"]!).Remove("suggestions");
+            return new ToolDef(GmTools.Narrate,
+                "判定の結果のとおりに全員の行動の結末を語る" + (withSuggestions ? "、次の行動の案を出す" : "") + "。語りの中で起きたことは、下の効果の欄にも必ず書く" +
+                "（書かなければゲームの状態は変わらない）。何も起きなければ効果の欄は空でよい。", schema);
         }
 
         /// <summary>The plan tool used in combat: free-text actions may also deal damage or stun, by size, decided by the AI.</summary>
