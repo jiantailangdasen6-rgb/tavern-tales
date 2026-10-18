@@ -1,5 +1,12 @@
 # 開発ログ（再開するときはここから）
 
+## いまの到達点と次の一手（2026-10-18 夕方）
+- 最新は main の 069e013。公開中の版は v0.1.2（GitHub Releases）。**v0.1.3（4 人・転がるダイス・物語 4 本・型 14・敵 22・仮絵 109 枚）はまだ出していない**（出すかはオーナーに確認）。
+- **次: オーナーからテストプレイを頼まれた**。ボットで全部の用意された物語を通し（`dotnet run --project Core/Tavern.Cli -- --scenario <id> --auto 45 --highlight-model none`、
+  id は grey_shrine / castle_lights / white_fang / silver_swan。castle_lights は成功の結末まで確認済み）、AI が作る物語（新しい型）も何本か、
+  Unity でも 4 人・オンライン 4 台（`Tools/OnlineTest.ps1 -Friends 3`）とダイスを見て、気になった点を報告する。
+- 保留: AI の乗り換え（語りだけ Gemini Flash 系 3.7→3.6→3.5 の順に使う案。Flash 系は各 1 日 20 回）、本番の絵（fal.ai、約 10 ドル）。
+
 ## 現在の状態（2026-10-18 未明、M1 の途中）
 - **M1（1 人で一晩）でできたこと**:
   - 内容は JSON（`Unity/Assets/Resources/Content/`: classes / cards / enemies / Scenarios/grey_shrine）。CLI とテストも同じファイルを読む。
