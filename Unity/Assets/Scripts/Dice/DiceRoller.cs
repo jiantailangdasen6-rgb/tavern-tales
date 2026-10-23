@@ -29,18 +29,21 @@ namespace Tavern.Unity.Dice
         Mesh _mesh = null!;
         readonly List<(Vector3 normal, Vector3 up)> _faces = new List<(Vector3, Vector3)>();
         Coroutine? _rolling;
+        int _index;
 
         // the hidden tray where each throw is played out first
         PhysicsScene _phys;
         Rigidbody _simDie = null!;
         const float TrayW = 12f, TrayD = 5.4f, DieScale = 1.6f, Step = 1f / 60f;
 
-        public static DiceRoller Create(Transform parent)
+        /// <summary>index: several dice side by side (each far from the others, with its own picture and tray).</summary>
+        public static DiceRoller Create(Transform parent, int index = 0)
         {
             var go = new GameObject("Dice");
             go.transform.SetParent(parent, false);
-            go.transform.position = new Vector3(0, -500, 0);   // far away from anything else
+            go.transform.position = new Vector3(index * 300, -500, 0);   // far away from anything else (and from the other dice)
             var d = go.AddComponent<DiceRoller>();
+            d._index = index;
             d.Build();
             return d;
         }
@@ -62,18 +65,22 @@ namespace Tavern.Unity.Dice
             cam.targetTexture = Texture;
             camGo.AddComponent<UniversalAdditionalCameraData>().renderPostProcessing = false;
 
-            var lightGo = new GameObject("DiceLight");
-            lightGo.transform.SetParent(transform, false);
-            lightGo.transform.localRotation = Quaternion.Euler(55, -30, 0);
-            var light = lightGo.AddComponent<Light>();
-            light.type = LightType.Directional; light.intensity = 1.6f; light.color = new Color(1f, 0.9f, 0.75f);
-            light.cullingMask = 1 << Layer;
-            var fillGo = new GameObject("DiceFill");
-            fillGo.transform.SetParent(transform, false);
-            fillGo.transform.localRotation = Quaternion.Euler(20, 150, 0);
-            var fill = fillGo.AddComponent<Light>();
-            fill.type = LightType.Directional; fill.intensity = 0.5f; fill.color = new Color(0.55f, 0.6f, 0.8f);
-            fill.cullingMask = 1 << Layer;
+            // directional lights reach every die on the layer: only the first die brings them
+            if (_index == 0)
+            {
+                var lightGo = new GameObject("DiceLight");
+                lightGo.transform.SetParent(transform.parent, false);   // stays on while this die is hidden
+                lightGo.transform.localRotation = Quaternion.Euler(55, -30, 0);
+                var light = lightGo.AddComponent<Light>();
+                light.type = LightType.Directional; light.intensity = 1.6f; light.color = new Color(1f, 0.9f, 0.75f);
+                light.cullingMask = 1 << Layer;
+                var fillGo = new GameObject("DiceFill");
+                fillGo.transform.SetParent(transform.parent, false);
+                fillGo.transform.localRotation = Quaternion.Euler(20, 150, 0);
+                var fill = fillGo.AddComponent<Light>();
+                fill.type = LightType.Directional; fill.intensity = 0.5f; fill.color = new Color(0.55f, 0.6f, 0.8f);
+                fill.cullingMask = 1 << Layer;
+            }
 
             _mesh = BuildMesh();
             _body = new GameObject("D20") { layer = Layer }.transform;
@@ -123,7 +130,7 @@ namespace Tavern.Unity.Dice
         /// <summary>The hidden physics scene: a floor, four low walls and a die of the same shape.</summary>
         void BuildTray()
         {
-            var scene = SceneManager.CreateScene("DiceTray", new CreateSceneParameters(LocalPhysicsMode.Physics3D));
+            var scene = SceneManager.CreateScene("DiceTray" + (_index == 0 ? "" : _index.ToString()), new CreateSceneParameters(LocalPhysicsMode.Physics3D));
             _phys = scene.GetPhysicsScene();
             var felt = new PhysicsMaterial("tray") { bounciness = 0.3f, dynamicFriction = 0.4f, staticFriction = 0.55f, bounceCombine = PhysicsMaterialCombine.Average };
             void Box(Vector3 centre, Vector3 size)

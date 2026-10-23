@@ -36,6 +36,9 @@ namespace Tavern.Unity.App
         public Transform Root { get; private set; } = null!;
         public DiceRoller Dice { get; private set; } = null!;
         public string SavePath { get; private set; } = "";
+        Tavern.Unity.Night.NightApp? _night;
+        /// <summary>The new evening (stage 5): party, map, table and ending on the new rules.</summary>
+        public Tavern.Unity.Night.NightApp Night => _night ??= new Tavern.Unity.Night.NightApp(this);
         TableScreen? _table;
 
         public static string? Arg(string name)
@@ -98,7 +101,8 @@ namespace Tavern.Unity.App
             InviteLink.Register();
             WebPage.Setup();
             InviteCode = InviteLink.CodeFromArgs() ?? WebPage.CodeFromUrl();
-            if (Flag("-onlinehost") || Arg("-onlinejoinfile") != null) StartCoroutine(AutoOnline());
+            if (Flag("-night")) StartNight();
+            else if (Flag("-onlinehost") || Arg("-onlinejoinfile") != null) StartCoroutine(AutoOnline());
             else if (Flag("-continue") && File.Exists(SavePath)) ContinueEvening();
             else if (Flag("-quickstart")) StartEvening(PartyScreen.Preset(Db, int.TryParse(Arg("-partysize"), out var ps) ? ps : 3), Storyteller.Find(Arg("-teller")), Arg("-story") is string st ? new StoryChoice { Prepared = st.StartsWith("prepared"), PreparedId = st.StartsWith("prepared:") ? st.Substring(9) : null, TemplateId = st == "auto" || st.StartsWith("prepared") ? null : st } : null);
             else if (InviteCode != null) ShowParty(OnlineMode.Join);   // opened from an invite link
@@ -122,6 +126,22 @@ namespace Tavern.Unity.App
         void Update() { _table?.Update(); Tick?.Invoke(); }
 
         void OnApplicationQuit() => StartingOllama.StopStarted();   // a local AI the game started goes with it
+
+        /// <summary>-night: the new evening. With -quickstart (a preset party, -partysize, -story, -difficulty), -continue, or -map.</summary>
+        void StartNight()
+        {
+            if (Flag("-continue") && Night.Store.HasEvening) { Night.Continue(); return; }
+            var size = int.TryParse(Arg("-partysize"), out var ps) ? ps : 3;
+            if (Flag("-quickstart"))
+            {
+                var story = Night.Stories.FirstOrDefault(s => s.Id == (Arg("-story") ?? "grey_shrine")) ?? Night.Stories[0];
+                var d = Arg("-difficulty") switch { "gentle" => Tavern.Core.Play.Difficulty.Gentle, "harsh" => Tavern.Core.Play.Difficulty.Harsh, _ => Tavern.Core.Play.Difficulty.Standard };
+                Night.Begin(story, Night.PresetParty(size), d);
+                return;
+            }
+            if (Flag("-map")) { Night.ShowMap(Night.PresetParty(size)); return; }
+            Night.ShowParty();
+        }
 
         public void ShowTitle()
         {

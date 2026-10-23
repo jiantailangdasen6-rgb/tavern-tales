@@ -62,7 +62,7 @@ namespace Tavern.Core.Flow
             // initiative: everyone rolls at once
             var up = Active.Where(a => a.Life == Life.Up).ToList();
             var reqs = up.Select(a => new RollRequest { Who = a.Id, Kind = RollKind.Initiative, Heading = $"行動順（20 面 + AGI {a.Modifier(Ability.Agi):+0;-0;+0}）", Bonus = a.Modifier(Ability.Agi), CoinAllowed = false }).ToList();
-            var nat = reqs.Count > 0 ? await Players.RollAsync(reqs, ct).ConfigureAwait(false) : new List<int>();
+            var nat = reqs.Count > 0 ? await Players.RollAsync(reqs, ct) : new List<int>();
             var init = up.Select((a, i) => (a.Id, n: nat[i])).ToDictionary(x => x.Id, x => x.n);
             var combat = Combat.Start(Active, companions, foes, init, surprise, E.Difficulty, Rng);
             E.Combat = combat;
@@ -78,7 +78,7 @@ namespace Tavern.Core.Flow
             {
                 var target = combat.Foes.FirstOrDefault(f => f.InFight);
                 if (target == null) break;
-                var n = (await Players.RollAsync(new[] { new RollRequest { Who = a.Id, Kind = RollKind.Attack, Heading = $"先手の一撃（守り {target.Defense}）", Bonus = a.Modifier(a.Attack().Ability), Target = target.Defense } }, ct).ConfigureAwait(false))[0];
+                var n = (await Players.RollAsync(new[] { new RollRequest { Who = a.Id, Kind = RollKind.Attack, Heading = $"先手の一撃（守り {target.Defense}）", Bonus = a.Modifier(a.Attack().Ability), Target = target.Defense } }, ct))[0];
                 var r = combat.Attack(a, target.Id, n);
                 report.Lines.AddRange(r.Lines);
             }
@@ -93,7 +93,7 @@ namespace Tavern.Core.Flow
             var combat = E.Combat!;
             var changes = new List<string>();
             var decls = declarations.Where(d => E.Find(d.Who)?.IsUp == true && d.Text.Trim().Length > 0).Select(d => { d.Secret = false; return d; }).ToList();
-            var cls = decls.Count > 0 ? await Classifier.ClassifyAsync(E, decls, true, ct).ConfigureAwait(false) : new Classification();
+            var cls = decls.Count > 0 ? await Classifier.ClassifyAsync(E, decls, true, ct) : new Classification();
             LastClassification = cls;
             report.Calls += cls.Calls;
 
@@ -102,11 +102,11 @@ namespace Tavern.Core.Flow
             var refused = cls.Declarations.Where(c => c.Steps.FirstOrDefault()?.Sort == Sort.Impossible).ToList();
             if (refused.Count > 0)
             {
-                var again = (await Players.RedeclareAsync(refused.Select(c => (c.Who, Refusal(c.Steps[0]))).ToList(), ct).ConfigureAwait(false)).Where(d => d.Text.Trim().Length > 0).ToList();
+                var again = (await Players.RedeclareAsync(refused.Select(c => (c.Who, Refusal(c.Steps[0]))).ToList(), ct)).Where(d => d.Text.Trim().Length > 0).ToList();
                 foreach (var c in refused) report.Lines.Add($"{E.Find(c.Who)?.Name}: できない（{Refusal(c.Steps[0])}）");
                 if (again.Count > 0)
                 {
-                    var cls2 = await Classifier.ClassifyAsync(E, again, true, ct).ConfigureAwait(false);
+                    var cls2 = await Classifier.ClassifyAsync(E, again, true, ct);
                     PrepareCombatSteps(cls2);
                     report.Calls += cls2.Calls;
                     foreach (var c in cls2.Declarations) { cls.Declarations.RemoveAll(x => x.Who == c.Who); cls.Declarations.Add(c); }
@@ -141,17 +141,17 @@ namespace Tavern.Core.Flow
             }
             if (reqs.Count > 0)
             {
-                var nat = await Players.RollAsync(reqs, ct).ConfigureAwait(false);
+                var nat = await Players.RollAsync(reqs, ct);
                 for (int i = 0; i < reqs.Count; i++) pre[reqs[i].Who + ":" + reqs[i].Kind] = nat[i];
                 // a fate coin for a death save that failed
                 var failedSaves = reqs.Where(q => q.Kind == RollKind.DeathSave && pre[q.Who + ":" + q.Kind] < 10 && E.Find(q.Who)?.FateCoins > 0).ToList();
                 if (failedSaves.Count > 0)
                 {
-                    var use = await Players.OfferCoinsAsync(failedSaves, ct).ConfigureAwait(false);
+                    var use = await Players.OfferCoinsAsync(failedSaves, ct);
                     var again = failedSaves.Where((q, i) => i < use.Count && use[i]).ToList();
                     if (again.Count > 0)
                     {
-                        var re = await Players.RollAsync(again, ct).ConfigureAwait(false);
+                        var re = await Players.RollAsync(again, ct);
                         for (int i = 0; i < again.Count; i++) if (E.Find(again[i].Who)!.SpendFateCoin()) pre[again[i].Who + ":" + RollKind.DeathSave] = re[i];
                     }
                 }
@@ -193,7 +193,7 @@ namespace Tavern.Core.Flow
                 }
                 else if (f.Creature is Creature c && combat.BeginTurn(f, lines))
                 {
-                    if (c.Side == Side.Foe) await EnemyTurn(combat, c, lines, ct).ConfigureAwait(false);
+                    if (c.Side == Side.Foe) await EnemyTurn(combat, c, lines, ct);
                     else
                     {
                         var order = actions.Values.FirstOrDefault(s => s.Person == c.Id && s.Target.Length > 0);
@@ -219,8 +219,8 @@ namespace Tavern.Core.Flow
 
             Save?.Invoke(this);
             var declared = decls.Select(d => (E.Find(d.Who)!, d)).ToList();
-            if (Phase == Phase.Over) await TellEndingAsync(report, ct).ConfigureAwait(false);
-            else await TellAsync(report, declared, changes, ct).ConfigureAwait(false);
+            if (Phase == Phase.Over) await TellEndingAsync(report, ct);
+            else await TellAsync(report, declared, changes, ct);
             return report;
         }
 
@@ -329,11 +329,11 @@ namespace Tavern.Core.Flow
                 {
                     var bonus = t.Modifier(Ability.Agi) + t.Gear.ShieldDodgeBonus;
                     var req = new RollRequest { Who = t.Id, Kind = RollKind.Dodge, Heading = $"かわす（AGI、{e.Name}の{blow.Attack} {blow.Dc}）", Bonus = bonus, Target = blow.Dc };
-                    natural = (await Players.RollAsync(new[] { req }, ct).ConfigureAwait(false))[0];
+                    natural = (await Players.RollAsync(new[] { req }, ct))[0];
                     if (natural != 20 && (natural == 1 || natural + bonus < blow.Dc) && t.FateCoins > 0)
                     {
-                        var use = await Players.OfferCoinsAsync(new[] { req }, ct).ConfigureAwait(false);
-                        if (use.Count > 0 && use[0] && t.SpendFateCoin()) natural = (await Players.RollAsync(new[] { req }, ct).ConfigureAwait(false))[0];
+                        var use = await Players.OfferCoinsAsync(new[] { req }, ct);
+                        if (use.Count > 0 && use[0] && t.SpendFateCoin()) natural = (await Players.RollAsync(new[] { req }, ct))[0];
                     }
                 }
                 lines.AddRange(combat.Resolve(blow, natural).Lines);

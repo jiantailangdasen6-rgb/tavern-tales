@@ -42,7 +42,7 @@ namespace Tavern.Core.Flow
             Phase = Phase.Explore;
             var saved = SolvedBy;
             // the afterword runs like an exploration turn (the solved climax does not start again)
-            var report = await ExploreTurnAsync(declarations, afterword: true, ct).ConfigureAwait(false);
+            var report = await ExploreTurnAsync(declarations, afterword: true, ct);
             SolvedBy = saved;
             if (Phase != Phase.Over) Finish(EndingTrigger.Solved, report);
             return report;
@@ -115,7 +115,7 @@ namespace Tavern.Core.Flow
         /// <summary>The handouts, dealt in one call when the story is chosen; each adventurer's personal goal is kept for the ending.</summary>
         public async Task<List<Handout>> DealHandoutsAsync(Bookends bookends, CancellationToken ct = default)
         {
-            var list = await bookends.HandoutsAsync(E, ct).ConfigureAwait(false);
+            var list = await bookends.HandoutsAsync(E, ct);
             Handouts.Clear();
             Handouts.AddRange(list);
             foreach (var h in list.Where(h => h.GoalId.Length > 0)) PersonalGoals[h.Who] = h.GoalId;
@@ -141,7 +141,7 @@ namespace Tavern.Core.Flow
                 (r.Dead.Count > 0 ? $"亡くなった冒険者: {string.Join("、", r.Dead)}。" : "") +
                 string.Concat(r.Personal.Select(kv => $"{E.Find(kv.Key)?.Name}の目的「{kv.Value.goal}」は{(kv.Value.done ? "果たした" : "果たせなかった")}。")) +
                 (r.Reveal.Count > 0 ? "内緒の行動: " + string.Join(" / ", r.Reveal.Select(s => $"{E.Find(s.Who)?.Name}: {s.Text}")) : "");
-            var c = await bookends.ChronicleAsync(E, summary, Log, candidates, ct).ConfigureAwait(false);
+            var c = await bookends.ChronicleAsync(E, summary, Log, candidates, ct);
             foreach (var a in E.Party.Where(a => a.Life != Life.Dead && !a.Withdrawn))
             {
                 var name = c.Marks.TryGetValue(a.Id, out var n) ? n : Story.Title;
@@ -164,7 +164,7 @@ namespace Tavern.Core.Flow
             foreach (var kv in r.Personal) t.Results.Add($"{E.Find(kv.Key)?.Name}の個人の目的「{kv.Value.goal}」: {(kv.Value.done ? "果たした" : "果たせなかった")}");
             var seed = r.Card switch { Card.Success => Story.EndingSuccess, Card.Bitter => Story.EndingBitter, _ => Story.EndingFailure };
             t.Extra = $"物語の結末を語る（語りの種: {seed}）。冒険者一人ひとりの行いに触れて、余韻を残して締めくくる。結果は変えない。";
-            var told = await Highlight.TellAsync(E, t, ct).ConfigureAwait(false);
+            var told = await Highlight.TellAsync(E, t, ct);
             report.Calls += told.Calls;
             report.Narration = told.Text;
         }

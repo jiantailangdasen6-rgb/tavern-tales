@@ -110,6 +110,8 @@ namespace Tavern.Core.Flow
         public Dictionary<string, string> PersonalGoals = new Dictionary<string, string>();
         public List<Handout> Handouts = new List<Handout>();
         public List<string> PendingFoes = new List<string>();
+        public List<string> GrowthDue = new List<string>();
+        public List<string> FledFoes = new List<string>();
         public SavedCombat? Combat;
         /// <summary>The last turn's result lines when its telling did not finish (told again on load).</summary>
         public List<string> Untold = new List<string>();
@@ -151,7 +153,7 @@ namespace Tavern.Core.Flow
                 People = w.Cast.People.Select(p => { var n = (Npc)p; return n; }).ToList(),
                 MechanismsUsed = e.Mechanisms.ToDictionary(kv => kv.Key, kv => kv.Value.Used),
                 Secrets = t.Secrets.ToList(), PersonalGoals = new Dictionary<string, string>(t.PersonalGoals), Handouts = t.Handouts.ToList(),
-                PendingFoes = t.PendingFoes.ToList(), Untold = t.Untold.ToList(),
+                PendingFoes = t.PendingFoes.ToList(), Untold = t.Untold.ToList(), GrowthDue = t.GrowthDue.ToList(), FledFoes = t.FledFoes.ToList(),
             };
             if (e.Combat is Combat c)
             {
@@ -221,6 +223,8 @@ namespace Tavern.Core.Flow
             foreach (var kv in PersonalGoals) t.PersonalGoals[kv.Key] = kv.Value;
             t.Handouts.AddRange(Handouts);
             t.PendingFoes.AddRange(PendingFoes);
+            t.GrowthDue.AddRange(GrowthDue);
+            t.FledFoes.AddRange(FledFoes);
             t.Log.AddRange(Log);
             t.Untold.AddRange(Untold);
             return t;

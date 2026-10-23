@@ -33,20 +33,21 @@ namespace Tavern.Unity.App
             UiKit.Button(root, "友人と遊ぶ: 部屋を作る", () => _app.ShowParty(OnlineMode.Host), 560, y, 400, 70, 26, gold: true);
             UiKit.Button(root, "友人の部屋に入る", () => _app.ShowParty(OnlineMode.Join), 980, y, 400, 70, 26, gold: true);
             y += 92;
-            UiKit.Button(root, "ひとりで新しい夜をはじめる", _app.ShowParty, 760, y, 400, 60, 22);
+            UiKit.Button(root, "ひとりで新しい夜をはじめる", () => _app.Night.ShowParty(), 760, y, 400, 60, 22);
             y += 76;
-            var cont = UiKit.Button(root, _app.SaveIsOnline ? "続きから（部屋を開き直す）" : "続きから（ひとり）", _app.ContinueEvening, 760, y, 400, 56, 22);
-            cont.interactable = _app.HasSave;
+            var cont = UiKit.Button(root, "続きから（ひとり）", () => _app.Night.Continue(), 760, y, 400, 56, 22);
+            cont.interactable = _app.Night.Store.HasEvening;
             y += 72;
-            UiKit.Button(root, "冒険者の名簿", _app.ShowRoster, 760, y, 195, 56, 20);
-            UiKit.Button(root, "語り部の記録帳", () => ShowChronicle(root), 965, y, 195, 56, 20);
+            UiKit.Button(root, "冒険者の名簿", () => Night.TavernBook.ShowRoster(_app.Night, root), 760, y, 130, 56, 19);
+            UiKit.Button(root, "記録帳", () => Night.TavernBook.ShowChronicle(_app.Night, root), 895, y, 130, 56, 19);
+            UiKit.Button(root, "酒場の壁", () => Night.TavernBook.ShowWall(_app.Night, root), 1030, y, 130, 56, 19);
             y += 72;
             UiKit.Button(root, "遊び方", () => ShowHelp(root), 760, y, 195, 56, 22);
             UiKit.Button(root, "クレジット", () => ShowCredits(root), 965, y, 195, 56, 22);
             y += 72;
             UiKit.Button(root, "終わる", Application.Quit, 760, y, 400, 56, 22);
 
-            UiKit.Label(root, _app.Ai.Description, 18, Theme.Dim, 0, 1030, 1900, 30, align: TextAnchor.MiddleRight);
+            UiKit.Label(root, _app.Night.Ai.Description, 18, Theme.Dim, 0, 1030, 1900, 30, align: TextAnchor.MiddleRight);
             UiKit.Button(root, "設定", () =>
             {
                 var layer = UiKit.Rect("Settings", root).Fill();

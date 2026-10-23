@@ -25,6 +25,8 @@ namespace Tavern.Core.Flow
         public Dictionary<string, List<string>> Deferred { get; } = new Dictionary<string, List<string>>();
         public SceneKind Scene { get; set; }
         public bool ActChanged { get; set; }
+        /// <summary>Adventurers who choose a growth now (Table.GrowthDue).</summary>
+        public bool GrowthDue { get; set; }
         public bool ClimaxStarted { get; set; }
         public bool CombatStarted { get; set; }
         public CombatEnd? CombatEnded { get; set; }
@@ -52,6 +54,7 @@ namespace Tavern.Core.Flow
     /// <summary>
     /// The evening's game master on the host (09_Spec 4, 5, 10, 11): runs turns and fights, decides every result, and asks the AI only to
     /// sort declarations and to tell what happened. The players roll their dice through IPlayers.
+    /// The table resumes on the caller's context after every await (no ConfigureAwait(false)), so the screens may be touched from IPlayers.
     /// </summary>
     public sealed partial class Table
     {
@@ -124,10 +127,10 @@ namespace Tavern.Core.Flow
         /// <summary>One exploration turn: everyone's declarations at once.</summary>
         public async Task<TurnReport> ExploreAsync(IReadOnlyList<Declaration> declarations, CancellationToken ct = default)
         {
-            if (Phase == Phase.Combat) return await CombatRoundAsync(declarations, ct).ConfigureAwait(false);
-            if (Phase == Phase.Afterword) return await AfterwordAsync(declarations, ct).ConfigureAwait(false);
+            if (Phase == Phase.Combat) return await CombatRoundAsync(declarations, ct);
+            if (Phase == Phase.Afterword) return await AfterwordAsync(declarations, ct);
             if (Phase == Phase.Break || Phase == Phase.Over) return new TurnReport();
-            return await ExploreTurnAsync(declarations, afterword: false, ct).ConfigureAwait(false);
+            return await ExploreTurnAsync(declarations, afterword: false, ct);
         }
 
         async Task<TurnReport> ExploreTurnAsync(IReadOnlyList<Declaration> declarations, bool afterword, CancellationToken ct)
@@ -138,20 +141,20 @@ namespace Tavern.Core.Flow
             var decls = declarations.Where(d => E.Find(d.Who)?.IsUp == true && d.Text.Trim().Length > 0).ToList();
 
             // 1. sort (AI call 1), with one chance to declare again for refused actions
-            var cls = await Classifier.ClassifyAsync(E, decls, false, ct).ConfigureAwait(false);
+            var cls = await Classifier.ClassifyAsync(E, decls, false, ct);
             LastClassification = cls;
             report.Calls += cls.Calls;
             var runs = Plan(decls, cls, false);
             var refused = runs.Where(r => r.Index == 0 && r.Refused.Length > 0).ToList();
             if (refused.Count > 0)
             {
-                var again = (await Players.RedeclareAsync(refused.Select(r => (r.A.Id, r.Refused)).ToList(), ct).ConfigureAwait(false))
+                var again = (await Players.RedeclareAsync(refused.Select(r => (r.A.Id, r.Refused)).ToList(), ct))
                     .Where(d => d.Text.Trim().Length > 0).ToList();
                 foreach (var r in refused) report.Lines.Add($"{r.A.Name}: できない（{r.Refused}）");
                 if (again.Count > 0)
                 {
                     foreach (var d in again) { var old = decls.First(x => x.Who == d.Who); d.Secret = old.Secret; }
-                    var cls2 = await Classifier.ClassifyAsync(E, again, false, ct).ConfigureAwait(false);
+                    var cls2 = await Classifier.ClassifyAsync(E, again, false, ct);
                     report.Calls += cls2.Calls;
                     decls = decls.Where(d => again.All(a => a.Who != d.Who)).Concat(again).ToList();
                     foreach (var c in cls2.Declarations) { cls.Declarations.RemoveAll(x => x.Who == c.Who); cls.Declarations.Add(c); }
@@ -168,7 +171,7 @@ namespace Tavern.Core.Flow
             // 2. contests between adventurers, secret detection, and the rolls (everyone at once)
             var contests = FindContests(runs);
             var secretRolls = SecretRolls(runs);
-            await RollAll(runs, contests, secretRolls, report, ct).ConfigureAwait(false);
+            await RollAll(runs, contests, secretRolls, report, ct);
             foreach (var c in contests) ResolveContest(c, report, changes);
 
             // 3. results, in declaration order; a failed step stops the rest of its declaration
@@ -193,19 +196,19 @@ namespace Tavern.Core.Flow
             if (Phase == Phase.Over)
             {
                 Save?.Invoke(this);
-                await TellEndingAsync(report, ct).ConfigureAwait(false);
+                await TellEndingAsync(report, ct);
                 return report;
             }
 
             // a fight the classifier started (or the climax) begins now; its first round comes with the next declarations
             if ((cls.Fight != null && !runs.All(r => r.Secret)) || PendingFoes.Count > 0)
                 if (Phase == Phase.Explore || Phase == Phase.Combat && E.Combat == null)
-                    await StartFightAsync(cls.Fight?.Enemies ?? new List<string>(), cls.Fight?.Surprise ?? false, report, changes, ct).ConfigureAwait(false);
+                    await StartFightAsync(cls.Fight?.Enemies ?? new List<string>(), cls.Fight?.Surprise ?? false, report, changes, ct);
 
             // 5. save, then tell
             report.Scene = SceneFor(runs, report);
             Save?.Invoke(this);
-            await TellAsync(report, runs.Select(r => (r.A, r.D)).Distinct().ToList(), changes, ct).ConfigureAwait(false);
+            await TellAsync(report, runs.Select(r => (r.A, r.D)).Distinct().ToList(), changes, ct);
             return report;
         }
 
@@ -499,17 +502,17 @@ namespace Tavern.Core.Flow
                 }
             if (reqs.Count == 0) return;
 
-            var naturals = await Players.RollAsync(reqs, ct).ConfigureAwait(false);
+            var naturals = await Players.RollAsync(reqs, ct);
             for (int i = 0; i < reqs.Count; i++) Deliver(reqs[i], naturals[i], runs, contestReqs, secrets);
 
             // fate coins for failed checks, dodges and contest losses (not the fate die, not secrets)
             var failed = reqs.Where(q => q.CoinAllowed && q.Kind == RollKind.Check && q.Check != null && !q.Check.Succeeded && !q.Check.Rerolled
                 && E.Find(q.Who)?.FateCoins > 0).ToList();
             if (failed.Count == 0) return;
-            var use = await Players.OfferCoinsAsync(failed, ct).ConfigureAwait(false);
+            var use = await Players.OfferCoinsAsync(failed, ct);
             var again = failed.Where((q, i) => i < use.Count && use[i]).ToList();
             if (again.Count == 0) return;
-            var re = await Players.RollAsync(again, ct).ConfigureAwait(false);
+            var re = await Players.RollAsync(again, ct);
             for (int i = 0; i < again.Count; i++) again[i].Check!.Reroll(E.Find(again[i].Who)!, re[i]);
         }
 
@@ -807,6 +810,9 @@ namespace Tavern.Core.Flow
                 report.ActChanged = true;
                 progress = true;
                 foreach (var a in Active) a.RestoreFocus();
+                // growth at the end of an act (short: acts 1-2, long: acts 1-4): each standing adventurer picks one
+                foreach (var a in Active.Where(x => x.Life != Life.Dead)) if (!GrowthDue.Contains(a.Id)) GrowthDue.Add(a.Id);
+                report.GrowthDue = true;
                 act = Story.Acts.FirstOrDefault(a => a.N == W.Act);
                 if (Story.Long && W.Act == 4 && Phase != Phase.Break)
                 {
@@ -930,7 +936,7 @@ namespace Tavern.Core.Flow
         {
             Untold.Clear();
             Untold.AddRange(report.Lines.Concat(changes));
-            try { await TellCoreAsync(report, who, changes, ct).ConfigureAwait(false); }
+            try { await TellCoreAsync(report, who, changes, ct); }
             finally
             {
                 Log.AddRange(report.Lines);
@@ -945,7 +951,7 @@ namespace Tavern.Core.Flow
             var report = new TurnReport { Scene = E.Combat != null ? SceneKind.Combat : SceneKind.Explore };
             if (Untold.Count == 0) return report;
             report.Lines.AddRange(Untold);
-            await TellAsync(report, new List<(Adventurer, Declaration)>(), new List<string>(), ct).ConfigureAwait(false);
+            await TellAsync(report, new List<(Adventurer, Declaration)>(), new List<string>(), ct);
             return report;
         }
 
@@ -970,7 +976,7 @@ namespace Tavern.Core.Flow
             if (E.Hints.Due > 0) HintFor(t);
             var narrator = report.ClimaxStarted || report.Ending != null ? Highlight : Narrator;
             if (report.ClimaxStarted) t.Extra = "山場の始まり。ボスがいれば、その登場を迫力をもって。";
-            var told = await narrator.TellAsync(E, t, ct).ConfigureAwait(false);
+            var told = await narrator.TellAsync(E, t, ct);
             report.Calls += told.Calls;
             report.Narration = told.Text;
             foreach (var kv in told.Private) report.PrivateNarration[kv.Key] = kv.Value;
