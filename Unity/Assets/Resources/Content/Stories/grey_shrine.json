@@ -1,0 +1,182 @@
+{
+  "_note": "Docs/scenarios/grey_shrine.md written as a story sheet (Docs/09_Spec.md 9). Spoilers: friends playing this should not read it.",
+  "id": "grey_shrine",
+  "title": "灰色の森の祠",
+  "kind": "消えた者を捜す",
+  "length": "short",
+  "region": "greywood",
+  "darkness": "浅い",
+  "start": "tavern",
+  "advance": 0,
+  "intro": "ヘザー村の村長オズリックが、杖をついて眠る竜亭に入ってくる。「若者のトムとリナが、三日前に森へ薬草を摘みに行ったきり戻らない。どうか捜してくれ」。報酬は村の蓄え、銀貨 30 枚。",
+  "truth": "三日前、行商人が村の酒場で「森の祠の燭台は純金だ」と吹聴した。それを聞いたトムがリナを誘い、二人は祠へ行った。リナが祭壇の金の燭台を持ち上げた瞬間、祠を守る騎士バルドリックの亡骸が骨の騎士として目覚めた。リナは驚いて燭台を落とし、燭台は地下の水へ転がり落ちた。騎士は「灯を奪う者」として二人を地下牢に閉じ込め、燭台が二つそろうまで祠を守り続けている。地下牢には少しずつ水が上がってきていて、弱ったリナがあと一日もつかどうか。",
+  "goal": {
+    "text": "トムとリナを生きて村へ連れ帰る",
+    "when": [ { "person": "tom", "is": "with_party" }, { "person": "rina", "is": "with_party" } ]
+  },
+  "losses": [
+    { "id": "loss_tom", "text": "トムの命", "heavy": true, "when": { "person": "tom", "is": "dead" } },
+    { "id": "loss_rina", "text": "リナの命", "heavy": true, "when": { "person": "rina", "is": "dead" } },
+    { "id": "loss_sleep", "text": "騎士の眠り", "heavy": false,
+      "when": [ [ { "item": "candle_a", "heldBy": "party" } ], [ { "item": "candle_b", "heldBy": "party" } ] ] },
+    { "id": "loss_shrine", "text": "祠（崩れる）", "heavy": false,
+      "when": [ [ { "item": "candle_a", "heldBy": "party" } ], [ { "item": "candle_b", "heldBy": "party" } ] ] }
+  ],
+  "clocks": [
+    {
+      "id": "youths", "name": "若者たちの命", "secret": "地下牢の水位", "segments": 6, "speed": "every", "every": 8,
+      "onFullKinds": [ "NpcDies" ], "fullText": "リナが息絶える（★）",
+      "onFull": [ { "person": "rina", "state": "Dead", "text": "地下牢の水が胸まで上がり、弱りきったリナが息絶えた。" } ],
+      "rewinds": [ { "id": "sluice", "text": "回廊の古い水門を開ける", "amount": 2, "when": { "event": "sluice_opened" } } ]
+    },
+    {
+      "id": "anger", "name": "騎士の怒り", "secret": "守り手が森へ出る", "segments": 4, "speed": "every", "every": 8, "acts": [ 2, 3 ],
+      "onFullKinds": [ "EnemiesAppear" ], "fullText": "骨の騎士が一行のいる場所に現れる（山場が早まる）",
+      "onFull": [ { "climax": true, "text": "怒りに燃える骨の騎士が、一行の前に姿を現した。" } ],
+      "rewinds": [ { "id": "candle_back", "text": "燭台を 1 つでも祭壇に戻す", "amount": 2,
+        "when": [ [ { "item": "candle_a", "at": "altar" } ], [ { "item": "candle_b", "at": "altar" } ] ] } ],
+      "visible": [ [ { "event": "clue:c2_2" } ], [ { "event": "clue:c2_3" } ] ]
+    }
+  ],
+  "conclusions": [
+    { "id": "c1", "text": "若者たちは祠の地下にいる", "rewardClock": "youths", "clues": [ "c1_1", "c1_2", "c1_3" ] },
+    { "id": "c2", "text": "燭台を動かしたせいで、守り手が目覚めた", "rewardClock": "anger", "clues": [ "c2_1", "c2_2", "c2_3" ] },
+    { "id": "c3", "text": "燭台を二つとも祭壇に戻せば、騎士は眠る", "rewardClock": "anger", "clues": [ "c3_1", "c3_2", "c3_3" ] },
+    { "id": "c4", "text": "騎士は名を呼ばれると、剣を止める", "rewardClock": "youths", "clues": [ "c4_1", "c4_2", "c4_3" ] }
+  ],
+  "clues": [
+    { "id": "c1_1", "conclusion": "c1", "text": "二人は出かける前、祠の燭台の話で盛り上がっていた", "place": "village", "person": "helen",
+      "how": "リナの母ヘレンに話を聞く", "get": { "type": "request", "size": "Small" } },
+    { "id": "c1_2", "conclusion": "c1", "text": "三日前の夜、祠のほうから悲鳴と、鎧の擦れる音がした", "place": "elda_hut", "person": "elda",
+      "how": "エルダに話を聞く（普通の頼み）", "get": { "type": "request", "size": "Normal" } },
+    { "id": "c1_3", "conclusion": "c1", "text": "祠へ向かう獣道の枝に、リナの赤い髪紐が引っかかっている", "place": "forest_path",
+      "how": "周りを調べる", "get": { "type": "free" } },
+    { "id": "c2_1", "conclusion": "c2", "text": "祭壇の燭台が片方しかなく、台座から石段へ引きずった跡がある", "place": "altar",
+      "how": "祭壇を調べる", "get": { "type": "free" } },
+    { "id": "c2_2", "conclusion": "c2", "text": "碑文「守り手ここに眠る。灯を奪う者に、剣は目覚める」", "place": "shrine_front",
+      "how": "碑文を読む", "get": { "type": "check", "ability": "INT", "tier": "易しい" } },
+    { "id": "c2_3", "conclusion": "c2", "text": "トム「リナが燭台を持ち上げたら、棺の騎士が起き上がったんだ」", "place": "dungeon", "person": "tom",
+      "how": "トムに話を聞く", "get": { "type": "request", "size": "Small" } },
+    { "id": "c3_1", "conclusion": "c3", "text": "村の子どもの手まり歌「ふたつの灯がともるうち、灰の騎士はおやすみよ」", "place": "village", "person": "children",
+      "how": "子どもたちに声をかける（第 1 幕では歌として聞こえるだけ。伏線）", "get": { "type": "request", "size": "Small" } },
+    { "id": "c3_2", "conclusion": "c3", "text": "回廊の壁画: 二つの燭台のあいだで、目を閉じて眠る騎士", "place": "corridor",
+      "how": "壁を調べる", "get": { "type": "free" } },
+    { "id": "c3_3", "conclusion": "c3", "text": "水底に沈んだ、もう一つの金の燭台", "place": "corridor",
+      "how": "水の中を探る", "get": { "type": "check", "ability": "DEX", "tier": "普通" } },
+    { "id": "c4_1", "conclusion": "c4", "text": "崩れた騎士の像の台座: 「バルドリック」の名と、「主の呼ぶ声あらば剣を下ろす」という誓い", "place": "shrine_front",
+      "how": "像を調べる（苔を払えば読める）", "get": { "type": "check", "ability": "INT", "tier": "普通" } },
+    { "id": "c4_2", "conclusion": "c4", "text": "エルダの祖母の言い伝え「騎士さまは、呼ばれると主君の声だと思って振り向いたそうな」", "place": "elda_hut", "person": "elda",
+      "how": "エルダが友好以上なら話す", "get": { "type": "request", "size": "Normal" }, "requires": { "person": "elda", "attitude": "Friendly" } },
+    { "id": "c4_3", "conclusion": "c4", "text": "トム「リナが泣きながら何か叫んだら、騎士が一瞬だけ止まって振り返ったんだ」", "place": "dungeon", "person": "tom",
+      "how": "トムに騎士のことを聞く", "get": { "type": "request", "size": "Small" } }
+  ],
+  "fragments": [
+    "古い戦記の写本の一行「守り手バルドリック、主の声にのみ従う」。どこの誰のことかは書かれていない。",
+    "三日前、眠る竜亭で行商人が「どこかの森の祠の燭台は純金だ」と吹聴していた。熱心に聞いていた若者が二人いた。",
+    "古い地図の書き込み「灰色の森の水は、祠の下で地の底へ落ちる」。",
+    "ヘザー村の手まり歌には、昔は二番があったらしい。今は誰も歌わない。"
+  ],
+  "personalGoals": [
+    { "id": "pg_fortune", "text": "一生遊べる金を手にする（宝を持ち帰る）", "when": { "itemKind": "Treasure", "count": 1, "heldBy": "self" } },
+    { "id": "pg_tom", "text": "かつての弟分トムを、無事に連れ帰る", "when": { "person": "tom", "is": "with_party" } },
+    { "id": "pg_debt", "text": "恩人オズリックの頼みを果たす（二人とも連れ帰る）",
+      "when": [ { "person": "tom", "is": "with_party" }, { "person": "rina", "is": "with_party" } ] },
+    { "id": "pg_rest", "text": "祠の守り手を、安らかに眠らせる", "when": { "event": "knight_sleeps" } },
+    { "id": "pg_name", "text": "古い名の主が誰なのかを確かめる", "when": { "conviction": "c4" } }
+  ],
+  "places": [
+    { "id": "tavern", "name": "眠る竜亭", "art": "bg_tavern", "acts": [ 1 ], "shop": true,
+      "look": "拠点の酒場。炉端で老詩人が竪琴をつま弾く。", "links": [ "village" ] },
+    { "id": "village", "name": "ヘザー村の広場", "art": "bg_village", "acts": [ 1 ],
+      "look": "森の縁の小さな村。不安げな村人たち。泣いているリナの母。手まり歌を歌う子どもたち。", "links": [ "tavern", "forest_path" ] },
+    { "id": "forest_path", "name": "灰色の森の小道", "art": "bg_forest_path", "acts": [ 1 ],
+      "look": "霧と灰色の木々。遠くで狼の遠吠え。", "links": [ "village", "elda_hut", "shrine_front" ], "enemies": [ "wolf", "wolf" ] },
+    { "id": "elda_hut", "name": "猟師エルダの小屋", "art": "bg_hunter_hut", "acts": [ 1 ],
+      "look": "獣の皮が干された小屋。無口な猟師がいる。", "links": [ "forest_path" ] },
+    { "id": "shrine_front", "name": "森の祠の前", "art": "bg_shrine_front", "acts": [ 2 ],
+      "look": "苔むした石の祠。扉の脇に碑文と、崩れた騎士の像。", "links": [ "forest_path", "altar" ],
+      "traps": [ { "text": "扉に仕掛けられた毒矢", "ability": "DEX", "tier": "普通", "damage": 3, "status": "Poison" } ] },
+    { "id": "altar", "name": "祠の祭壇", "art": "bg_shrine_inside", "acts": [ 2 ],
+      "look": "埃をかぶった祭壇に金の燭台が一つ。裏に地下への石段。", "secret": "燭台を戻す場所。二つそろえて置くと、守り手は眠る。",
+      "links": [ "shrine_front", "corridor" ] },
+    { "id": "corridor", "name": "水没した回廊", "art": "bg_flooded_hall", "acts": [ 2 ], "tense": true,
+      "look": "膝まで黒い水。冷たい空気と、水音。", "secret": "古い水門がある。開ければ地下牢の水が引いていく。",
+      "links": [ "altar", "dungeon", "crypt" ], "enemies": [ "drowned", "skeleton" ] },
+    { "id": "dungeon", "name": "地下牢", "art": "bg_prison", "acts": [ 2 ],
+      "look": "錆びた鉄格子の向こうに、震えるトムと、ぐったりしたリナ。", "secret": "鍵は骨の兵士が持っている。錠前は手先でも開けられる。",
+      "links": [ "corridor" ] },
+    { "id": "crypt", "name": "騎士の玄室", "art": "bg_crypt", "acts": [ 3 ],
+      "look": "緑の炎が揺れる。空の石棺の前に、骨の騎士が立つ。", "secret": "石棺の脇に副葬品（銀の指輪と宝石の短剣）。",
+      "links": [ "corridor" ], "enemies": [ "skeleton" ] }
+  ],
+  "mechanisms": [
+    { "id": "sluice", "name": "古い水門", "place": "corridor", "ability": "STR", "tier": "普通", "event": "sluice_opened", "uses": 1 },
+    { "id": "cell_lock", "name": "地下牢の錠前", "place": "dungeon", "ability": "DEX", "tier": "普通", "event": "cell_open", "uses": 1 }
+  ],
+  "items": [
+    { "id": "candle_a", "name": "金の燭台", "kind": "Treasure", "at": "altar", "note": "祭壇に残っている方" },
+    { "id": "candle_b", "name": "金の燭台", "kind": "Treasure", "at": "corridor", "note": "水底に沈んでいる方" },
+    { "id": "cell_key", "name": "地下牢の鍵", "kind": "Tool", "at": "enemy:skeleton", "note": "回廊の骨の兵士が腰に下げている" },
+    { "id": "grave_ring", "name": "銀の指輪", "kind": "Treasure", "at": "crypt", "note": "副葬品" },
+    { "id": "grave_dagger", "name": "宝石の短剣", "kind": "Treasure", "at": "crypt", "note": "副葬品" }
+  ],
+  "people": [
+    { "id": "elder", "name": "村長オズリック", "portrait": "pt_elder", "at": "village", "role": "依頼人", "attitude": "Friendly",
+      "voice": "穏やかで、少し言葉が多い老人", "wants": "若者の無事", "fears": "森の祠",
+      "secret": "若いころ、自分も燭台に手を出しかけてエルダの祖母に止められた", "lie": "祠のことを聞かれても濁す",
+      "joins": "Never", "joinNote": "足が悪い", "build": "Weak" },
+    { "id": "elda", "name": "猟師エルダ", "portrait": "pt_hunter", "at": "elda_hut", "role": "森を知る猟師", "attitude": "Wary",
+      "voice": "無口でぶっきらぼう。よそ者嫌い", "wants": "森の静けさ", "fears": "祠に近づくこと",
+      "clues": [ "c1_2", "c4_2" ], "joins": "Conditional", "joinWhen": { "person": "elda", "attitude": "Friendly" },
+      "joinNote": "祠の前まで案内する。祠の中には入らない", "build": "Normal", "combatRole": "Attack" },
+    { "id": "helen", "name": "リナの母ヘレン", "portrait": "pt_villager_woman", "at": "village", "role": "若者の母", "attitude": "Friendly",
+      "voice": "泣き腫らした目で、すがるように話す", "wants": "娘が帰ること", "fears": "娘を失うこと",
+      "clues": [ "c1_1" ], "joins": "Never", "build": "Weak" },
+    { "id": "children", "name": "村の子どもたち", "portrait": "pt_child", "at": "village", "role": "手まり歌を歌う子どもたち", "attitude": "Friendly",
+      "voice": "無邪気。大人の心配をよそに歌っている", "wants": "遊ぶこと", "fears": "森の狼",
+      "clues": [ "c3_1" ], "joins": "Never", "build": "Weak" },
+    { "id": "tom", "name": "若者トム", "portrait": "pt_youth", "at": "dungeon", "role": "行方不明の若者", "attitude": "Friendly",
+      "voice": "怯えているが、リナを守ろうと気を張っている", "wants": "リナを守る", "fears": "騎士",
+      "secret": "燭台の話を持ち込んだのは自分", "lie": "リナのせいにはしないが、自分の言い出しは隠す",
+      "clues": [ "c2_3", "c4_3" ], "joins": "Glad", "escort": true, "joinNote": "脱出のときに付いてくる", "build": "Weak" },
+    { "id": "rina", "name": "若者リナ", "portrait": "pt_youth_girl", "at": "dungeon", "role": "行方不明の若者", "attitude": "Friendly",
+      "voice": "弱っていてほとんど話せない", "wants": "家に帰る", "fears": "水",
+      "joins": "Glad", "escort": true, "joinNote": "背負われて", "build": "Weak" },
+    { "id": "baldric", "name": "骨の騎士バルドリック", "portrait": "", "at": "crypt", "role": "祠の守り手（ボス）", "attitude": "Hostile",
+      "voice": "言葉はない。鎧の軋みと、剣の音", "wants": "祠を守る", "fears": "灯が失われること",
+      "enemy": "boneknight", "build": "Strong" }
+  ],
+  "acts": [
+    { "n": 1, "title": "依頼と森の小道", "goal": "村で話を聞き、祠への道を見つける",
+      "advance": [ [ { "conviction": "c1" } ], [ { "place": "shrine_front", "who": "any" } ] ] },
+    { "n": 2, "title": "祠と水没した回廊", "goal": "祠の謎を解き、地下へ下りて若者たちを見つける",
+      "advance": [ [ { "place": "dungeon", "who": "any" } ] ] },
+    { "n": 3, "title": "騎士の玄室", "goal": "骨の騎士と向き合い、若者たちを連れ帰る" }
+  ],
+  "climax": {
+    "text": "地下から祭壇への脱出。若者を牢から出すか、玄室に入ると、骨の騎士が現れる。",
+    "starts": [ [ { "event": "cell_open" } ], [ { "person": "tom", "is": "with_party" } ], [ { "place": "crypt", "who": "any" } ] ],
+    "onStart": [
+      { "person": "baldric", "moveTo": "party", "text": "緑の炎をまとった骨の騎士が、剣を引きずって現れる。" },
+      { "enemies": [ "skeleton" ], "at": "party" }
+    ],
+    "solutions": [
+      { "id": "defeat", "text": "倒す: 骨の騎士と骨の兵士との戦いに勝つ",
+        "when": [ [ { "person": "baldric", "is": "down" } ], [ { "person": "baldric", "is": "dead" } ] ] },
+      { "id": "sleep", "text": "眠らせる: 燭台を二つとも祭壇に戻す",
+        "when": [ { "item": "candle_a", "at": "altar" }, { "item": "candle_b", "at": "altar" } ],
+        "then": [ { "event": "knight_sleeps" },
+                  { "person": "baldric", "state": "Asleep", "text": "騎士は剣を下ろし、一礼して棺へ還っていった。" } ] },
+      { "id": "escape", "text": "逃げ切る: 若者を連れて祠の外へ出る（守り手は祠の外までは追ってこない）",
+        "when": [ { "place": "shrine_front" }, { "person": "tom", "is": "with_party" }, { "person": "rina", "is": "with_party" } ],
+        "then": [ { "person": "baldric", "state": "Retreated", "text": "骨の騎士は祠の入口で足を止め、闇の奥へ戻っていった。" } ] }
+    ]
+  },
+  "choice": "金の燭台は二つとも純金で、売れば一生遊べる。戻せば騎士は眠るが、宝は手に入らない。持ち帰れば、騎士は眠らず、祠は崩れる。",
+  "hooks": [ { "place": "shrine_front", "role": "祠の前の先客（前の晩に逃がした敵が、燭台の噂を聞きつけて先に来ている。いなければ置かない）" } ],
+  "endings": {
+    "success": "トムとリナを連れ帰り、誰も失わなかった。燭台を戻していれば、騎士は眠り、村の手まり歌に二番が戻った。",
+    "bitter": "二人を連れ帰ったが、重いもの（リナ、トム、仲間）を失った。",
+    "failure": "二人を連れ帰れなかった。"
+  }
+}

@@ -130,7 +130,7 @@ namespace Tavern.Core.Play
         // ---- conditions ----
 
         /// <summary>True when every condition holds (an empty list holds).</summary>
-        public bool All(IEnumerable<Condition> conditions) => conditions.All(c => c.Holds(this));
+        public bool All(IEnumerable<Condition> conditions, string self = "") => conditions.All(c => c.Holds(this, self));
     }
 
     public enum ConditionType { Person, Item, Place, Event, Clock, Conviction }
@@ -138,8 +138,9 @@ namespace Tavern.Core.Play
     /// <summary>
     /// One condition of a story sheet (09_Spec 9, six types; a list means "all of them").
     /// Person: Is = alive / down / asleep / retreated / dead / with_party / at / attitude (Value = place or attitude).
-    /// Item: At = a place, or HeldBy = party / an adventurer id / an NPC id; or Kind + Count held by the party.
-    /// Place: Target place, Who = party (all of them) / any.
+    /// Item: At = a place, or HeldBy = party / self / an adventurer id / an NPC id; or Kind + Count held by the party (or by Value).
+    /// Place: Id = the place; the whole party (Is empty), anyone (Is = any), or one adventurer (Value = self or an id).
+    /// The game also raises events by itself: "clue:{id}" when a clue is found, "visited:{place}", "climax", "boss_defeated".
     /// Event: Id. Clock: Id with Is = full / not_full / at_least (Count). Conviction: Id.
     /// </summary>
     public sealed class Condition
@@ -152,9 +153,10 @@ namespace Tavern.Core.Play
         public ItemKind? Kind { get; set; }
         public bool Not { get; set; }
 
-        public bool Holds(World w) => Not ^ Test(w);
+        /// <summary>self: the adventurer a personal goal belongs to ("self" in the sheet).</summary>
+        public bool Holds(World w, string self = "") => Not ^ Test(w, self);
 
-        bool Test(World w)
+        bool Test(World w, string self)
         {
             switch (Type)
             {
@@ -168,15 +170,19 @@ namespace Tavern.Core.Play
                 }
                 case ConditionType.Place:
                 {
+                    var who = Value == "self" ? self : Value;
+                    if (who.Length > 0) return w.PartyAt.TryGetValue(who, out var at) && at == Id;
                     var here = w.PartyAt.Values.ToList();
                     if (here.Count == 0) return false;
                     return Is == "any" ? here.Contains(Id) : here.All(p => p == Id);
                 }
                 case ConditionType.Item:
                 {
+                    var holder = Value == "self" ? self : Value;
                     if (Kind != null)
                     {
-                        var held = w.ItemAt.Count(kv => kv.Value.StartsWith("pc:") && w.ItemKinds.TryGetValue(kv.Key, out var k) && k == Kind);
+                        var prefix = holder.Length > 0 && holder != "party" ? World.Pc(holder) : "pc:";
+                        var held = w.ItemAt.Count(kv => kv.Value.StartsWith(prefix) && w.ItemKinds.TryGetValue(kv.Key, out var k) && k == Kind);
                         return held >= Math.Max(1, Count);
                     }
                     var where = w.WhereIs(Id);
@@ -184,7 +190,7 @@ namespace Tavern.Core.Play
                     return Is switch
                     {
                         "at" => where == Value,
-                        "held_by" => Value == "party" ? where.StartsWith("pc:") : where == World.Pc(Value) || where == World.NpcHolder(Value),
+                        "held_by" => holder == "party" ? where.StartsWith("pc:") : where == World.Pc(holder) || where == World.NpcHolder(holder),
                         "gone" => where == "gone",
                         _ => where == Value,
                     };

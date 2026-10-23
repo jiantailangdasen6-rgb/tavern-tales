@@ -167,6 +167,8 @@ namespace Tavern.Core.Play
         /// <summary>With the party as a companion.</summary>
         public bool WithParty { get; set; }
         public bool Extra { get; set; }
+        /// <summary>Escorted (rescued people): goes with the party without fighting, and is not counted as a companion.</summary>
+        public bool Escort { get; set; }
         /// <summary>生きている / 倒れた / 眠った / 退いた (also enemies and creatures in conditions).</summary>
         public PersonState State { get; set; } = PersonState.Alive;
         /// <summary>Got a gift tonight (+1 only once).</summary>
@@ -197,7 +199,7 @@ namespace Tavern.Core.Play
     {
         public List<Npc> People { get; } = new List<Npc>();
         public Npc? Find(string id) => People.FirstOrDefault(p => p.Id == id);
-        public IEnumerable<Npc> Companions => People.Where(p => p.WithParty && p.State == PersonState.Alive);
+        public IEnumerable<Npc> Companions => People.Where(p => p.WithParty && !p.Escort && p.State == PersonState.Alive);
         public int ExtrasAdded => People.Count(p => p.Extra);
 
         /// <summary>Whether another companion may join (the limit by party size).</summary>
@@ -212,7 +214,7 @@ namespace Tavern.Core.Play
             var p = Find(id);
             if (p == null || p.WithParty || p.State != PersonState.Alive) return false;
             if (p.Joins == JoinWillingness.Never || (p.Joins == JoinWillingness.Conditional && !conditionMet)) return false;
-            if (!RoomForCompanion(partySize)) return false;
+            if (!p.Escort && !RoomForCompanion(partySize)) return false;
             p.WithParty = true;
             return true;
         }
