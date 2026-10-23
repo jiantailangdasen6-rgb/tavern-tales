@@ -34,7 +34,7 @@
       "onFullKinds": [ "EnemiesAppear" ], "fullText": "骨の騎士が一行のいる場所に現れる（山場が早まる）",
       "onFull": [ { "climax": true, "text": "怒りに燃える骨の騎士が、一行の前に姿を現した。" } ],
       "rewinds": [ { "id": "candle_back", "text": "燭台を 1 つでも祭壇に戻す", "amount": 2,
-        "when": [ [ { "item": "candle_a", "at": "altar" } ], [ { "item": "candle_b", "at": "altar" } ] ] } ],
+        "when": { "item": "candle_b", "at": "altar" } } ],
       "visible": [ [ { "event": "clue:c2_2" } ], [ { "event": "clue:c2_3" } ] ]
     }
   ],

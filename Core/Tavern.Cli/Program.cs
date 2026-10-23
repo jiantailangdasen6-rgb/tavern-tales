@@ -21,6 +21,7 @@ string? Opt(string n) { int i = a.IndexOf(n); return i >= 0 && i + 1 < a.Count ?
 var root = FindRoot();
 var contentDir = Path.Combine(root, "Unity", "Assets", "Resources", "Content");
 if (a.Contains("--check-stories")) Environment.Exit(CheckStories(contentDir, Opt("--check-stories")));
+if (a.Contains("--bench")) Environment.Exit(await Bench.RunAsync(contentDir, a, Opt));
 var db = ContentDb.LoadFolder(contentDir);
 ScenarioDef scenario = ContentDb.LoadScenario(File.ReadAllText(Path.Combine(contentDir, "Scenarios", (Opt("--scenario") ?? "grey_shrine") + ".json")));   // --scenario castle_lights etc.
 

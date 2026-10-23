@@ -1,0 +1,107 @@
+#nullable enable
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Tavern.Core.Play;
+using Tavern.Core.Story;
+
+namespace Tavern.Core.Ai
+{
+    /// <summary>
+    /// One evening in progress: the story sheet, the world built from it, the party, and what the AI is reminded of every call
+    /// (facts, rumours). The turn flow (stage 4) runs on this; the AI calls read it through SceneText.
+    /// </summary>
+    public sealed class Evening
+    {
+        public StoryDef Story { get; }
+        public World World { get; } = new World();
+        public List<Adventurer> Party { get; } = new List<Adventurer>();
+        public Dictionary<string, Mechanism> Mechanisms { get; } = new Dictionary<string, Mechanism>();
+        /// <summary>事実メモ: facts settled tonight (fate dice, small additions); never contradicted.</summary>
+        public List<string> Facts { get; } = new List<string>();
+        /// <summary>Rumours of the last three evenings.</summary>
+        public List<string> Rumors { get; } = new List<string>();
+        public Difficulty Difficulty { get; set; } = Difficulty.Standard;
+        public int Turn { get; set; }
+        public bool ClimaxStarted { get; set; }
+        public Tension Tension { get; } = new Tension();
+        public Hints Hints { get; } = new Hints();
+        /// <summary>The last sentence of each of the last three narrations (the narrator avoids ending the same way).</summary>
+        public List<string> LastEndings { get; } = new List<string>();
+        /// <summary>The first evening of these players: the narrator slips in how to play.</summary>
+        public bool FirstEvening { get; set; }
+        /// <summary>The fight in progress, if any.</summary>
+        public Combat? Combat { get; set; }
+
+        public Evening(StoryDef story) { Story = story; }
+
+        /// <summary>Builds tonight's world from the sheet: everyone at the start, people and items in place, clocks set.</summary>
+        public static Evening Begin(StoryDef story, IEnumerable<Adventurer> party, Difficulty difficulty)
+        {
+            var e = new Evening(story) { Difficulty = difficulty };
+            foreach (var a in party)
+            {
+                a.StartEvening(difficulty, story.Advance);
+                e.Party.Add(a);
+                e.World.Move(a.Id, story.Start);
+            }
+            e.World.Events.Add("visited:" + story.Start);
+            foreach (var p in story.Places) e.World.Links[p.Id] = p.Links.Select(l => l.To).ToList();
+            foreach (var p in story.People)
+                e.World.Cast.People.Add(new Npc
+                {
+                    Id = p.Id, Name = p.Name, Portrait = p.Portrait, Location = p.At, Attitude = p.Attitude, Build = p.Build,
+                    Role = p.CombatRole, Joins = p.Joins, Escort = p.Escort,
+                });
+            foreach (var i in story.Items)
+            {
+                e.World.PutItem(i.Item.Id, i.At.StartsWith("npc:") ? World.NpcHolder(i.At.Substring(4)) : i.At);
+                e.World.ItemKinds[i.Item.Id] = i.Item.Kind;
+            }
+            foreach (var c in story.Clocks) e.World.Clocks.All.Add(new Clock(c.Def) { Visible = c.Visible.IsEmpty });
+            foreach (var m in story.Mechanisms) e.Mechanisms[m.Id] = new Mechanism(m);
+            return e;
+        }
+
+        public Adventurer? Find(string id) => Party.FirstOrDefault(a => a.Id == id);
+        public string PlaceOf(Adventurer a) => World.PartyAt.TryGetValue(a.Id, out var p) ? p : Story.Start;
+        public IEnumerable<Adventurer> At(string place) => Party.Where(a => PlaceOf(a) == place && a.Life != Life.Dead && !a.Withdrawn);
+        public IEnumerable<Npc> PeopleAt(string place) =>
+            World.Cast.People.Where(p => p.State != PersonState.Dead && (p.Location == place || (p.WithParty && At(place).Any())));
+        public IEnumerable<StoryItem> ItemsAt(string place) => Story.Items.Where(i => World.WhereIs(i.Item.Id) == place);
+        public IEnumerable<MechanismDef> MechanismsAt(string place) => Story.Mechanisms.Where(m => m.Place == place && !Mechanisms[m.Id].Spent);
+
+        /// <summary>Clues that can be found here now: in this place (or with a person here), not yet known to the party, conditions met.</summary>
+        public IEnumerable<Clue> CluesHere(string place) =>
+            Story.Clues.Where(c =>
+                (c.Person.Length > 0 ? PeopleAt(place).Any(p => p.Id == c.Person) : c.Place == place)
+                && !(World.Clues.TryGetValue(c.Id, out var who) && who.Contains(World.Shown))
+                && (c.Acts.Count == 0 || c.Acts.Contains(World.Act))
+                && c.Requires.Holds(World));
+
+        /// <summary>The ways out of a place and whether each is open.</summary>
+        public IEnumerable<(Link link, bool open)> Ways(string place) =>
+            (Story.PlaceOf(place)?.Links ?? new List<Link>()).Select(l => (l, l.Open.Holds(World)));
+
+        /// <summary>Clocks that became visible since the last look (their condition now holds).</summary>
+        public List<Clock> RevealClocks()
+        {
+            var shown = new List<Clock>();
+            foreach (var sc in Story.Clocks)
+            {
+                var c = World.Clocks.Find(sc.Def.Id)!;
+                if (!c.Visible && sc.Visible.Holds(World)) { c.Visible = true; shown.Add(c); }
+            }
+            return shown;
+        }
+
+        /// <summary>Remembers the last sentence of a narration (three kept).</summary>
+        public void NoteEnding(string narration)
+        {
+            var sentences = narration.Split(new[] { '。', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+            if (sentences.Count == 0) return;
+            LastEndings.Add(sentences[sentences.Count - 1] + "。");
+            while (LastEndings.Count > 3) LastEndings.RemoveAt(0);
+        }
+    }
+}

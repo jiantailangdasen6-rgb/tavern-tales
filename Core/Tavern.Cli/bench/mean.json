@@ -1,0 +1,193 @@
+{
+  "_note": "意地悪な台本 (Docs/10_Plan.md stage 3). Party: gareth 戦士 / elis 魔法使い / rocco 盗賊 / mina 僧侶. Expectations list acceptable values; a case passes when every listed field matches.",
+  "cases": [
+    { "id": "look_around", "at": "village",
+      "declare": [ { "who": "gareth", "text": "広場を見回して、様子をうかがう" } ],
+      "expect": [ { "who": "gareth", "step": 0, "sort": "auto" } ] },
+
+    { "id": "talk_helen", "at": "village",
+      "declare": [ { "who": "mina", "text": "泣いているリナの母に優しく声をかけ、娘さんが出かける前に何を話していたか聞く" } ],
+      "expect": [ { "who": "mina", "step": 0, "person": "helen", "clue": "c1_1", "request": [ "small", "normal" ], "approach": [ "ask", "persuade" ] } ] },
+
+    { "id": "walk_to_forest", "at": "village",
+      "declare": [ { "who": "rocco", "text": "森の小道へ向かう" } ],
+      "expect": [ { "who": "rocco", "step": 0, "sort": "auto", "move_to": "forest_path" } ] },
+
+    { "id": "free_clue_hairband", "at": "forest_path",
+      "declare": [ { "who": "rocco", "text": "獣道の周りを丹念に調べる" } ],
+      "expect": [ { "who": "rocco", "step": 0, "clue": "c1_3", "sort": [ "auto", "check" ] } ] },
+
+    { "id": "inscription", "at": "shrine_front", "act": 2,
+      "declare": [ { "who": "elis", "text": "扉の脇の碑文を読む" } ],
+      "expect": [ { "who": "elis", "step": 0, "clue": "c2_2", "sort": "check", "ability": [ "INT" ], "tier": [ "easy" ] } ] },
+
+    { "id": "statue_moss", "at": "shrine_front", "act": 2,
+      "declare": [ { "who": "mina", "text": "崩れた騎士の像の苔を払って、台座の文字を読む" } ],
+      "expect": [ { "who": "mina", "step": 0, "clue": "c4_1", "sort": "check", "ability": [ "INT" ], "tier": [ "normal" ] } ] },
+
+    { "id": "trap_door", "at": "shrine_front", "act": 2,
+      "declare": [ { "who": "rocco", "text": "扉に罠がないか調べ、あれば外す" } ],
+      "expect": [ { "who": "rocco", "sort": "check", "ability": [ "DEX" ], "tier": [ "normal" ] } ] },
+
+    { "id": "sluice_gate", "at": "corridor", "act": 2,
+      "declare": [ { "who": "gareth", "text": "回廊の古い水門の輪を力ずくで回して開ける" } ],
+      "expect": [ { "who": "gareth", "step": 0, "sort": "check", "mechanism": "sluice", "ability": [ "STR" ] } ] },
+
+    { "id": "pick_cell_lock", "at": "dungeon", "act": 2,
+      "declare": [ { "who": "rocco", "text": "地下牢の錠前を針金でこじ開ける" } ],
+      "expect": [ { "who": "rocco", "step": 0, "sort": "check", "mechanism": "cell_lock", "ability": [ "DEX" ] } ] },
+
+    { "id": "dive_candle", "at": "corridor", "act": 2,
+      "declare": [ { "who": "rocco", "text": "黒い水に手を入れて、水底を探る" } ],
+      "expect": [ { "who": "rocco", "step": 0, "clue": "c3_3", "sort": "check", "ability": [ "DEX" ] } ] },
+
+    { "id": "resurrect", "at": "village",
+      "declare": [ { "who": "mina", "text": "祈りで死者を生き返らせる" } ],
+      "expect": [ { "who": "mina", "step": 0, "sort": "impossible", "why": "world_rule", "rule": [ 1 ] } ] },
+
+    { "id": "teleport", "at": "village",
+      "declare": [ { "who": "elis", "text": "転移の呪文で、一瞬で祠の地下牢へ飛ぶ" } ],
+      "expect": [ { "who": "elis", "step": 0, "sort": "impossible", "why": "world_rule", "rule": [ 3 ] } ] },
+
+    { "id": "thief_spell", "at": "forest_path",
+      "declare": [ { "who": "rocco", "text": "火の玉の呪文を唱えて狼を焼く" } ],
+      "expect": [ { "who": "rocco", "step": 0, "sort": "impossible", "why": "lacking" } ] },
+
+    { "id": "gun", "at": "forest_path",
+      "declare": [ { "who": "gareth", "text": "懐の拳銃を抜いて狼を撃つ" } ],
+      "expect": [ { "who": "gareth", "step": 0, "sort": "impossible", "why": [ "world_rule", "lacking" ] } ] },
+
+    { "id": "bound_situation", "at": "elda_hut", "setup": { "statuses": { "gareth": "Bound" } },
+      "declare": [ { "who": "gareth", "text": "剣を抜いて斬りかかる" } ],
+      "expect": [ { "who": "gareth", "step": 0, "sort": "impossible", "why": "situation", "how": true } ] },
+
+    { "id": "crazy_but_possible", "at": "forest_path",
+      "declare": [ { "who": "gareth", "text": "樹齢数百年の大木を素手で引き抜いて、橋代わりにする" } ],
+      "expect": [ { "who": "gareth", "step": 0, "sort": "check", "ability": [ "STR" ], "tier": [ "hard", "extreme" ] } ] },
+
+    { "id": "fate_window", "at": "elda_hut",
+      "declare": [ { "who": "rocco", "text": "この小屋に裏口はあるか？" } ],
+      "expect": [ { "who": "rocco", "step": 0, "sort": "fate" } ] },
+
+    { "id": "fate_uncle", "at": "village",
+      "declare": [ { "who": "gareth", "text": "この村には昔世話になった叔父が住んでいるはずだ。家を訪ねる" } ],
+      "expect": [ { "who": "gareth", "step": 0, "sort": "fate" } ] },
+
+    { "id": "fate_secret_blocked", "at": "village",
+      "declare": [ { "who": "elis", "text": "運命に問う: 若者たちはいま生きているのか？" } ],
+      "expect": [ { "who": "elis", "step": 0, "sort": [ "impossible" ], "why": [ "world_rule" ], "rule": [ 5 ] } ] },
+
+    { "id": "persuade_elda", "at": "elda_hut",
+      "declare": [ { "who": "mina", "text": "エルダに神殿の者だと名乗り、若者を救うために森の様子を教えてほしいと誠実に頼む" } ],
+      "expect": [ { "who": "mina", "step": 0, "person": "elda", "approach": [ "ask", "persuade" ], "ability": [ "MND" ], "clue": [ "c1_2", "" ] } ] },
+
+    { "id": "threaten_elda", "at": "elda_hut",
+      "declare": [ { "who": "gareth", "text": "剣の柄に手をかけてエルダを睨み、知っていることを吐けと脅す" } ],
+      "expect": [ { "who": "gareth", "step": 0, "person": "elda", "approach": "threaten", "ability": [ "STR" ] } ] },
+
+    { "id": "bribe_elda", "at": "elda_hut",
+      "declare": [ { "who": "rocco", "text": "銀貨を 5 枚握らせて、三日前の夜のことを聞き出す" } ],
+      "expect": [ { "who": "rocco", "person": "elda", "pay": [ 5 ], "clue": [ "c1_2", "" ] } ] },
+
+    { "id": "elda_join", "at": "elda_hut", "setup": { "attitudes": { "elda": "Friendly" } },
+      "declare": [ { "who": "mina", "text": "エルダに、祠まで道案内として一緒に来てほしいと頼む" } ],
+      "expect": [ { "who": "mina", "step": 0, "person": "elda", "request": [ "large", "normal" ] } ] },
+
+    { "id": "give_candle", "at": "village", "setup": { "items": { "candle_a": "pc:rocco" } },
+      "declare": [ { "who": "rocco", "text": "金の燭台を村長オズリックに渡す" } ],
+      "expect": [ { "who": "rocco", "step": 0, "sort": "auto", "item": "candle_a", "give_to": "elder" } ] },
+
+    { "id": "place_candle", "at": "altar", "act": 3, "setup": { "items": { "candle_b": "pc:gareth" } },
+      "declare": [ { "who": "gareth", "text": "水底から拾った燭台を、祭壇のもう片方の台座に置く" } ],
+      "expect": [ { "who": "gareth", "step": 0, "item": "candle_b", "place_at": "altar" } ] },
+
+    { "id": "take_candle", "at": "altar", "act": 2,
+      "declare": [ { "who": "rocco", "text": "祭壇の金の燭台を懐に入れる" } ],
+      "expect": [ { "who": "rocco", "step": 0, "item": "candle_a", "take": true } ] },
+
+    { "id": "contest_candle", "at": "altar", "act": 2,
+      "declare": [ { "who": "rocco", "text": "祭壇の金の燭台をつかんで懐に入れる" }, { "who": "mina", "text": "祭壇の燭台を先に押さえて、誰にも持たせない" } ],
+      "expect": [ { "who": "rocco", "item": "candle_a" }, { "who": "mina", "item": "candle_a" } ] },
+
+    { "id": "steal_from_ally", "at": "village", "setup": { "items": { "candle_a": "pc:gareth" } },
+      "declare": [ { "who": "rocco", "text": "ガレスの荷物から、こっそり金の燭台を抜き取る" } ],
+      "expect": [ { "who": "rocco", "step": 0, "against": "gareth", "item": "candle_a", "sort": "check", "ability": [ "DEX" ] } ] },
+
+    { "id": "secret_pocket", "at": "crypt", "act": 3,
+      "declare": [ { "who": "rocco", "text": "皆が騎士に気を取られている隙に、副葬品の指輪をくすねる", "secret": true } ],
+      "expect": [ { "who": "rocco", "step": 0, "item": "grave_ring", "cover": true } ] },
+
+    { "id": "deduce_right", "at": "shrine_front", "act": 2, "setup": { "clues": [ "c2_1", "c2_2" ] },
+      "declare": [ { "who": "elis", "text": "「燭台が動かされたから、守り手が目覚めたんだわ」と仲間に話す" } ],
+      "expect": [ { "who": "elis", "step": 0, "conclusion": "c2", "correct": true, "sort": "auto" } ] },
+
+    { "id": "deduce_wrong", "at": "village",
+      "declare": [ { "who": "gareth", "text": "「村長が若者たちを隠しているに違いない」と村長に詰め寄る" } ],
+      "expect": [ { "who": "gareth", "correct": false } ] },
+
+    { "id": "deduce_name", "at": "dungeon", "act": 2, "setup": { "clues": [ "c4_1", "c4_3" ] },
+      "declare": [ { "who": "mina", "text": "「騎士は名前を呼べば剣を止めるはず。バルドリックと呼びかけよう」と皆に告げる" } ],
+      "expect": [ { "who": "mina", "conclusion": "c4", "correct": true } ] },
+
+    { "id": "three_actions", "at": "corridor", "act": 2,
+      "declare": [ { "who": "rocco", "text": "壁の絵を調べ、水底を探り、そのまま水門を開けにいく" } ],
+      "expect": [ { "who": "rocco", "deferred": true } ] },
+
+    { "id": "named_new", "at": "corridor", "act": 2, "combat": true, "foes": [ "skeleton" ],
+      "declare": [ { "who": "rocco", "text": "【柱蹴りの一閃】柱を蹴って跳び、骨の兵士の首を狙う" } ],
+      "expect": [ { "who": "rocco", "step": 0, "technique": "柱蹴りの一閃", "effect": [ "strike" ], "sort": "check" } ] },
+
+    { "id": "named_known", "at": "corridor", "act": 2, "combat": true, "foes": [ "skeleton" ],
+      "setup": { "techniques": { "rocco": "柱蹴りの一閃" } },
+      "declare": [ { "who": "rocco", "text": "【柱蹴りの一閃】をもう一度" } ],
+      "expect": [ { "who": "rocco", "step": 0, "technique": "柱蹴りの一閃", "sort": "check" } ] },
+
+    { "id": "combat_attack", "at": "forest_path", "combat": true, "foes": [ "wolf", "wolf" ],
+      "declare": [ { "who": "gareth", "text": "剣で狼に斬りかかる" } ],
+      "expect": [ { "who": "gareth", "step": 0, "sort": "check", "ability": [ "STR" ], "steps": 1 } ] },
+
+    { "id": "combat_heal", "at": "forest_path", "combat": true, "foes": [ "wolf" ],
+      "declare": [ { "who": "mina", "text": "祈りを捧げて、噛まれたガレスの傷をふさぐ" } ],
+      "expect": [ { "who": "mina", "step": 0, "effect": "heal", "target": "gareth" } ] },
+
+    { "id": "combat_sweep", "at": "forest_path", "combat": true, "foes": [ "wolf", "wolf" ],
+      "declare": [ { "who": "elis", "text": "炎の渦を呼んで、狼の群れをまとめて焼き払う" } ],
+      "expect": [ { "who": "elis", "step": 0, "effect": "sweep", "ability": [ "INT" ] } ] },
+
+    { "id": "combat_two_checks", "at": "forest_path", "combat": true, "foes": [ "wolf", "wolf" ],
+      "declare": [ { "who": "gareth", "text": "一匹目の狼を斬り、返す刀で二匹目も斬る" } ],
+      "expect": [ { "who": "gareth", "checks": 1 } ] },
+
+    { "id": "start_fight", "at": "forest_path",
+      "declare": [ { "who": "gareth", "text": "茂みの狼に気付かれる前に、剣を抜いて飛びかかる" } ],
+      "expect": [ { "who": "gareth", "fight": true } ] },
+
+    { "id": "help_ally", "at": "dungeon", "act": 2,
+      "declare": [ { "who": "rocco", "text": "牢の錠前を針金で開ける" }, { "who": "elis", "text": "ロッコの手元を灯りで照らして手伝う" } ],
+      "expect": [ { "who": "elis", "step": 0, "helps": "rocco" }, { "who": "rocco", "mechanism": "cell_lock" } ] },
+
+    { "id": "unexpected_climax", "at": "crypt", "act": 3, "setup": { "climax": true },
+      "declare": [ { "who": "elis", "text": "玄室の天井を崩して、骨の騎士を瓦礫の下に生き埋めにする" } ],
+      "expect": [ { "who": "elis", "step": 0, "unexpected": true, "tier": [ "extreme" ] } ] },
+
+    { "id": "place_rule", "at": "corridor", "act": 2, "setup": { "rules": { "corridor": "水音を立てると、奥の騎士の怒りが増す" } },
+      "declare": [ { "who": "gareth", "text": "大声で若者たちの名を呼びながら、水をはね上げて駆けていく" } ],
+      "expect": [ { "who": "gareth", "place_rule": true } ] },
+
+    { "id": "buy_potion", "at": "tavern",
+      "declare": [ { "who": "mina", "text": "酒場の主人から回復の薬を 1 つ買う" } ],
+      "expect": [ { "who": "mina", "step": 0, "sort": "auto", "buy": "potion" } ] },
+
+    { "id": "rest", "at": "elda_hut", "setup": { "attitudes": { "elda": "Friendly" } },
+      "declare": [ { "who": "gareth", "text": "小屋の隅で腰を下ろして、しばらく休む" } ],
+      "expect": [ { "who": "gareth", "rest": true } ] },
+
+    { "id": "all_four", "at": "village",
+      "declare": [
+        { "who": "gareth", "text": "村長に依頼の詳しい話を聞く" },
+        { "who": "elis", "text": "子どもたちの歌に耳を傾ける" },
+        { "who": "rocco", "text": "村の酒場で行商人の噂を探る" },
+        { "who": "mina", "text": "リナの母を慰める" } ],
+      "expect": [ { "who": "gareth", "person": "elder" }, { "who": "elis", "person": [ "children", "" ], "clue": [ "c3_1", "" ] }, { "who": "rocco" }, { "who": "mina", "person": "helen" } ] }
+  ]
+}
