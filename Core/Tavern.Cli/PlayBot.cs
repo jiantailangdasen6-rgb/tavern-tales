@@ -10,7 +10,7 @@ using Tavern.Core.Story;
 ///   dotnet run --project Core/Tavern.Cli -- --play [story] --walk bench/shrine_success.txt [--engine gemini|ollama] [--seed N]
 ///                                           [--record tape] [--replay tape] [--difficulty gentle|standard|harsh] [--party 3|4] [--max-turns N]
 /// The walkthrough has one exploration turn per line ("gareth: … / rocco: …"); lines starting with "その後:" are the afterword.
-/// Fights are declared by the bot (attack the weakest foe, the priest heals the fallen). Gemini uses GEMINI_API_KEY_TEST.
+/// Fights are declared by the bot (attack the weakest foe, the priest heals the fallen). Gemini uses GEMINI_API_KEY_TEST (--play-key: GEMINI_API_KEY).
 /// </summary>
 static class PlayBot
 {
@@ -31,8 +31,8 @@ static class PlayBot
         ILlmClient? live = null;
         if (engine == "gemini" && (Opt("--replay") == null || a.Contains("--live")))
         {
-            var key = Environment.GetEnvironmentVariable("GEMINI_API_KEY_TEST") ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY_TEST", EnvironmentVariableTarget.User)
-                ?? throw new Exception("GEMINI_API_KEY_TEST is not set");
+            var key = Environment.GetEnvironmentVariable(Keys.Env(a)) ?? Environment.GetEnvironmentVariable(Keys.Env(a), EnvironmentVariableTarget.User)
+                ?? throw new Exception(Keys.Env(a) + " is not set");
             live = new GeminiClient(http, key, Opt("--model") ?? "gemini-3.5-flash-lite", "minimal");
         }
         // --replay answers from a tape; with --live, requests not on the tape go to Gemini

@@ -11,7 +11,7 @@ using Tavern.Core.Story;
 /// and measures calls and waiting time per turn (Docs/10_Plan.md stage 3).
 ///   dotnet run --project Core/Tavern.Cli -- --bench [file] [--engine gemini|ollama] [--model M] [--reduced] [--no-narrate]
 ///                                           [--record tape.jsonl] [--replay tape.jsonl] [--only id,id] [--verbose]
-/// Gemini uses GEMINI_API_KEY_TEST (the test quota), never the play key.
+/// Gemini uses GEMINI_API_KEY_TEST (the test quota); --play-key uses GEMINI_API_KEY when the test quota is used up (never on a day with friends).
 /// </summary>
 static class Bench
 {
@@ -33,9 +33,9 @@ static class Bench
         if (Opt("--replay") is string tape) backend = new ReplayLlm(tape);
         else if (engine == "gemini")
         {
-            var key = Environment.GetEnvironmentVariable("GEMINI_API_KEY_TEST")
-                ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY_TEST", EnvironmentVariableTarget.User)
-                ?? throw new Exception("GEMINI_API_KEY_TEST is not set (the bench never uses the play key)");
+            var key = Environment.GetEnvironmentVariable(Keys.Env(a))
+                ?? Environment.GetEnvironmentVariable(Keys.Env(a), EnvironmentVariableTarget.User)
+                ?? throw new Exception(Keys.Env(a) + " is not set");
             backend = new GeminiClient(http, key, Opt("--model") ?? "gemini-3.5-flash-lite", Opt("--thinking") ?? "minimal");
         }
         else backend = new OllamaClient(http, Opt("--model") ?? "qwen3:8b");
@@ -269,4 +269,10 @@ static class Bench
         if (d.Cover.Length > 0) b.Append(" cover: " + d.Cover);
         return b.ToString();
     }
+}
+
+static class Keys
+{
+    /// <summary>The key the test tools use: the test quota, or the play key with --play-key (only when the test quota is used up).</summary>
+    public static string Env(List<string> a) => a.Contains("--play-key") ? "GEMINI_API_KEY" : "GEMINI_API_KEY_TEST";
 }
