@@ -125,6 +125,21 @@ namespace Tavern.Core.Play
             Order.AddRange(sorted);
         }
 
+        /// <summary>
+        /// Rebuilds a fight from a save (always saved between rounds). order: fighters as they stand, with initiative and fled flags.
+        /// </summary>
+        public static Combat Restore(IEnumerable<Fighter> order, int round, bool surprise, IEnumerable<string> bigMoveDue,
+            IDictionary<string, (string by, int rounds)> taunts, int summoned, Difficulty difficulty, IRandom rng)
+        {
+            var c = new Combat(difficulty, rng) { Round = round, SurpriseRound = surprise, _summoned = summoned };
+            c.Order.AddRange(order);
+            foreach (var id in bigMoveDue) c.BigMoveDue.Add(id);
+            foreach (var kv in taunts) c.Taunts[kv.Key] = kv.Value;
+            return c;
+        }
+
+        public int Summoned => _summoned;
+
         /// <summary>Spear and bow holders strike once before anyone else at the start of a fight.</summary>
         public List<Adventurer> FirstStrikers() => Party.Where(a => a.IsUp && a.Attack().FirstStrike).ToList();
 

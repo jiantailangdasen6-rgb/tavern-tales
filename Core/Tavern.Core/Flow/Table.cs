@@ -10,7 +10,7 @@ using Tavern.Core.Story;
 
 namespace Tavern.Core.Flow
 {
-    public enum Phase { Explore, Combat, Afterword, Over }
+    public enum Phase { Explore, Combat, Afterword, Break, Over }
 
     /// <summary>What one turn (or combat round) produced, for the screens.</summary>
     public sealed class TurnReport
@@ -78,6 +78,11 @@ namespace Tavern.Core.Flow
         /// <summary>Each adventurer's handout personal goal id.</summary>
         public Dictionary<string, string> PersonalGoals { get; } = new Dictionary<string, string>();
         public EndingResult? Ending { get; private set; }
+        /// <summary>The evening so far: result lines and narrations (for the chronicle call).</summary>
+        public List<string> Log { get; } = new List<string>();
+        /// <summary>The last turn's lines while its telling has not finished (a reload tells them again).</summary>
+        public List<string> Untold { get; } = new List<string>();
+        public List<Handout> Handouts { get; } = new List<Handout>();
 
         public Table(Evening e, Classifier classifier, Narrator narrator, IPlayers players, IRandom rng, Bestiary enemies, Narrator? highlight = null)
         {
@@ -114,6 +119,7 @@ namespace Tavern.Core.Flow
         {
             if (Phase == Phase.Combat) return await CombatRoundAsync(declarations, ct).ConfigureAwait(false);
             if (Phase == Phase.Afterword) return await AfterwordAsync(declarations, ct).ConfigureAwait(false);
+            if (Phase == Phase.Break || Phase == Phase.Over) return new TurnReport();
             return await ExploreTurnAsync(declarations, afterword: false, ct).ConfigureAwait(false);
         }
 
@@ -173,6 +179,9 @@ namespace Tavern.Core.Flow
             // 4. the world moves: clocks, acts, the climax, hints, tension
             AfterTurn(report, changes, ref progress, countTurn: !afterword);
             if (afterword && Phase != Phase.Over) Finish(EndingTrigger.Solved, report);
+            // everyone still standing gives up the request: they leave the map
+            if (Phase != Phase.Over && !afterword && Active.Where(a => a.IsUp).All(a => runs.Any(r => r.A == a && r.S.Abandon && !r.Stopped)))
+                Finish(EndingTrigger.LeftMap, report);
             if (Phase == Phase.Over)
             {
                 Save?.Invoke(this);
@@ -308,6 +317,12 @@ namespace Tavern.Core.Flow
                         else s.Check.Tier = md.Tier.Shift(-1);
                     }
                 }
+            }
+            // rescued people come along without a roll, once they can
+            if (s.Recruit && s.Person.Length > 0 && W.Cast.Find(s.Person) is Npc esc && esc.Escort)
+            {
+                if (Story.PersonOf(esc.Id)?.JoinWhen.Holds(W) == false) { r.Refused = $"{esc.Name}はまだ連れ出せない"; return; }
+                s.Sort = Sort.Auto; s.Check = null; s.Request = null; r.Forced = true;
             }
             // requests: the attitude table decides
             if (s.Person.Length > 0 && s.Request != null && W.Cast.Find(s.Person) is Npc npc)
@@ -558,7 +573,7 @@ namespace Tavern.Core.Flow
                     if (npc.Attitude != before) changes.Add($"{npc.Name}の態度: {before.Label()} → {npc.Attitude.Label()}");
                 }
                 else if (how == Approach.Threaten) { var before = npc.Attitude; npc.Change(AttitudeReason.Threatened); changes.Add($"{npc.Name}の態度: {before.Label()} → {npc.Attitude.Label()}"); }
-                if (s.Request == RequestSize.Large && Story.PersonOf(npc.Id) is Person def && def.Joins != JoinWillingness.Never && !npc.WithParty)
+                if ((s.Recruit || s.Request == RequestSize.Large) && Story.PersonOf(npc.Id) is Person def && def.Joins != JoinWillingness.Never && !npc.WithParty)
                 {
                     if (W.Cast.Join(npc.Id, PartySize, def.JoinWhen.Holds(W)))
                     {
@@ -741,6 +756,15 @@ namespace Tavern.Core.Flow
                 progress = true;
                 foreach (var a in Active) a.RestoreFocus();
                 act = Story.Acts.FirstOrDefault(a => a.N == W.Act);
+                if (Story.Long && W.Act == 4 && Phase != Phase.Break)
+                {
+                    // a long story pauses after act 3: saved here, the next evening starts from here (09_Spec 10)
+                    Phase = Phase.Break;
+                    foreach (var c in W.Clocks.All) c.Paused = true;
+                    report.Lines.Add("中休み: 物語はここで一晩明かす（続きは次の晩）");
+                    changes.Add("中休み。一行は野営か宿で一晩明かす。穏やかに、次の晩への余韻を残して語る。");
+                    break;
+                }
                 report.Lines.Add($"物語は次の幕へ: {act?.Title}");
                 changes.Add($"新しい幕が始まる（{act?.Title}。目標: {act?.Goal}）。幕の始めは山場の語り。");
                 if (act != null) RunActions(act.OnStart, report, changes);
@@ -851,6 +875,29 @@ namespace Tavern.Core.Flow
         // ---------------------------------------------------------------- telling
 
         async Task TellAsync(TurnReport report, List<(Adventurer a, Declaration d)> who, List<string> changes, CancellationToken ct)
+        {
+            Untold.Clear();
+            Untold.AddRange(report.Lines.Concat(changes));
+            try { await TellCoreAsync(report, who, changes, ct).ConfigureAwait(false); }
+            finally
+            {
+                Log.AddRange(report.Lines);
+                if (report.Narration.Length > 0) Log.Add("語り: " + report.Narration);
+            }
+            Untold.Clear();
+        }
+
+        /// <summary>After a reload in the middle of a turn: tells what was decided but not told yet.</summary>
+        public async Task<TurnReport> TellUntoldAsync(CancellationToken ct = default)
+        {
+            var report = new TurnReport { Scene = E.Combat != null ? SceneKind.Combat : SceneKind.Explore };
+            if (Untold.Count == 0) return report;
+            report.Lines.AddRange(Untold);
+            await TellAsync(report, new List<(Adventurer, Declaration)>(), new List<string>(), ct).ConfigureAwait(false);
+            return report;
+        }
+
+        async Task TellCoreAsync(TurnReport report, List<(Adventurer a, Declaration d)> who, List<string> changes, CancellationToken ct)
         {
             var t = new TurnTelling { Scene = report.Scene, Length = Length };
             foreach (var (a, d) in who)

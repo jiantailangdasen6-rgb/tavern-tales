@@ -138,10 +138,10 @@
     { "id": "tom", "name": "若者トム", "portrait": "pt_youth", "at": "dungeon", "role": "行方不明の若者", "attitude": "Friendly",
       "voice": "怯えているが、リナを守ろうと気を張っている", "wants": "リナを守る", "fears": "騎士",
       "secret": "燭台の話を持ち込んだのは自分", "lie": "リナのせいにはしないが、自分の言い出しは隠す",
-      "clues": [ "c2_3", "c4_3" ], "joins": "Glad", "escort": true, "joinNote": "脱出のときに付いてくる", "build": "Weak" },
+      "clues": [ "c2_3", "c4_3" ], "joins": "Conditional", "joinWhen": { "event": "cell_open" }, "escort": true, "joinNote": "牢が開けば、脱出のときに付いてくる", "build": "Weak" },
     { "id": "rina", "name": "若者リナ", "portrait": "pt_youth_girl", "at": "dungeon", "role": "行方不明の若者", "attitude": "Friendly",
       "voice": "弱っていてほとんど話せない", "wants": "家に帰る", "fears": "水",
-      "joins": "Glad", "escort": true, "joinNote": "背負われて", "build": "Weak" },
+      "joins": "Conditional", "joinWhen": { "event": "cell_open" }, "escort": true, "joinNote": "牢が開けば、背負われて", "build": "Weak" },
     { "id": "baldric", "name": "骨の騎士バルドリック", "portrait": "", "at": "crypt", "role": "祠の守り手（ボス）", "attitude": "Hostile",
       "voice": "言葉はない。鎧の軋みと、剣の音", "wants": "祠を守る", "fears": "灯が失われること",
       "enemy": "boneknight", "build": "Strong" }

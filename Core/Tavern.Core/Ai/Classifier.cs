@@ -56,6 +56,10 @@ namespace Tavern.Core.Ai
         public string Target { get; set; } = "";
         /// <summary>休む・野営 (once per act).</summary>
         public bool Rest { get; set; }
+        /// <summary>Gives up the request and leaves the map (地図の外へ出た).</summary>
+        public bool Abandon { get; set; }
+        /// <summary>Asks a person to come along, or takes rescued people along.</summary>
+        public bool Recruit { get; set; }
         /// <summary>A shop ware key (Shop.Wares) bought in this step.</summary>
         public string Buy { get; set; } = "";
         /// <summary>In a fight: attack / flee / revive / finish / defend / item / talk / other.</summary>
@@ -209,6 +213,8 @@ namespace Tavern.Core.Ai
 - unexpected: 山場を、設定表にない方法で解こうとする段（extreme の check にする）。
 - place_rule: 場所の決まりに触れる段。slow: 時間をかける段（丹念に調べる）。noisy: 大きな物音を立てる段。rest: 休む・野営する段（sort は auto）。
 - target: 回復・加護・守り・かばうなど、効果を向ける相手の id（自分なら空）。
+- recruit: 人物に一緒に来てもらう・助けた人を連れていく段（person にその人の id、request は large）。
+- abandon: 依頼を捨てて、この土地から去る段（sort は auto）。
 - お金: 銀貨を渡す段（買収・情報料・贈り物）は pay に枚数を。店で買う段は buy に品の鍵（torch 松明 / rope ロープ / oil 油 / antidote 解毒薬 / potion 薬 小 / potion_m 薬 中 / scroll 巻物）を。買い物は auto。
 - 内緒の宣言（secret）も普通に仕分ける。表向き（cover）が空なら、判定の要らない当たり障りのない行動を 1 文で cover に書く。
 - 戦闘が始まるべきとき（敵が襲う、冒険者が攻撃をしかける）は fight に、その場所に出うる敵の id を並べる。冒険者が気付かれずに先に仕掛けたら surprise=true。
@@ -284,6 +290,8 @@ namespace Tavern.Core.Ai
                     ["helps"] = Str("手伝う仲間の冒険者の id"),
                     ["target"] = Str("効果（回復・加護・守りなど）を向ける相手の id（冒険者・人物）"),
                     ["rest"] = Bool("休む・野営する"),
+                    ["recruit"] = Bool("人物に一緒に来てもらう・助けた人を連れていく"),
+                    ["abandon"] = Bool("依頼を捨てて、この土地から去る"),
                     ["combat_act"] = Enum("attack", "flee", "revive", "finish", "defend", "item", "talk", "other"),
                     ["buy"] = Enum(Shop.Wares.Select(w => w.Key).ToArray()),
                     ["pay"] = new JObject { ["type"] = "integer", ["description"] = "渡す銀貨の枚数（買収・情報料・贈り物）" },
@@ -377,7 +385,7 @@ namespace Tavern.Core.Ai
         /// </summary>
         public static void Read(Evening e, IReadOnlyList<Declaration> decls, bool inCombat, JObject args, Classification result)
         {
-            var answers = (args["declarations"] as JArray ?? new JArray()).OfType<JObject>().ToList();
+            var answers = Answers(args, decls);
             foreach (var d in decls)
             {
                 var c = new Classified { Who = d.Who, Cover = d.Cover };
@@ -420,6 +428,35 @@ namespace Tavern.Core.Ai
             }
         }
 
+        /// <summary>
+        /// The declarations in an answer, read forgivingly: every object that holds "steps", wherever a weak model put it, with "who"
+        /// taken from the object or the nearest object around it. With a single declaration, an answer without "who" is theirs.
+        /// </summary>
+        static List<JObject> Answers(JObject args, IReadOnlyList<Declaration> decls)
+        {
+            var found = new List<JObject>();
+            void Walk(JToken t, string? who)
+            {
+                if (t is JObject o)
+                {
+                    var here = (string?)(o["who"] as JValue) ?? who;
+                    if (o["steps"] is JArray)
+                    {
+                        var copy = (JObject)o.DeepClone();
+                        if (copy["who"] == null && here != null) copy["who"] = here;
+                        found.Add(copy);
+                        return;
+                    }
+                    foreach (var p in o.Properties()) Walk(p.Value, here);
+                }
+                else if (t is JArray a) foreach (var x in a) Walk(x, who);
+            }
+            Walk(args, null);
+            if (decls.Count == 1)
+                foreach (var f in found.Where(f => f["who"] == null)) f["who"] = decls[0].Who;
+            return found;
+        }
+
         static Step ReadStep(Evening e, string who, JObject s, List<string> dropped)
         {
             var step = new Step { Text = (string?)s["text"] ?? "" };
@@ -449,6 +486,8 @@ namespace Tavern.Core.Ai
             step.Target = Id("target", id => IsAdventurer(id) || IsPerson(id) || e.Combat?.Find(id) != null);
             step.CombatAct = (string?)s["combat_act"] ?? "";
             step.Rest = (bool?)s["rest"] ?? false;
+            step.Recruit = (bool?)s["recruit"] ?? false;
+            step.Abandon = (bool?)s["abandon"] ?? false;
             step.Buy = Shop.Wares.Any(w => w.Key == (string?)s["buy"]) ? (string)s["buy"]! : "";
             step.Pay = Math.Max(0, (int?)s["pay"] ?? 0);
             step.Conclusion = Id("conclusion", id => e.Story.Conclusions.Any(c => c.Id == id));

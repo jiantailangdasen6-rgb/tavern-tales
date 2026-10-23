@@ -347,6 +347,7 @@ namespace Tavern.Core.Flow
             foreach (var a in Active) { a.Ward = 0; a.Statuses.Remove(StatusKind.Stunned); }
             E.Combat = null;
             report.CombatEnded = end;
+            if (end == CombatEnd.Fled) FledFoes.AddRange(combat.Foes.Where(f => f.InFight).Select(f => f.Name));
             report.Lines.Add(end switch { CombatEnd.Won => "戦闘に勝った", CombatEnd.Fled => "一行は戦いの場から逃れた", _ => "一行は倒れた" });
             changes.Add(end switch { CombatEnd.Won => "戦闘が終わった（敵は退けられた）", CombatEnd.Fled => "一行は逃げ延びた", _ => "一行は全員倒れた" });
             W.Clocks.Turn(W.Act, PartySize);

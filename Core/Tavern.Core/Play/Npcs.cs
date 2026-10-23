@@ -176,6 +176,7 @@ namespace Tavern.Core.Play
         /// <summary>The betrayal trigger already happened.</summary>
         public bool Betrayed { get; set; }
         /// <summary>The creature while it fights (companion or turned enemy).</summary>
+        [Newtonsoft.Json.JsonIgnore]
         public Creature? Fighting { get; set; }
 
         /// <summary>Applies a reason; a gift counts once per evening. Returns the change in steps.</summary>

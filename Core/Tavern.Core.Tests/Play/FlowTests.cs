@@ -189,6 +189,121 @@ namespace Tavern.Core.Tests.Play
         }
 
         [Test]
+        public async Task SaveAndLoad_InTheMiddleOfAFight()
+        {
+            var (t, llm, e) = New("dungeon", 2, 19);
+            llm.Tool(Classifier.ToolName, Cls(@"{""who"": ""rocco"", ""steps"": [{""text"": ""錠前を開ける"", ""sort"": ""check"", ""ability"": ""DEX"", ""tier"": ""normal"", ""mechanism"": ""cell_lock""}]}"))
+               .Tool(Narrator.ToolName, Ok);
+            await t.ExploreAsync(D(("rocco", "錠前を開ける")));
+            e.Find("gareth")!.TakeDamage(5);
+            e.Find("rocco")!.Gear.Add(new Item { Id = "rope_1", Name = "ロープ", Kind = ItemKind.Tool });
+            e.Find("rocco")!.AddTechnique("柱蹴りの一閃", "跳ぶ", EffectKind.Strike, EffectSize.Medium, Ability.Dex);
+            e.Combat!.Foes.First().TakeDamage(4);
+            var json = SaveGame.From(t).ToJson();
+            Assert.That(SaveGame.IsCurrent(json), Is.True);
+
+            var back = SaveGame.FromJson(json).Load(e.Story, PlayContent.Classes, PlayContent.Enemies, new Classifier(llm), new Narrator(llm), t.Players);
+            var e2 = back.E;
+            Assert.That(back.Phase, Is.EqualTo(Phase.Combat));
+            Assert.That(e2.Find("gareth")!.Hp, Is.EqualTo(13));
+            Assert.That(e2.Find("rocco")!.Gear.Has("rope_1"), Is.True);
+            Assert.That(e2.Find("rocco")!.Attack().DualWield, Is.True, "slots come back");
+            Assert.That(e2.Find("rocco")!.FindTechnique("柱蹴りの一閃"), Is.Not.Null);
+            Assert.That(e2.World.Events, Has.Member("cell_open"));
+            Assert.That(e2.ClimaxStarted, Is.True);
+            Assert.That(e2.Combat!.Foes.Select(f => f.Hp), Is.EqualTo(e.Combat.Foes.Select(f => f.Hp)));
+            Assert.That(e2.World.Cast.Find("baldric")!.Fighting, Is.Not.Null, "the boss is linked to its fighter again");
+            Assert.That(e2.Mechanisms["cell_lock"].Spent, Is.True);
+            var first = Newtonsoft.Json.Linq.JObject.Parse(json); var again = Newtonsoft.Json.Linq.JObject.Parse(SaveGame.From(back).ToJson());
+            first.Remove("RngState"); again.Remove("RngState");   // the test rolls are fixed, not a seeded generator
+            Assert.That(Newtonsoft.Json.Linq.JToken.DeepEquals(first, again), Is.True, "a loaded game saves the same");
+        }
+
+        [Test]
+        public void OldSaves_AreMovedAway()
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "tavern_old_" + System.Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                File.WriteAllText(Path.Combine(dir, "evening.json"), "{\"Version\": 1}");
+                File.WriteAllText(Path.Combine(dir, "roster.json"), "{\"Version\": 2}");
+                Assert.That(SaveGame.MoveOldAway(dir, new[] { "evening.json", "roster.json", "missing.json" }), Is.EqualTo(1));
+                Assert.That(File.Exists(Path.Combine(dir, "old", "evening.json")), Is.True);
+                Assert.That(File.Exists(Path.Combine(dir, "roster.json")), Is.True);
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Test]
+        public async Task Handouts_OneCallForEveryone_GoalsFromTheSheet()
+        {
+            var (t, llm, e) = New();
+            llm.Tool("handouts", @"{""handouts"": [{""who"": ""gareth"", ""bond"": ""村長は恩人だ"", ""goal"": ""pg_debt"", ""fragment"": 1},
+                {""who"": ""rocco"", ""bond"": ""トムは弟分"", ""goal"": ""pg_debt""}]}");
+            var hs = await t.DealHandoutsAsync(new Bookends(llm));
+            Assert.That(hs.Count, Is.EqualTo(2));
+            Assert.That(t.PersonalGoals["gareth"], Is.EqualTo("pg_debt"));
+            Assert.That(t.PersonalGoals["rocco"], Is.Not.EqualTo("pg_debt"), "the same goal is not dealt twice");
+            Assert.That(hs.First(h => h.Who == "gareth").Fragment, Does.StartWith("古い戦記の写本"));
+        }
+
+        [Test]
+        public async Task WrapUp_NamesTheMarks()
+        {
+            var (t, llm, e) = New("dungeon", 3);
+            e.World.Cast.Find("tom")!.WithParty = true;
+            e.World.Cast.Find("rina")!.WithParty = true;
+            t.Abandon();
+            llm.Tool("chronicle", @"{""title"": ""灰色の森の祠"", ""story"": ""一行は…"", ""rumors"": [""祠に灯がともったらしい""],
+                ""bonds"": [{""kind"": ""解けずに残った謎"", ""text"": ""騎士の名""}, {""kind"": ""逃がした敵"", ""text"": ""なし""}],
+                ""marks"": [{""who"": ""gareth"", ""name"": ""森の霧を抜けた""}]}");
+            var c = await t.WrapUpAsync(new Bookends(llm));
+            Assert.That(c.Rumors.Single(), Is.EqualTo("祠に灯がともったらしい"));
+            Assert.That(c.Bonds.Select(b => b.Kind), Is.EqualTo(new[] { "解けずに残った謎" }), "only kinds the game offered");
+            Assert.That(e.Find("gareth")!.Marks.Single().Name, Is.EqualTo("森の霧を抜けた"));
+            Assert.That(e.Find("rocco")!.Marks.Single().Name, Does.Contain("灰色の森の祠"), "a survivor without a name still earns one");
+        }
+
+        [Test]
+        public async Task EveryoneAbandoning_LeavesTheMap()
+        {
+            var (t, llm, e) = New("village");
+            llm.Tool(Classifier.ToolName, Cls(@"{""who"": ""gareth"", ""steps"": [{""text"": ""去る"", ""sort"": ""auto"", ""abandon"": true}]},
+                {""who"": ""rocco"", ""steps"": [{""text"": ""去る"", ""sort"": ""auto"", ""abandon"": true}]}"))
+               .Tool(Narrator.ToolName, @"{""text"": ""ガレスとロッコは村を去った。""}");
+            var r = await t.ExploreAsync(D(("gareth", "依頼を捨てて去る"), ("rocco", "依頼を捨てて去る")));
+            Assert.That(r.Ending!.Trigger, Is.EqualTo(EndingTrigger.LeftMap));
+            Assert.That(r.Ending.Card, Is.EqualTo(Card.Failure));
+            Assert.That(t.Phase, Is.EqualTo(Phase.Over));
+        }
+
+        [Test]
+        public async Task LongStory_PausesAfterActThree_AndResumes()
+        {
+            var (t, llm, e) = New("dungeon", 3);
+            e.Story.Long = true;
+            e.Story.Acts.Add(new Act { N = 4, Title = "四" });
+            e.Story.Acts.Add(new Act { N = 5, Title = "五" });
+            e.Story.Acts[2].Advance = StoryLoader.ReadWhen(Newtonsoft.Json.Linq.JToken.Parse("[{\"place\": \"dungeon\"}]"), "t");
+            e.Story.Climax.Starts = StoryLoader.ReadWhen(Newtonsoft.Json.Linq.JToken.Parse("[{\"event\": \"never\"}]"), "t");
+            llm.Tool(Classifier.ToolName, Cls(@"{""who"": ""gareth"", ""steps"": [{""text"": ""見回す"", ""sort"": ""auto""}]}")).Tool(Narrator.ToolName, Ok);
+            var r = await t.ExploreAsync(D(("gareth", "見回す")));
+            Assert.That(t.Phase, Is.EqualTo(Phase.Break));
+            Assert.That(r.Lines, Has.Some.StartWith("中休み"));
+            Assert.That(e.World.Clocks.All.All(c => c.Paused), Is.True);
+            var coins = e.Find("gareth")!.FateCoins;
+            var newcomer = new Adventurer(PlayContent.Classes["priest"], "ミーナ", "mina");
+            t.ResumeAfterBreak(new[] { newcomer }, new[] { "rocco" });
+            Assert.That(t.Phase, Is.EqualTo(Phase.Explore));
+            Assert.That(e.Find("gareth")!.FateCoins, Is.EqualTo(coins + 1));
+            Assert.That(e.Find("gareth")!.Marks.Count, Is.EqualTo(1));
+            Assert.That(e.PlaceOf(newcomer), Is.EqualTo("dungeon"));
+            Assert.That(e.Find("rocco")!.Withdrawn, Is.True);
+            Assert.That(e.World.Clocks.All.Any(c => c.Paused), Is.False);
+        }
+
+        [Test]
         public void Ending_HeavyLossIsBitter_GoalMissedIsFailure()
         {
             var (t, _, e) = New("dungeon", 3);

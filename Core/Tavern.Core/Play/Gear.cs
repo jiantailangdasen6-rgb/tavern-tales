@@ -223,6 +223,12 @@ namespace Tavern.Core.Play
             }
         }
 
+        /// <summary>Puts saved slots back (load); ids must be in the pack.</summary>
+        public void Restore(string main, string off, string body, string trinket)
+        {
+            MainHand = Has(main) ? main : ""; OffHand = Has(off) ? off : ""; Body = Has(body) ? body : ""; Trinket = Has(trinket) ? trinket : "";
+        }
+
         public void Unequip(string id)
         {
             if (MainHand == id) MainHand = "";

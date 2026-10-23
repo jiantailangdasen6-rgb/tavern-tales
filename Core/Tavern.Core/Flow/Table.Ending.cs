@@ -48,6 +48,33 @@ namespace Tavern.Core.Flow
             return report;
         }
 
+        /// <summary>
+        /// The next evening of a long story (09_Spec 10): the clocks run again, every survivor gets a fate coin back and a veteran mark
+        /// for the first half, the fallen may be replaced by new adventurers (they join where the party stands).
+        /// </summary>
+        public void ResumeAfterBreak(IEnumerable<Adventurer> newcomers, IEnumerable<string>? leaving = null)
+        {
+            if (Phase != Phase.Break) return;
+            foreach (var id in leaving ?? Enumerable.Empty<string>()) if (E.Find(id) is Adventurer gone) gone.Withdrawn = true;
+            foreach (var a in E.Party.Where(a => a.Life != Life.Dead && !a.Withdrawn))
+            {
+                a.FateCoins++;
+                a.EarnMark(Story.Title + "の前半を越えた");
+            }
+            var here = W.PlacesOfParty.FirstOrDefault() ?? Story.Start;
+            foreach (var n in newcomers)
+            {
+                n.StartEvening(E.Difficulty, Story.Advance);
+                E.Party.Add(n);
+                W.Move(n.Id, here);
+            }
+            foreach (var c in W.Clocks.All) c.Paused = false;
+            E.Tension.NewNight();
+            Phase = Phase.Explore;
+            var act = Story.Acts.FirstOrDefault(a => a.N == W.Act);
+            if (act != null) RunActions(act.OnStart, new TurnReport(), new List<string>());
+        }
+
         /// <summary>The host gives up the request (地図の外へ出た).</summary>
         public TurnReport Abandon()
         {
@@ -80,6 +107,48 @@ namespace Tavern.Core.Flow
             Phase = Phase.Over;
             report.Lines.Add($"物語の結末: {EndingResult.Label(r.Card)}");
             foreach (var kv in r.Personal) report.Lines.Add($"{E.Find(kv.Key)?.Name}の目的「{kv.Value.goal}」: {(kv.Value.done ? "果たした" : "果たせなかった")}");
+        }
+
+        /// <summary>Enemies the party fled from tonight (bond candidates: 逃がした敵).</summary>
+        public List<string> FledFoes { get; } = new List<string>();
+
+        /// <summary>The handouts, dealt in one call when the story is chosen; each adventurer's personal goal is kept for the ending.</summary>
+        public async Task<List<Handout>> DealHandoutsAsync(Bookends bookends, CancellationToken ct = default)
+        {
+            var list = await bookends.HandoutsAsync(E, ct).ConfigureAwait(false);
+            Handouts.Clear();
+            Handouts.AddRange(list);
+            foreach (var h in list.Where(h => h.GoalId.Length > 0)) PersonalGoals[h.Who] = h.GoalId;
+            return list;
+        }
+
+        /// <summary>
+        /// The end of the evening (09_Spec 11): the chronicle call (record book, rumours, bonds, mark names), and the veteran marks for the
+        /// survivors (a long story gave the first at the break). Bond candidates come from what happened, never from the story's secrets.
+        /// </summary>
+        public async Task<Chronicle> WrapUpAsync(Bookends bookends, CancellationToken ct = default)
+        {
+            var r = Ending ?? throw new InvalidOperationException("the story has not ended");
+            var candidates = new List<string>();
+            foreach (var f in FledFoes.Distinct()) candidates.Add($"逃がした敵: {f}");
+            foreach (var p in W.Cast.People.Where(p => !p.Extra && p.State != PersonState.Dead))
+            {
+                if (p.Attitude == Attitude.Hostile && Story.PersonOf(p.Id)?.Enemy.Length == 0) candidates.Add($"恨みを買った: {p.Name}");
+                if (p.Attitude >= Attitude.Friendly && Story.PersonOf(p.Id)?.Attitude < p.Attitude) candidates.Add($"恩を売った: {p.Name}");
+            }
+            if (Story.Conclusions.Any(c => !W.Convictions.Contains(c.Id))) candidates.Add("解けずに残った謎");
+            var summary = $"結末: {EndingResult.Label(r.Card)}。" + (r.Lost.Count > 0 ? $"失ったもの: {string.Join("、", r.Lost)}。" : "") +
+                (r.Dead.Count > 0 ? $"亡くなった冒険者: {string.Join("、", r.Dead)}。" : "") +
+                string.Concat(r.Personal.Select(kv => $"{E.Find(kv.Key)?.Name}の目的「{kv.Value.goal}」は{(kv.Value.done ? "果たした" : "果たせなかった")}。")) +
+                (r.Reveal.Count > 0 ? "内緒の行動: " + string.Join(" / ", r.Reveal.Select(s => $"{E.Find(s.Who)?.Name}: {s.Text}")) : "");
+            var c = await bookends.ChronicleAsync(E, summary, Log, candidates, ct).ConfigureAwait(false);
+            foreach (var a in E.Party.Where(a => a.Life != Life.Dead && !a.Withdrawn))
+            {
+                var name = c.Marks.TryGetValue(a.Id, out var n) ? n : Story.Title;
+                a.EarnMark(name);
+
+            }
+            return c;
         }
 
         /// <summary>The ending told by the strong narrator: the card and the facts, then the reveal of the secrets.</summary>
