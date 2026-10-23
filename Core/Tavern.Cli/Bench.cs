@@ -249,7 +249,7 @@ static class Bench
         _ => "?",
     };
 
-    static string Describe(Classified d)
+    internal static string Describe(Classified d)
     {
         var b = new StringBuilder($"[{d.Who}]");
         foreach (var s in d.Steps)

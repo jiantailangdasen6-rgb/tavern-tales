@@ -83,6 +83,8 @@ namespace Tavern.Core.Flow
         /// <summary>The last turn's lines while its telling has not finished (a reload tells them again).</summary>
         public List<string> Untold { get; } = new List<string>();
         public List<Handout> Handouts { get; } = new List<Handout>();
+        /// <summary>The last answer of the classifier (for logs and debugging).</summary>
+        public Classification? LastClassification { get; set; }
 
         public Table(Evening e, Classifier classifier, Narrator narrator, IPlayers players, IRandom rng, Bestiary enemies, Narrator? highlight = null)
         {
@@ -104,6 +106,8 @@ namespace Tavern.Core.Flow
             public Step S = null!;
             public int Index;
             public string Refused = "";
+            /// <summary>For a move: the places passed, ending with the destination.</summary>
+            public List<string> Path = new List<string>();
             public CheckRoll? Check;
             public RollRequest? Request;
             /// <summary>Decided without the step's own check (contest won, request free, item handed over...).</summary>
@@ -135,6 +139,7 @@ namespace Tavern.Core.Flow
 
             // 1. sort (AI call 1), with one chance to declare again for refused actions
             var cls = await Classifier.ClassifyAsync(E, decls, false, ct).ConfigureAwait(false);
+            LastClassification = cls;
             report.Calls += cls.Calls;
             var runs = Plan(decls, cls, false);
             var refused = runs.Where(r => r.Index == 0 && r.Refused.Length > 0).ToList();
@@ -218,11 +223,13 @@ namespace Tavern.Core.Flow
             {
                 var a = E.Find(d.Who)!;
                 var c = cls.For(d.Who);
+                var pos = E.PlaceOf(a);
                 if (c == null) continue;
                 foreach (var (s, i) in c.Steps.Select((s, i) => (s, i)))
                 {
                     var r = new StepRun { A = a, D = d, C = c, S = s, Index = i };
-                    Validate(r);
+                    Validate(r, pos);
+                    if (r.Refused.Length == 0 && r.Path.Count > 0) pos = r.Path[r.Path.Count - 1];
                     runs.Add(r);
                 }
                 // help: +2 on the first check of the one helped
@@ -240,11 +247,11 @@ namespace Tavern.Core.Flow
         /// The game's own checks before rolling (09_Spec 4): ids must be there, items held, people present, ways open, focus and silver enough.
         /// Also fixes the check from the sheet (clue, mechanism) and from the request table (attitude).
         /// </summary>
-        void Validate(StepRun r)
+        void Validate(StepRun r, string here)
         {
             var s = r.S;
             var a = r.A;
-            var here = E.PlaceOf(a);
+
             if (s.Sort == Sort.Impossible)
             {
                 r.Refused = (s.Why?.Label() ?? "できない") + (s.WorldRule > 0 ? $" {s.WorldRule}" : "") + (s.How.Length > 0 ? $"。{s.How}" : "");
@@ -263,22 +270,36 @@ namespace Tavern.Core.Flow
                 var own = a.Gear.Has(s.Item) || W.Holds(a.Id, s.Item);
                 if (s.Take && !own)
                 {
-                    var why = W.CanTake(a.Id, s.Item);
-                    if (why != null && !(why == "仲間が持っている" && s.Against.Length > 0)) { r.Refused = why; return; }
+                    var where = W.WhereIs(s.Item);
+                    var fromAlly = where != null && where.StartsWith("pc:") && s.Against.Length > 0;
+                    if (where == null || where == "gone") { r.Refused = "ない"; return; }
+                    if (!fromAlly && where != here)
+                    {
+                        r.Refused = where.StartsWith("npc:") ? "誰かが持っている" : where.StartsWith("pc:") ? "仲間が持っている" : where.StartsWith("enemy:") ? "敵が持っている" : "ここにはない";
+                        return;
+                    }
                 }
                 else if ((s.GiveTo.Length > 0 || s.PlaceAt.Length > 0) && !own) { r.Refused = "持っていない"; return; }
                 if (s.GiveTo.Length > 0)
                 {
-                    var why = W.CanGive(a.Id, s.Item, s.GiveTo, E.Find(s.GiveTo) != null);
-                    if (why != null && !(why == "持っていない" && a.Gear.Has(s.Item))) { r.Refused = why; return; }
+                    var there = E.Find(s.GiveTo) is Adventurer to ? E.PlaceOf(to) : W.Cast.Find(s.GiveTo) is Npc p ? (p.WithParty ? here : p.Location) : null;
+                    if (there == null) { r.Refused = "相手がいない"; return; }
+                    if (there != here) { r.Refused = "相手がその場にいない"; return; }
                 }
                 if (s.PlaceAt.Length > 0 && s.PlaceAt != here) { r.Refused = "その場所にいない"; return; }
             }
             if (s.MoveTo.Length > 0 && s.MoveTo != here)
             {
-                var way = E.Ways(here).FirstOrDefault(w => w.link.To == s.MoveTo);
-                if (way.link == null) { r.Refused = $"{Story.PlaceOf(s.MoveTo)?.Name}へは、ここから直接行けない"; return; }
-                if (!way.open) { r.Refused = $"まだ通れない{(way.link.Text.Length > 0 ? "（" + way.link.Text + "）" : "")}"; return; }
+                // along open ways, through places the party knows (09_Spec 12: never off the map's lines)
+                var path = E.PathTo(here, s.MoveTo);
+                if (path == null)
+                {
+                    var way = E.Ways(here).FirstOrDefault(w => w.link.To == s.MoveTo);
+                    r.Refused = way.link != null && !way.open ? $"まだ通れない{(way.link.Text.Length > 0 ? "（" + way.link.Text + "）" : "")}"
+                        : $"{Story.PlaceOf(s.MoveTo)?.Name}への道を、まだ知らない";
+                    return;
+                }
+                r.Path = path;
             }
             if (s.Person.Length > 0 && !E.PeopleAt(here).Any(p => p.Id == s.Person)) { r.Refused = $"{W.Cast.Find(s.Person)?.Name ?? "その人"}はここにいない"; return; }
             if (s.Mechanism.Length > 0 && !E.MechanismsAt(here).Any(m => m.Id == s.Mechanism)) s.Mechanism = "";
@@ -467,8 +488,9 @@ namespace Tavern.Core.Flow
                     reqs.Add(req);
                 }
             foreach (var s in secrets.Where(s => s.Request != null)) reqs.Add(s.Request!);
-            foreach (var r in runs.Where(r => r.Refused.Length == 0 && r.S.MoveTo.Length > 0 && W.FirstVisit(r.S.MoveTo)))
-                foreach (var trap in Story.PlaceOf(r.S.MoveTo)?.Traps ?? new List<Trap>())
+            foreach (var r in runs.Where(r => r.Refused.Length == 0 && r.Path.Count > 0))
+                foreach (var trap in r.Path.Where(W.FirstVisit).SelectMany(p => Story.PlaceOf(p)?.Traps ?? new List<Trap>()))
+
                 {
                     if (runs.Any(o => o != r && o.Traps.Any(x => x.trap == trap))) continue;   // the first one in meets it
                     var req = new RollRequest { Who = r.A.Id, Kind = RollKind.Trap, Heading = $"罠に気付く（{trap.Ability.Code()}・{trap.Tier.Label()} {(int)trap.Tier}）", For = trap.Text, Bonus = r.A.Modifier(trap.Ability), Target = (int)trap.Tier };
@@ -606,6 +628,7 @@ namespace Tavern.Core.Flow
             if (s.MoveTo.Length > 0 && s.MoveTo != E.PlaceOf(a))
             {
                 var first = W.FirstVisit(s.MoveTo);
+                foreach (var passed in r.Path.Take(Math.Max(0, r.Path.Count - 1))) { W.Visited.Add(passed); W.Events.Add("visited:" + passed); }
                 W.Move(a.Id, s.MoveTo);
                 W.Events.Add("visited:" + s.MoveTo);
                 // escorted people and companions come along with the one who leads

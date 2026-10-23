@@ -94,6 +94,7 @@ namespace Tavern.Core.Flow
             var changes = new List<string>();
             var decls = declarations.Where(d => E.Find(d.Who)?.IsUp == true && d.Text.Trim().Length > 0).Select(d => { d.Secret = false; return d; }).ToList();
             var cls = decls.Count > 0 ? await Classifier.ClassifyAsync(E, decls, true, ct).ConfigureAwait(false) : new Classification();
+            LastClassification = cls;
             report.Calls += cls.Calls;
 
             // refused actions may be declared again once

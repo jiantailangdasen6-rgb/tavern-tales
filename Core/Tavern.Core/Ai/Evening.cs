@@ -83,6 +83,40 @@ namespace Tavern.Core.Ai
         public IEnumerable<(Link link, bool open)> Ways(string place) =>
             (Story.PlaceOf(place)?.Links ?? new List<Link>()).Select(l => (l, l.Open.Holds(World)));
 
+        /// <summary>
+        /// The way from one place to another over open links (the places passed, ending with the target), or null when there is none.
+        /// Only places the party knows (visited) or the target itself may be passed through.
+        /// </summary>
+        public List<string>? PathTo(string from, string to)
+        {
+            if (from == to) return new List<string>();
+            var prev = new Dictionary<string, string> { [from] = "" };
+            var q = new Queue<string>();
+            q.Enqueue(from);
+            while (q.Count > 0)
+            {
+                var p = q.Dequeue();
+                foreach (var (link, open) in Ways(p))
+                {
+                    if (!open || prev.ContainsKey(link.To)) continue;
+                    if (link.To != to && !World.Visited.Contains(link.To)) continue;
+                    prev[link.To] = p;
+                    if (link.To == to)
+                    {
+                        var path = new List<string> { to };
+                        for (var x = p; x != from; x = prev[x]) path.Insert(0, x);
+                        return path;
+                    }
+                    q.Enqueue(link.To);
+                }
+            }
+            return null;
+        }
+
+        /// <summary>Known places reachable from here over open links but not next door (for the AI's list of destinations).</summary>
+        public IEnumerable<string> KnownFurther(string from) =>
+            World.Visited.Where(v => v != from && !Ways(from).Any(w => w.link.To == v) && PathTo(from, v) != null);
+
         /// <summary>Clocks that became visible since the last look (their condition now holds).</summary>
         public List<Clock> RevealClocks()
         {

@@ -86,6 +86,12 @@ static class PlayBot
             turnSeconds.Add(sw.Elapsed.TotalSeconds - t0);
             Console.WriteLine($"\n== {label}  [{meter.Used - calls0} calls, {sw.Elapsed.TotalSeconds - t0:0.0}s]");
             foreach (var d in decls) Console.WriteLine($"  > {e.Find(d.Who)?.Name}{(d.Secret ? "（内緒）" : "")}: {d.Text}");
+            if (a.Contains("--verbose") && table.LastClassification is Classification lc)
+            {
+                foreach (var cd in lc.Declarations) Console.WriteLine("    仕分け " + Bench.Describe(cd));
+                foreach (var dr in lc.Dropped) Console.WriteLine("    dropped: " + dr);
+                table.LastClassification = null;
+            }
             foreach (var l in r.Lines) Console.WriteLine("  ・" + l);
             foreach (var kv in r.PrivateLines) foreach (var l in kv.Value) Console.WriteLine($"  （{e.Find(kv.Key)?.Name}だけ）{l}");
             foreach (var n in r.Notes) Console.WriteLine("  ! " + n);
