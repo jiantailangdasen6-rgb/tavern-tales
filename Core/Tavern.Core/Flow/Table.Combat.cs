@@ -98,6 +98,7 @@ namespace Tavern.Core.Flow
             report.Calls += cls.Calls;
 
             // refused actions may be declared again once
+            PrepareCombatSteps(cls);
             var refused = cls.Declarations.Where(c => c.Steps.FirstOrDefault()?.Sort == Sort.Impossible).ToList();
             if (refused.Count > 0)
             {
@@ -106,6 +107,7 @@ namespace Tavern.Core.Flow
                 if (again.Count > 0)
                 {
                     var cls2 = await Classifier.ClassifyAsync(E, again, true, ct).ConfigureAwait(false);
+                    PrepareCombatSteps(cls2);
                     report.Calls += cls2.Calls;
                     foreach (var c in cls2.Declarations) { cls.Declarations.RemoveAll(x => x.Who == c.Who); cls.Declarations.Add(c); }
                     decls = decls.Where(d => again.All(a => a.Who != d.Who)).Concat(again).ToList();
@@ -220,6 +222,41 @@ namespace Tavern.Core.Flow
             if (Phase == Phase.Over) await TellEndingAsync(report, ct).ConfigureAwait(false);
             else await TellAsync(report, declared, changes, ct).ConfigureAwait(false);
             return report;
+        }
+
+        /// <summary>
+        /// Before the round: known 【names】 get their effect, the mage's magic missile is a plain attack (no focus),
+        /// and an effect the adventurer has no focus for is refused (they may declare again).
+        /// </summary>
+        void PrepareCombatSteps(Classification cls)
+        {
+            foreach (var c in cls.Declarations)
+            {
+                var a = E.Find(c.Who);
+                var s = c.Steps.FirstOrDefault(x => x.Sort != Sort.Impossible);
+                if (a == null || s == null) continue;
+                if (s.Technique.Length > 0 && a.FindTechnique(s.Technique) is NamedTechnique known)
+                {
+                    s.Effect = new Effect(known.Kind, known.Size);
+                    s.EffectAbility = known.Ability;
+                }
+                if (a.Class.MagicMissile && s.Technique.Length == 0 && (s.Text.Contains("魔力の矢") || s.Text.Contains("魔法の矢")) && s.Effect?.Kind == EffectKind.Strike)
+                {
+                    s.Effect = null;
+                    s.CombatAct = "attack";
+                    s.Sort = Sort.Check;
+                }
+                // holding a boss takes the large size: the player asked to stop it, so the game asks the size that can
+                if (s.Effect is Effect hold && hold.Kind == EffectKind.Hold && hold.Size != EffectSize.Large
+                    && E.Combat?.Find(s.Target)?.Creature is Creature t && t.Boss && a.Focus >= Effects.FocusCost(EffectSize.Large))
+                    s.Effect = new Effect(EffectKind.Hold, EffectSize.Large);
+                if (s.Effect is Effect fx && a.Focus < fx.FocusCost)
+                {
+                    s.Sort = Sort.Impossible;
+                    s.Why = ImpossibleReason.Situation;
+                    s.How = $"気力が足りない（{fx.Size.Label()}の術は気力 {fx.FocusCost}、残り {a.Focus}）。普通の攻撃なら気力は要らない";
+                }
+            }
         }
 
         static string Refusal(Step s) => (s.Why?.Label() ?? "できない") + (s.How.Length > 0 ? "。" + s.How : "");

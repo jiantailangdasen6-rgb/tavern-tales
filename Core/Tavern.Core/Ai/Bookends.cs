@@ -142,7 +142,7 @@ namespace Tavern.Core.Ai
 - 記録帳（story）: 今夜の出来事を 6〜10 文で。結末の札と事実を変えない。失敗した晩も、死者も、正直に。
 - 噂（rumors）: 酒場で客が話す 1〜2 行。
 - 因縁（bonds）: 候補の種類から 0〜2 件。次の晩の物語に味付けとして差し込む種（本筋や黒幕にはしない）。
-- 歴戦の印（marks）: 生き延びた冒険者ごとに、今夜の出来事から 12 字ほどの名前（例: 骨の騎士を断った）。";
+- 歴戦の印（marks）: 生き延びた冒険者ごとに、今夜の出来事から 12 字以内の短い名前（例: 骨の騎士を断った）。";
 
         public async Task<Chronicle> ChronicleAsync(Evening e, string endingSummary, IReadOnlyList<string> log, IReadOnlyList<string> bondCandidates, CancellationToken ct = default)
         {
@@ -197,7 +197,7 @@ namespace Tavern.Core.Ai
                 if ((string?)x["kind"] is string k && bondCandidates.Any(bc => bc.StartsWith(k))) c.Bonds.Add(new Bond { Kind = k, Text = (string?)x["text"] ?? "" });
             foreach (var m in (o["marks"] as JArray ?? new JArray()).OfType<JObject>())
                 if ((string?)m["who"] is string who && e.Find(who)?.Life != Life.Dead && e.Find(who) != null)
-                    c.Marks[who] = Trim((string?)m["name"] ?? "", 16);
+                    c.Marks[who] = Trim((string?)m["name"] ?? "", 24);
             foreach (var a in e.Party.Where(a => a.Life != Life.Dead && !c.Marks.ContainsKey(a.Id))) c.Marks[a.Id] = Trim(e.Story.Title + "を生き延びた", 16);
             if (c.Story.Length == 0) c.Story = endingSummary;
             return c;

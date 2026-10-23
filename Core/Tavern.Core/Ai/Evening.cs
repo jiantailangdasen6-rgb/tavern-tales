@@ -113,9 +113,9 @@ namespace Tavern.Core.Ai
             return null;
         }
 
-        /// <summary>Known places reachable from here over open links but not next door (for the AI's list of destinations).</summary>
+        /// <summary>Places reachable from here over open links but not next door: known ones, and the next new place beyond them (for the AI's list of destinations).</summary>
         public IEnumerable<string> KnownFurther(string from) =>
-            World.Visited.Where(v => v != from && !Ways(from).Any(w => w.link.To == v) && PathTo(from, v) != null);
+            Story.Places.Select(p => p.Id).Where(v => v != from && !Ways(from).Any(w => w.link.To == v) && PathTo(from, v) != null);
 
         /// <summary>Clocks that became visible since the last look (their condition now holds).</summary>
         public List<Clock> RevealClocks()

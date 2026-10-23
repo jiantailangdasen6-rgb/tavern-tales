@@ -28,13 +28,16 @@ static class PlayBot
         using var http = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
         ILlmClient backend;
         var engine = Opt("--engine") ?? "gemini";
-        if (Opt("--replay") is string tape) backend = new ReplayLlm(tape);
-        else if (engine == "gemini")
+        ILlmClient? live = null;
+        if (engine == "gemini" && (Opt("--replay") == null || a.Contains("--live")))
         {
             var key = Environment.GetEnvironmentVariable("GEMINI_API_KEY_TEST") ?? Environment.GetEnvironmentVariable("GEMINI_API_KEY_TEST", EnvironmentVariableTarget.User)
                 ?? throw new Exception("GEMINI_API_KEY_TEST is not set");
-            backend = new GeminiClient(http, key, Opt("--model") ?? "gemini-3.5-flash-lite", "minimal");
+            live = new GeminiClient(http, key, Opt("--model") ?? "gemini-3.5-flash-lite", "minimal");
         }
+        // --replay answers from a tape; with --live, requests not on the tape go to Gemini
+        if (Opt("--replay") is string tape) backend = new ReplayLlm(tape, live);
+        else if (live != null) backend = live;
         else backend = new OllamaClient(http, Opt("--model") ?? "qwen3:8b");
         if (Opt("--record") is string rec) backend = new RecordingLlm(backend, rec);
         var meter = new CallMeter(backend, 500);
@@ -47,7 +50,7 @@ static class PlayBot
         var difficulty = (Opt("--difficulty") ?? "standard") switch { "gentle" => Difficulty.Gentle, "harsh" => Difficulty.Harsh, _ => Difficulty.Standard };
         var e = Evening.Begin(story, party, difficulty);
         e.FirstEvening = true;
-        var bot = new BotPlayers(rng, e.Find) { Redeclare = (who, why) => "辺りを見回す" };
+        var bot = new BotPlayers(rng, e.Find) { Redeclare = (who, why) => e.Combat == null ? "辺りを見回す" : e.Find(who)?.Class.Id == "mage" ? "魔力の矢を敵に放つ" : "武器で敵に攻撃する" };
         var table = new Table(e, new Classifier(meter, reduced), new Narrator(meter), bot, rng, enemies);
         string? lastSave = null;
         table.Save = t => lastSave = SaveGame.From(t).ToJson();
@@ -146,6 +149,7 @@ static class PlayBot
         var c = e.Combat!;
         var foe = c.Foes.Where(f => f.InFight).OrderBy(f => f.Hp).FirstOrDefault();
         var name = foe?.Name ?? "敵";
+        var boss = c.Foes.FirstOrDefault(f => f.InFight && f.Boss);
         var list = new List<Declaration>();
         foreach (var a in e.Party.Where(x => x.IsUp))
         {
@@ -154,7 +158,8 @@ static class PlayBot
             {
                 "priest" when down != null => $"祈りを捧げて、倒れた{down.Name}の傷をふさぐ",
                 "priest" => $"聖なる光で{name}を撃つ",
-                "mage" when a.Focus >= 2 && c.Foes.Count(f => f.InFight) > 1 => "炎の渦を呼んで、敵をまとめて焼き払う",
+                "mage" when boss != null && !boss.HeldOnce && a.Focus >= 3 && c.BigMoveDue.Contains(boss.Id) => $"大技の前に、眠りの霧で{boss.Name}の動きを止める",
+                "mage" when a.Focus >= 2 && c.Foes.Count(f => f.InFight) > 1 && (boss == null || a.Focus >= 5) => "炎の渦を呼んで、敵をまとめて焼き払う",
                 "mage" => $"魔力の矢を{name}に放つ",
                 "thief" => $"短剣で{name}の隙を突く",
                 _ when down != null && a.Class.Id == "warrior" => $"倒れた{down.Name}を助け起こす",

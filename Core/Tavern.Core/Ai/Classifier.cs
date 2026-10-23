@@ -211,6 +211,7 @@ namespace Tavern.Core.Ai
 ## 技・呪文・戦闘の自由な行動
 - effect に効果の種類（strike 1 体攻撃 / sweep 全体攻撃 / hold 動きを止める / cover かばう / boost 加護 / ward 守り / heal 回復 / taunt 挑発 / smoke 煙 / unlock 調べる・開ける）と
   大きさ（small / medium / large）、effect_ability に振る能力値。普通の武器での攻撃は effect なしの check（ability は武器の能力値）。
+  動きを止める（hold）は、弱い敵なら small、普通の敵なら medium、ボスは large でないと効かない。
 - 宣言に【名前】があれば technique にその名前。冒険者の名付けた技に同じ名前があれば中身はゲームが知っているので effect は不要。新しい名前なら effect と technique_note（ひとことの説明）。
 - 呪文は魔法使いと僧侶だけ。ほかの職業は筋の通る道具や方法がなければ lacking。
 
@@ -484,10 +485,35 @@ namespace Tavern.Core.Ai
                         s.Check ??= new CheckSpec { Reason = md.Name };
                         s.Check.Ability = md.Ability; s.Check.Tier = md.Tier;
                     }
+                    // a person named in the step's words, when the AI gave no id (「トムを連れ出す」)
+                    if (s.Person.Length == 0)
+                    {
+                        var here = e.PlaceOf(a);
+                        var named = e.PeopleAt(here).FirstOrDefault(p => ShortNames(p.Name).Any(n => s.Text.Contains(n)));
+                        if (named != null) s.Person = named.Id;
+                    }
+                    // taking rescued people along: the words say so even when the AI did not
+                    if (!s.Recruit && s.Person.Length > 0 && e.World.Cast.Find(s.Person) is Npc esc && esc.Escort && !esc.WithParty
+                        && new[] { "連れ", "背負", "助け出", "牢から出" }.Any(w => s.Text.Contains(w)))
+                    {
+                        s.Recruit = true;
+                        s.Sort = Sort.Auto;
+                        s.Check = null;
+                    }
                     if (s.Take && s.Item.Length > 0 && s.Against.Length == 0 && e.World.WhereIs(s.Item) is string w && w.StartsWith("pc:") && w.Substring(3) != c.Who)
                         s.Against = w.Substring(3);
                 }
             }
+        }
+
+        /// <summary>A person's name and its short forms (「若者トム」 → 「若者トム」「トム」).</summary>
+        static IEnumerable<string> ShortNames(string name)
+        {
+            yield return name;
+            foreach (var prefix in new[] { "若者", "村長", "猟師", "村の" })
+                if (name.StartsWith(prefix) && name.Length > prefix.Length + 1) yield return name.Substring(prefix.Length);
+            var i = name.LastIndexOfAny(new[] { 'の', '・' });
+            if (i >= 0 && name.Length - i - 1 >= 2) yield return name.Substring(i + 1);
         }
 
         /// <summary>

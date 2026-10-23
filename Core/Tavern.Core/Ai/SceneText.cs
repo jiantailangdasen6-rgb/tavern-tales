@@ -49,7 +49,7 @@ namespace Tavern.Core.Ai
                 var ways = e.Ways(place).Select(w => $"[{w.link.To}] {e.Story.PlaceOf(w.link.To)?.Name}{(w.open ? "" : "（まだ通れない" + (w.link.Text.Length > 0 ? ": " + w.link.Text : "") + "）")}");
                 b.AppendLine("行ける場所（隣）: " + string.Join(" / ", ways));
                 var further = e.KnownFurther(place).ToList();
-                if (further.Count > 0) b.AppendLine("道をたどって行ける、知っている場所: " + string.Join(" / ", further.Select(x => $"[{x}] {e.Story.PlaceOf(x)?.Name}")));
+                if (further.Count > 0) b.AppendLine("道をたどって行ける場所: " + string.Join(" / ", further.Select(x => $"[{x}] {e.Story.PlaceOf(x)?.Name}")));
                 foreach (var r in p.Rules) b.AppendLine($"場所の決まり: {r.Text}");
                 if (p.Tense) b.AppendLine("ここは緊迫の場所。");
                 if (p.Shop) b.AppendLine("店がある（消耗品と道具）。");
