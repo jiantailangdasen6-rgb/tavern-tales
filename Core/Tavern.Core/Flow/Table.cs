@@ -109,6 +109,9 @@ namespace Tavern.Core.Flow
             /// <summary>Decided without the step's own check (contest won, request free, item handed over...).</summary>
             public bool? Forced;
             public int FateNatural;
+            /// <summary>Traps at a place reached for the first time: the entrant rolls to spot them (natural per trap).</summary>
+            public List<(Trap trap, RollRequest req)> Traps = new List<(Trap, RollRequest)>();
+            public List<int> TrapNaturals = new List<int>();
             public bool Stopped;
             public bool Secret => D.Secret;
             public bool Succeeded => Forced ?? (S.Sort == Sort.Auto || (Check != null && Check.GetsThrough));
@@ -245,6 +248,13 @@ namespace Tavern.Core.Flow
             if (s.Sort == Sort.Impossible)
             {
                 r.Refused = (s.Why?.Label() ?? "できない") + (s.WorldRule > 0 ? $" {s.WorldRule}" : "") + (s.How.Length > 0 ? $"。{s.How}" : "");
+                return;
+            }
+            // the game knows who cannot move: bound, asleep, stunned (speech still works for the bound)
+            if (!a.Statuses.CanAct && !(a.Statuses.Has(StatusKind.Bound) && s.Sort == Sort.Auto && s.Person.Length > 0))
+            {
+                var st = a.Statuses.List.First(x => StatusInfo.Disables(x.Kind)).Kind;
+                r.Refused = $"状況。{st.Label()}で動けない" + (st == StatusKind.Bound ? "（縄を解けば動ける。仲間が解くか、STR か DEX の難しい判定）" : "");
                 return;
             }
             // targets
@@ -457,6 +467,14 @@ namespace Tavern.Core.Flow
                     reqs.Add(req);
                 }
             foreach (var s in secrets.Where(s => s.Request != null)) reqs.Add(s.Request!);
+            foreach (var r in runs.Where(r => r.Refused.Length == 0 && r.S.MoveTo.Length > 0 && W.FirstVisit(r.S.MoveTo)))
+                foreach (var trap in Story.PlaceOf(r.S.MoveTo)?.Traps ?? new List<Trap>())
+                {
+                    if (runs.Any(o => o != r && o.Traps.Any(x => x.trap == trap))) continue;   // the first one in meets it
+                    var req = new RollRequest { Who = r.A.Id, Kind = RollKind.Trap, Heading = $"罠に気付く（{trap.Ability.Code()}・{trap.Tier.Label()} {(int)trap.Tier}）", For = trap.Text, Bonus = r.A.Modifier(trap.Ability), Target = (int)trap.Tier };
+                    r.Traps.Add((trap, req));
+                    reqs.Add(req);
+                }
             if (reqs.Count == 0) return;
 
             var naturals = await Players.RollAsync(reqs, ct).ConfigureAwait(false);
@@ -479,6 +497,7 @@ namespace Tavern.Core.Flow
             {
                 case RollKind.Check: q.Check!.Apply(natural); break;
                 case RollKind.Fate: runs.First(r => r.Request == q).FateNatural = natural; break;
+                case RollKind.Trap: runs.First(r => r.Traps.Any(x => x.req == q)).TrapNaturals.Add(natural); break;
                 case RollKind.Contest: contests.First(x => x.req == q).side.Natural = natural; break;
                 case RollKind.Secret: var s = secrets.First(x => x.Request == q); s.Natural = natural; s.Found = Secrecy.Found(natural, q.Bonus, q.Target); break;
             }
@@ -593,7 +612,17 @@ namespace Tavern.Core.Flow
                 foreach (var p in W.Cast.People.Where(p => p.WithParty)) p.Location = s.MoveTo;
                 if (first) { progress = true; FirstVisitThisTurn.Add(s.MoveTo); changes.Add($"初めて「{Story.PlaceOf(s.MoveTo)?.Name}」に着いた"); }
                 if (first && Story.PlaceOf(s.MoveTo) is Place pl && pl.Tense) E.Tension.Trigger();
-                if (first) foreach (var t in Story.PlaceOf(s.MoveTo)?.Traps ?? new List<Trap>()) changes.Add($"罠がある: {t.Text}");
+                for (int i = 0; i < r.Traps.Count && i < r.TrapNaturals.Count; i++)
+                {
+                    var (trap, req) = r.Traps[i];
+                    var n = r.TrapNaturals[i];
+                    var spotted = n == 20 || (n != 1 && n + req.Bonus >= req.Target);
+                    if (spotted) { Line(report, r, $"{a.Name} は{trap.Text}に気付いて外した（{n}+{req.Bonus}）"); changes.Add($"{a.Name}が罠（{trap.Text}）を見抜いた"); continue; }
+                    a.TakeDamage(trap.Damage);
+                    if (trap.Status is StatusKind st) a.Statuses.Add(st, "trap", a.Gear.Wears(Trait.Blessed));
+                    Line(report, r, $"{a.Name} が{trap.Text}にかかった（{n}+{req.Bonus}）: {trap.Damage} ダメージ{(trap.Status != null ? "、" + trap.Status.Value.Label() : "")}（HP {a.Hp}/{a.MaxHp}）");
+                    changes.Add($"{a.Name}が罠（{trap.Text}）にかかって傷を負った");
+                }
             }
             // effects outside fights
             if (s.Effect is Effect ef && E.Combat == null)

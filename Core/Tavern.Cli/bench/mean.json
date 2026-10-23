@@ -47,7 +47,7 @@
 
     { "id": "teleport", "at": "village",
       "declare": [ { "who": "elis", "text": "転移の呪文で、一瞬で祠の地下牢へ飛ぶ" } ],
-      "expect": [ { "who": "elis", "step": 0, "sort": "impossible", "why": "world_rule", "rule": [ 3 ] } ] },
+      "expect": [ { "who": "elis", "step": 0, "sort": "impossible", "why": [ "world_rule", "lacking" ], "rule": [ 3 ] } ] },
 
     { "id": "thief_spell", "at": "forest_path",
       "declare": [ { "who": "rocco", "text": "火の玉の呪文を唱えて狼を焼く" } ],

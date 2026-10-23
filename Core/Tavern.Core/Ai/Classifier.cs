@@ -64,6 +64,8 @@ namespace Tavern.Core.Ai
         public string Buy { get; set; } = "";
         /// <summary>In a fight: attack / flee / revive / finish / defend / item / talk / other.</summary>
         public string CombatAct { get; set; } = "";
+        /// <summary>An enemy of the place named as a target outside a fight (the game starts the fight from it).</summary>
+        public string FoeHint { get; set; } = "";
         /// <summary>Silver handed over (a bribe, a fee, a gift).</summary>
         public int Pay { get; set; }
         public Effect? Effect { get; set; }
@@ -148,6 +150,7 @@ namespace Tavern.Core.Ai
                 }
             }
             Read(e, decls, inCombat, args ?? new JObject(), result);
+            ApplySheet(e, decls, result);
             return result;
         }
 
@@ -174,7 +177,7 @@ namespace Tavern.Core.Ai
 
 ## 段に分ける
 - 1 つの宣言に複数の行動があれば、段（steps）に分けます。判定の要らない動き（近づく、武器を抜く、台詞）は 1 段にまとめてかまいません。
-- 判定の要る段は、探索中は 2 つまで、戦闘中は 1 つまで。それより後の行動は deferred に文章で入れます（次の手に回す）。
+- 判定の要る段は、探索中は 2 つまで、戦闘中は 1 つまで。それより後の行動は、捨てずに必ず deferred に文章で入れます（次の手に回す）。
 
 ## 段ごとの仕分け（sort）
 - auto（そのまま成功）: 「失敗したら危険・損・時間の無駄がある」と「結果が確かでない」のどちらかが欠ける。例: 見回す、話しかける、鍵のない扉を開ける、急がずに梯子を登る、知っている道を歩く、判定なしの手がかりを調べる。
@@ -189,8 +192,11 @@ namespace Tavern.Core.Ai
 - impossible（できない）: 理由は 3 種類だけ。world_rule（世界の決まりの一覧の番号を rule に）/ lacking（持っていない・知らない。呪文を使えない職業の呪文も）/
   situation（縛られている、届かない、相手がいない。how に「どうすればできるか」を必ず書く）。
   どれにも当たらなければ、どんなに無茶でも check（最悪でも extreme）。「難しそう」は理由になりません。
+  持ち物にない物を使う宣言は lacking。冒険者の状態（縛られ・眠り・動けない）で動けないなら situation。世界にない道具（銃など）は world_rule 8。
+  移動の呪文で遠くへ一瞬で着くのは world_rule 3（呪文を使える職業でも）。
 - fate（運命のダイス）: 行動ではなく、世界の事実を確かめるとき（「この部屋に窓はある？」「この商人は薬を売っている？」「町に叔父がいる」）。
-  question に問いを、likelihood に見込み（certain / likely / even / unlikely / remote）を。設定表の秘密や名品には使えない（それは impossible の world_rule 5・6）。
+  question に問いを、likelihood に見込み（certain / likely / even / unlikely / remote）を。「〜はある？」「〜はいる？」のような問いの形の宣言は fate。
+  ただし真相や設定表の秘密に答えがある問い（「若者は生きているか」「犯人は誰か」）は fate にせず impossible の world_rule 5。名品を得る問いは world_rule 6。
 
 ## 向け先（id で。場面にない id は書かない）
 - mechanism: 仕掛けを動かす段。item: 物を使う・取る・渡す・置く段（take=true は拾う・奪う、give_to は渡す相手の id、place_at は置く場所の id）。
@@ -210,13 +216,14 @@ namespace Tavern.Core.Ai
 
 ## そのほか
 - 推理: 冒険者が推理を口にする・突きつける・行動に移したら conclusion にどの結論の推理かを、correct に合っているかを。
-- unexpected: 山場を、設定表にない方法で解こうとする段（extreme の check にする）。
-- place_rule: 場所の決まりに触れる段。slow: 時間をかける段（丹念に調べる）。noisy: 大きな物音を立てる段。rest: 休む・野営する段（sort は auto）。
+- unexpected: 山場の最中に、ボスや山場を、設定表にない方法で一気に片付けようとする段（生き埋めにする、封じ込める、など）。extreme の check にする。
+- place_rule: 場面の「場所の決まり」に書かれた行い（大声、水音など）に触れる段は必ず true。slow: 時間をかける段（丹念に調べる）。noisy: 大きな物音を立てる段。rest: 休む・野営する段（sort は auto）。
 - target: 回復・加護・守り・かばうなど、効果を向ける相手の id（自分なら空）。
 - recruit: 人物に一緒に来てもらう・助けた人を連れていく段（person にその人の id、request は large）。
 - abandon: 依頼を捨てて、この土地から去る段（sort は auto）。
 - お金: 銀貨を渡す段（買収・情報料・贈り物）は pay に枚数を。店で買う段は buy に品の鍵（torch 松明 / rope ロープ / oil 油 / antidote 解毒薬 / potion 薬 小 / potion_m 薬 中 / scroll 巻物）を。買い物は auto。
-- 内緒の宣言（secret）も普通に仕分ける。表向き（cover）が空なら、判定の要らない当たり障りのない行動を 1 文で cover に書く。
+- 内緒の宣言（secret）も普通に仕分ける（物を取るなら item と take も）。表向きが書かれていなければ、必ず cover に、判定の要らない当たり障りのない行動を 1 文で書く。
+- 物を使う・取る・渡す・置く段には、場面や持ち物にある物の id を必ず item に入れる（仲間の持ち物を奪うときも）。
 - 戦闘が始まるべきとき（敵が襲う、冒険者が攻撃をしかける）は fight に、その場所に出うる敵の id を並べる。冒険者が気付かれずに先に仕掛けたら surprise=true。
 - 戦闘中は、段ごとに combat_act（attack 武器や魔力の矢で攻撃 / flee 逃げる / revive 倒れた仲間を起こす / finish 倒れた相手にとどめ / defend 身を守る /
   item 持ち物を使う / talk 説得・降伏の呼びかけ / other ほか）と、狙う敵や相手の id を target に。技・呪文は effect も。
@@ -417,6 +424,18 @@ namespace Tavern.Core.Ai
                 if (c.Steps.Count == 0) c.Steps.Add(new Step { Text = d.Text, Sort = Sort.Auto });
                 result.Declarations.Add(c);
             }
+            if (result.Fight == null && e.Combat == null && !((args["fight"] as JObject)?["enemies"] is JArray { Count: > 0 }))
+            {
+                // no fight given, but someone attacks an enemy of this place: that starts it
+                var hinted = result.Declarations.SelectMany(c => c.Steps).Where(s => s.FoeHint.Length > 0).Select(s => s.FoeHint).Distinct().ToList();
+                if (hinted.Count > 0)
+                {
+                    var place = e.Story.PlaceOf(e.World.PlacesOfParty.First());
+                    var fs = new FightStart();
+                    fs.Enemies.AddRange(place?.Enemies.Where(x => hinted.Contains(x)) ?? hinted);
+                    result.Fight = fs;
+                }
+            }
             if (args["fight"] is JObject f && f["enemies"] is JArray en && en.Count > 0)
             {
                 var fight = new FightStart { Surprise = (bool?)f["surprise"] ?? false };
@@ -425,6 +444,49 @@ namespace Tavern.Core.Ai
                     if (allowed.Contains(id) || e.Story.People.Any(p => p.Enemy == id)) fight.Enemies.Add(id);
                     else result.Dropped.Add($"敵 '{id}' はこの場所に出ない");
                 if (fight.Enemies.Count > 0) result.Fight = fight;
+            }
+        }
+
+        /// <summary>
+        /// What the game knows better than the AI, applied right after reading (09_Spec 4, 13): the sheet's numbers for clues and
+        /// mechanisms, adventurers who cannot move, taking what a fellow adventurer holds, a bland cover for a secret action.
+        /// </summary>
+        public static void ApplySheet(Evening e, IReadOnlyList<Declaration> decls, Classification result)
+        {
+            foreach (var c in result.Declarations)
+            {
+                var a = e.Find(c.Who);
+                if (a == null) continue;
+                var decl = decls.FirstOrDefault(d => d.Who == c.Who);
+                if (decl != null && decl.Secret && c.Cover.Trim().Length == 0) c.Cover = "辺りの様子をうかがう";
+                foreach (var s in c.Steps)
+                {
+                    if (!a.Statuses.CanAct && s.Sort != Sort.Impossible && !(a.Statuses.Has(StatusKind.Bound) && s.Sort == Sort.Auto && s.Person.Length > 0))
+                    {
+                        var st = a.Statuses.List.First(x => StatusInfo.Disables(x.Kind)).Kind;
+                        s.Sort = Sort.Impossible; s.Why = ImpossibleReason.Situation; s.Check = null;
+                        s.How = st == StatusKind.Bound ? "縄を解けば動ける（仲間が解くか、STR か DEX の難しい判定）" : $"{st.Label()}が解ければ動ける";
+                        continue;
+                    }
+                    if (s.Clue.Length > 0 && s.Person.Length == 0 && e.Story.ClueOf(s.Clue) is Clue clue)
+                    {
+                        if (clue.Access == ClueAccess.Free && s.Sort == Sort.Check) { s.Sort = Sort.Auto; s.Check = null; }
+                        else if (clue.Access == ClueAccess.Check)
+                        {
+                            s.Sort = Sort.Check;
+                            s.Check ??= new CheckSpec { Reason = clue.How };
+                            s.Check.Ability = clue.Ability!.Value; s.Check.Tier = clue.Tier!.Value; s.Check.Important = clue.Important;
+                        }
+                    }
+                    if (s.Mechanism.Length > 0 && e.Story.Mechanisms.FirstOrDefault(m => m.Id == s.Mechanism) is MechanismDef md && !md.NoCheck)
+                    {
+                        s.Sort = Sort.Check;
+                        s.Check ??= new CheckSpec { Reason = md.Name };
+                        s.Check.Ability = md.Ability; s.Check.Tier = md.Tier;
+                    }
+                    if (s.Take && s.Item.Length > 0 && s.Against.Length == 0 && e.World.WhereIs(s.Item) is string w && w.StartsWith("pc:") && w.Substring(3) != c.Who)
+                        s.Against = w.Substring(3);
+                }
             }
         }
 
@@ -481,8 +543,15 @@ namespace Tavern.Core.Ai
             step.Person = Id("person", IsPerson);
             step.Clue = Id("clue", id => e.Story.ClueOf(id) != null);
             step.MoveTo = Id("move_to", IsPlace);
+            // a person put in "against" (or "target" outside a fight) is the person the step is aimed at
+            var raw = ((string?)s["against"] ?? "").Trim();
+            if (step.Person.Length == 0 && raw.Length > 0 && !IsAdventurer(raw) && IsPerson(raw)) { step.Person = raw; s.Remove("against"); }
+            var rawTarget = ((string?)s["target"] ?? "").Trim();
+            if (step.Person.Length == 0 && e.Combat == null && rawTarget.Length > 0 && !IsAdventurer(rawTarget) && IsPerson(rawTarget)) step.Person = rawTarget;
             step.Against = Id("against", id => IsAdventurer(id) && id != who);
             step.Helps = Id("helps", id => IsAdventurer(id) && id != who);
+            // outside a fight, an enemy of this place as the target means the fight starts (read in Read)
+            if (e.Combat == null && rawTarget.Length > 0 && e.World.PlacesOfParty.Any(p => e.Story.PlaceOf(p)?.Enemies.Contains(rawTarget) == true)) { step.FoeHint = rawTarget; s.Remove("target"); }
             step.Target = Id("target", id => IsAdventurer(id) || IsPerson(id) || e.Combat?.Find(id) != null);
             step.CombatAct = (string?)s["combat_act"] ?? "";
             step.Rest = (bool?)s["rest"] ?? false;
