@@ -93,6 +93,7 @@ namespace Tavern.Unity.App
             Dice = DiceRoller.Create(transform);
             Dice.Bounced += strength => AudioDirector.Play("dice_land", 0.25f + 0.75f * strength);   // a knock each time the die hits the tray
             AudioDirector.Create(transform);
+            FontRefresh.Create(transform);
 
             InviteLink.Register();
             WebPage.Setup();

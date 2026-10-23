@@ -251,4 +251,27 @@ namespace Tavern.Unity.Ui
             trigger.triggers.Add(enter); trigger.triggers.Add(exit);
         }
     }
+
+    /// <summary>
+    /// Redraws every Text after a dynamic font's atlas was rebuilt. Typing new kanji through the IME grows the atlas, and uGUI's
+    /// own tracking left some labels drawing stale glyphs (garbled) until something else redrew them.
+    /// </summary>
+    public sealed class FontRefresh : MonoBehaviour
+    {
+        static readonly System.Collections.Generic.HashSet<Font> Rebuilt = new System.Collections.Generic.HashSet<Font>();
+
+        public static void Create(Transform parent)
+        {
+            Font.textureRebuilt += f => Rebuilt.Add(f);
+            new GameObject("FontRefresh", typeof(FontRefresh)).transform.SetParent(parent);
+        }
+
+        void LateUpdate()
+        {
+            if (Rebuilt.Count == 0) return;
+            foreach (var t in FindObjectsByType<Text>(FindObjectsSortMode.None))
+                if (Rebuilt.Contains(t.font)) t.FontTextureChanged();
+            Rebuilt.Clear();
+        }
+    }
 }
