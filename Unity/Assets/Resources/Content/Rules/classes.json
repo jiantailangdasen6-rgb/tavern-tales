@@ -1,0 +1,92 @@
+{
+  "_note": "Docs/09_Spec.md 3. Each sentence of a class text stands for one specialty (effect kind). Numbers are provisional.",
+  "classes": [
+    {
+      "id": "warrior", "name": "戦士",
+      "stats": { "STR": 3, "DEX": 1, "AGI": 1, "INT": 0, "MND": 1 }, "hp": 18, "focus": 4,
+      "intro": "あなたは前に立つ者だ。",
+      "specialties": [
+        { "kind": "Sweep", "text": "剣を大きく振るえば、群がる敵をまとめて薙ぎ払える（全体攻撃）。" },
+        { "kind": "Cover", "text": "盾を掲げて仲間の前に立てば、その刃を代わりに受け止められる（かばう）。" },
+        { "kind": "Boost", "text": "雄叫びを上げれば、仲間の手に力が戻る（加護）。" }
+      ],
+      "growth": [
+        { "kind": "Strike", "text": "全身の力を一太刀に込めれば、どんな鎧も断ち割れる（1 体攻撃）。" },
+        { "kind": "Taunt", "text": "吠えて睨めば、敵の刃はあなたに向く（挑発）。" },
+        { "kind": "Ward", "text": "歯を食いしばれば、傷を傷とも思わない（守り）。" },
+        { "kind": "Heal", "selfOnly": true, "text": "息を整えれば、傷の痛みが引いていく（回復: 自分だけ）。" },
+        { "kind": "Hold", "text": "盾ごとぶつかれば、敵は足を止める（動きを止める）。" }
+      ],
+      "gear": [
+        { "id": "sword", "name": "剣", "kind": "Weapon", "weapon": "Sword", "equip": "main" },
+        { "id": "chainmail", "name": "鎖帷子", "kind": "Body", "equip": "body" },
+        { "id": "wooden_shield", "name": "木の盾", "kind": "Shield", "equip": "off" }
+      ]
+    },
+    {
+      "id": "mage", "name": "魔法使い",
+      "stats": { "STR": 0, "DEX": 1, "AGI": 1, "INT": 3, "MND": 1 }, "hp": 12, "focus": 6, "spells": true, "magicMissile": true,
+      "intro": "あなたは言葉で世界を曲げる者だ。",
+      "outro": "大きな術ほど、気力を深く食う。",
+      "specialties": [
+        { "kind": "Sweep", "text": "炎や雷を呼べば、敵の群れをまとめて焼き払える（全体攻撃）。" },
+        { "kind": "Hold", "text": "眠りや幻の霧を放てば、敵の足を止められる（動きを止める）。" },
+        { "kind": "Unlock", "text": "目を閉じれば、魔法の気配や古い文字の意味を読み取れる（調べる・開ける）。" }
+      ],
+      "growth": [
+        { "kind": "Strike", "text": "一筋の稲妻を放てば、狙った一体を貫ける（1 体攻撃）。" },
+        { "kind": "Ward", "text": "指で宙に印を描けば、見えない盾が仲間を包む（守り）。" },
+        { "kind": "Smoke", "text": "幻をまとえば、仲間ごと敵の目から消えられる（煙）。" },
+        { "kind": "Boost", "text": "呪文を囁けば、仲間の刃に魔力が宿る（加護）。" }
+      ],
+      "gear": [
+        { "id": "staff", "name": "杖", "kind": "Weapon", "weapon": "Staff", "equip": "main" },
+        { "id": "robe", "name": "ローブ", "kind": "Body", "equip": "body" }
+      ]
+    },
+    {
+      "id": "thief", "name": "盗賊",
+      "stats": { "STR": 0, "DEX": 3, "AGI": 2, "INT": 1, "MND": 0 }, "hp": 14, "focus": 4,
+      "intro": "あなたは影を歩く者だ。",
+      "specialties": [
+        { "kind": "Strike", "text": "隙を見つければ、急所を一突きで貫ける（1 体攻撃）。" },
+        { "kind": "Unlock", "text": "鍵も罠も、あなたの指先の前では玩具に等しい（調べる・開ける）。" },
+        { "kind": "Smoke", "text": "煙と物陰を使えば、仲間ごと姿を消せる（煙）。" }
+      ],
+      "growth": [
+        { "kind": "Sweep", "text": "投げ短剣を雨のように放てば、敵の群れを乱せる（全体攻撃）。" },
+        { "kind": "Hold", "text": "足を払い、目に砂を投げれば、敵はしばし立ちすくむ（動きを止める）。" },
+        { "kind": "Taunt", "text": "囮になって走れば、敵はあなたを追う（挑発）。" },
+        { "kind": "Ward", "text": "身をひねれば、刃は空を切る（守り）。" },
+        { "kind": "Boost", "text": "仲間の耳に策を囁けば、その一撃は急所に届く（加護）。" }
+      ],
+      "gear": [
+        { "id": "dagger", "name": "短剣", "kind": "Weapon", "weapon": "Dagger", "equip": "main" },
+        { "id": "dagger2", "name": "短剣", "kind": "Weapon", "weapon": "Dagger", "equip": "off" },
+        { "id": "leather", "name": "革鎧", "kind": "Body", "equip": "body" }
+      ]
+    },
+    {
+      "id": "priest", "name": "僧侶",
+      "stats": { "STR": 1, "DEX": 0, "AGI": 1, "INT": 1, "MND": 3 }, "hp": 15, "focus": 5, "spells": true,
+      "intro": "あなたは祈りを力に変える者だ。",
+      "specialties": [
+        { "kind": "Heal", "text": "祈れば、仲間の傷はふさがる（回復）。" },
+        { "kind": "Strike", "undeadBane": true, "text": "聖なる光は、死にきれぬ者を焼く（1 体攻撃。不死に強い）。" },
+        { "kind": "Boost", "text": "祝福を授ければ、仲間の手は迷わない（加護）。" }
+      ],
+      "growth": [
+        { "kind": "Ward", "text": "聖印を掲げれば、光の帳が仲間を守る（守り）。" },
+        { "kind": "Sweep", "undeadBane": true, "text": "祈りを叫べば、光の輪が死者の群れを払う（全体攻撃。不死に強い）。" },
+        { "kind": "Hold", "text": "神の名を告げれば、邪なものは怯んで動きを止める（動きを止める）。" },
+        { "kind": "Cover", "text": "身を挺せば、仲間の痛みを引き受けられる（かばう）。" },
+        { "kind": "Unlock", "text": "静かに祈れば、邪な気配のありかが分かる（調べる・開ける）。" }
+      ],
+      "gear": [
+        { "id": "mace", "name": "鎚矛", "kind": "Weapon", "weapon": "Mace", "equip": "main" },
+        { "id": "vestments", "name": "法衣", "kind": "Body", "equip": "body" },
+        { "id": "small_shield", "name": "小盾", "kind": "Shield", "equip": "off" }
+      ]
+    }
+  ]
+}
