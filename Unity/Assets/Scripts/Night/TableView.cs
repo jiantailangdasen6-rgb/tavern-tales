@@ -266,7 +266,7 @@ namespace Tavern.Unity.Night
             foreach (var p in E.PeopleAt(here).Where(p => E.Story.PersonOf(p.Id)?.Enemy.Length == 0 || p.Fighting == null).Take(4))
             {
                 x -= 96;
-                var pic = UiKit.Picture(_peopleRow, ArtLibrary.Get(p.Portrait.Length > 0 ? p.Portrait : "pt_youth"), x, 0, 90, 120);
+                var pic = UiKit.Picture(_peopleRow, ArtLibrary.Get(ArtLibrary.Has(p.Portrait) ? p.Portrait : "pt_youth"), x, 0, 90, 120);
                 UiKit.Label(_peopleRow, p.Name, 12, Theme.GoldLight, x - 4, 122, 98, 28, align: TextAnchor.UpperCenter).gameObject.AddComponent<Shadow>();
                 if (p.WithParty) pic.color = new Color(1, 1, 1, 0.85f);
             }
@@ -394,7 +394,11 @@ namespace Tavern.Unity.Night
             _busy = false;
             _busyText.text = "";
             if (r != null) Show(r);
-            if (_n.Ai.Meter?.Low == true) _n.Ai.Narrator.AllowRetell = _n.Ai.Highlight.AllowRetell = false;
+            if (_n.Ai.Meter is Tavern.Core.Ai.CallMeter meter)
+            {
+                _n.Store.SaveCalls(_n.Ai.KeyName, meter);
+                if (meter.Low) _n.Ai.Narrator.AllowRetell = _n.Ai.Highlight.AllowRetell = false;
+            }
             RefreshAll();
             if (r?.Ending != null) _ = FinishEveningAsync();
             else if (_t.GrowthDue.Count > 0) ShowGrowth();

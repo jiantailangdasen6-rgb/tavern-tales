@@ -12,6 +12,9 @@ namespace Tavern.Unity.App
     {
         static readonly Dictionary<string, Texture2D> Cache = new Dictionary<string, Texture2D>();
 
+        /// <summary>Whether the picture exists (missing ones fall back to a placeholder in Get).</summary>
+        public static bool Has(string? id) => !string.IsNullOrEmpty(id) && (Cache.TryGetValue(id!, out var c) ? c.width > 4 : Resources.Load<Texture2D>("Art/" + id) != null);
+
         public static Texture2D Get(string? id)
         {
             id ??= "";

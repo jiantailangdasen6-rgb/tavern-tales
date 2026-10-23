@@ -32,7 +32,10 @@ namespace Tavern.Unity.Night
         static HttpClient? _http;
         static HttpClient Http => _http ??= new HttpClient { Timeout = TimeSpan.FromMinutes(3) };
 
-        public static NightAi Create(bool demo, bool testKey)
+        /// <summary>The key's name in the call counter file ("play" or "test").</summary>
+        public string KeyName { get; private set; } = "play";
+
+        public static NightAi Create(bool demo, bool testKey, Func<string, int>? usedToday = null)
         {
             var ai = new NightAi();
             if (demo)
@@ -53,7 +56,8 @@ namespace Tavern.Unity.Night
                 ai.Description = $"AI: {name} が見つからないので見本で動いています";
                 return ai;
             }
-            var meter = new CallMeter(new GeminiClient(Http, key!, "gemini-3.5-flash-lite", "minimal"), 500);
+            ai.KeyName = testKey ? "test" : "play";
+            var meter = new CallMeter(new GeminiClient(Http, key!, "gemini-3.5-flash-lite", "minimal"), 500, usedToday?.Invoke(ai.KeyName) ?? 0);
             var strong = new FallbackLlm(new GeminiClient(Http, key!, "gemini-3.8-flash", "low"), meter) { Patience = TimeSpan.FromSeconds(40) };
             ai.Set(meter, strong);
             ai.Meter = meter;

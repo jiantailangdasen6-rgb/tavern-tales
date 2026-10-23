@@ -139,7 +139,7 @@ namespace Tavern.Core.Ai
 - 内緒の行動は、本人だけの語り（private）に本当のことを書く。表の語り（text）には表向きの行動だけを書き、内緒で得た物・技・手がかりの名前を出さない。世界に跡が残るなら、誰がやったかは語らずに描く。
 - ヒントを頼まれたら、手がかりそのものは言わず、NPC の台詞・目に入る物・物音や匂いで、ありかへ気を向けさせる。
 - 直前の語りの締めくくりと同じ締め方をしない。
-- 付け足しは小さく: 事実メモ（facts）、端役（extras。名前と立ち絵）、小さな物（items。名品は不可）、人物の態度が変わった理由（attitudes。一覧から）。なければ空で。";
+- 付け足しは小さく: 事実メモ（facts）、端役（extras。場面にまだいない新しい人だけ。名前と立ち絵）、小さな物（items。名品は不可）、人物の態度が変わった理由（attitudes。一覧から）。なければ空で。";
 
         static readonly Dictionary<SceneKind, (string label, string[] sizes)> Lengths = new Dictionary<SceneKind, (string, string[])>
         {
@@ -230,7 +230,9 @@ namespace Tavern.Core.Ai
             foreach (var x in (a["extras"] as JArray ?? new JArray()).OfType<JObject>())
             {
                 var name = ((string?)x["name"] ?? "").Trim();
-                if (name.Length == 0 || e.World.Cast.People.Any(p => p.Name == name)) continue;
+                // an extra is someone new: not a person of the sheet, not an enemy in the fight, not a short form of either
+                bool Same(string other) => other.Length > 0 && (other == name || other.Contains(name) || name.Contains(other));
+                if (name.Length == 0 || e.World.Cast.People.Any(p => Same(p.Name)) || (e.Combat?.Foes.Any(f => Same(f.Name)) ?? false) || e.Party.Any(a => Same(a.Name))) continue;
                 var portrait = (string?)x["portrait"] ?? "";
                 if (!Portraits.Contains(portrait)) portrait = Portraits[0];
                 r.Extras.Add((name, portrait, (string?)x["place"] ?? ""));

@@ -100,6 +100,24 @@ namespace Tavern.Unity.Night
         }
         public void SaveTavern(TavernState t) => Write(P("night_tavern.json"), JsonConvert.SerializeObject(t, Formatting.Indented));
 
+        sealed class Calls { public int Used; public DateTimeOffset ResetsAt; }
+
+        /// <summary>The AI calls used today on this key (the meter starts from here; a passed reset time means a fresh day).</summary>
+        public int CallsToday(string key)
+        {
+            try
+            {
+                var path = P($"night_calls_{key}.json");
+                if (!File.Exists(path)) return 0;
+                var c = JsonConvert.DeserializeObject<Calls>(File.ReadAllText(path));
+                return c == null || DateTimeOffset.UtcNow >= c.ResetsAt ? 0 : c.Used;
+            }
+            catch (Exception) { return 0; }
+        }
+
+        public void SaveCalls(string key, Tavern.Core.Ai.CallMeter m) =>
+            Write(P($"night_calls_{key}.json"), JsonConvert.SerializeObject(new Calls { Used = m.Used, ResetsAt = m.ResetsAt }));
+
         List<T> ReadList<T>(string path)
         {
             try { return File.Exists(path) ? JsonConvert.DeserializeObject<Versioned<T>>(File.ReadAllText(path))?.Items ?? new List<T>() : new List<T>(); }

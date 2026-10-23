@@ -34,7 +34,7 @@ namespace Tavern.Unity.Night
         public List<Region> Regions { get; } = new List<Region>();
         public NightStore Store { get; }
         NightAi? _ai;
-        public NightAi Ai => _ai ??= NightAi.Create(AppMain.Flag("-demo"), AppMain.Flag("-testkey"));
+        public NightAi Ai => _ai ??= NightAi.Create(AppMain.Flag("-demo"), AppMain.Flag("-testkey"), Store.CallsToday);
         public Difficulty Difficulty { get; set; } = Difficulty.Standard;
 
         public NightApp(AppMain app)
