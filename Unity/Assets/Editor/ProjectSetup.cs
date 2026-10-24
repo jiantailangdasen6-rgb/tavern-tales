@@ -37,6 +37,7 @@ namespace Tavern.Unity.Editor
             SetupUrp();
             SetupMaterials();
             SetupArtImport();
+            SetupUiImport();
             SetupAudioImport();
             SetupScene();
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
@@ -111,6 +112,32 @@ namespace Tavern.Unity.Editor
                 ti.maxTextureSize = max;
                 ti.textureCompression = TextureImporterCompression.CompressedHQ;
                 ti.wrapMode = TextureWrapMode.Clamp;
+                ti.SaveAndReimport();
+            }
+        }
+
+        /// <summary>
+        /// Interface pieces in Resources/UI: frames and icons stay sharp when drawn small (mipmaps, no compression);
+        /// the parchment and leather are compressed.
+        /// </summary>
+        static void SetupUiImport()
+        {
+            if (!AssetDatabase.IsValidFolder("Assets/Resources/UI")) return;
+            foreach (var guid in AssetDatabase.FindAssets("t:Texture2D", new[] { "Assets/Resources/UI" }))
+            {
+                var p = AssetDatabase.GUIDToAssetPath(guid);
+                if (!(AssetImporter.GetAtPath(p) is TextureImporter ti)) continue;
+                var name = Path.GetFileName(p);
+                var small = name.StartsWith("ic_") || name.StartsWith("frame_");
+                var compression = small ? TextureImporterCompression.Uncompressed : TextureImporterCompression.CompressedHQ;
+                if (ti.mipmapEnabled && ti.alphaIsTransparency && ti.textureCompression == compression && ti.wrapMode == TextureWrapMode.Clamp) continue;
+                ti.textureType = TextureImporterType.Default;
+                ti.mipmapEnabled = true;
+                ti.alphaIsTransparency = true;
+                ti.wrapMode = TextureWrapMode.Clamp;
+                ti.filterMode = FilterMode.Bilinear;
+                ti.maxTextureSize = 1024;
+                ti.textureCompression = compression;
                 ti.SaveAndReimport();
             }
         }

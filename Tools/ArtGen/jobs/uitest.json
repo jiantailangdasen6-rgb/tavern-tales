@@ -1,0 +1,10 @@
+[
+  { "id": "ui_frame_panel", "kind": "ui", "aspect": "1:1",
+    "prompt": "An ornate rectangular window frame of aged gold with engraved filigree corners and a thin inner bevel; the inside of the frame is empty flat black." },
+  { "id": "ui_frame_bar", "kind": "ui", "aspect": "16:9",
+    "prompt": "A long thin horizontal gauge frame of engraved dark bronze with small rounded gold end caps; the inside slot of the bar is empty flat black." },
+  { "id": "ui_tex_leather", "kind": "ui", "aspect": "1:1",
+    "prompt": "A seamless square texture of dark brown tooled leather with subtle grain and faint worn embossing, filling the whole picture edge to edge, even lighting." },
+  { "id": "ui_tex_parchment", "kind": "ui", "aspect": "1:1",
+    "prompt": "A seamless square texture of aged parchment paper, warm cream and light ochre with faint fibres and soft stains, filling the whole picture edge to edge, even lighting." }
+]

@@ -30,6 +30,20 @@ namespace Tavern.Unity.Ui
         public static Font Sans => _sans ??= App.WebPage.IsBrowser ? Resources.Load<Font>("Fonts/NotoSansJP-Regular")
             : Font.CreateDynamicFontFromOSFont(new[] { "Yu Gothic UI", "Yu Gothic", "Meiryo UI", "MS Gothic" }, 24);
 
+        static Font? _display, _number;
+        /// <summary>Titles, names, act headings: Zen Antique (SIL OFL), an old-style Mincho.</summary>
+        public static Font Display => _display ??= Resources.Load<Font>("Fonts/ZenAntique-Regular") ?? Serif;
+        /// <summary>Figures (HP, rolls, targets): Cinzel (SIL OFL), Roman inscription capitals.</summary>
+        public static Font Number => _number ??= Resources.Load<Font>("Fonts/Cinzel") ?? Serif;
+
+        // the gold of the frames (Kenney's white borders tinted), and the inks on parchment
+        public static readonly Color FrameGold = Hex("d2ad5e");
+        public static readonly Color FrameDim = Hex("8c6d38");
+        public static readonly Color InkDark = Hex("2c1c0e");
+        public static readonly Color InkBrown = Hex("4a3220");
+        public static readonly Color InkRed = Hex("7e1910");
+        public static readonly Color InkGreen = Hex("2e5f2a");
+
         public static Color Hex(string hex) { ColorUtility.TryParseHtmlString("#" + hex, out var c); return c; }
         public static Color WithAlpha(Color c, float a) { c.a = a; return c; }
     }
@@ -66,19 +80,142 @@ namespace Tavern.Unity.Ui
             var rt = Rect(name, parent);
             var img = rt.gameObject.AddComponent<Image>();
             img.color = color;
-            if (frame)
-            {
-                var o = rt.gameObject.AddComponent<Outline>();
-                o.effectColor = Theme.Edge; o.effectDistance = new Vector2(1, -1);
-            }
+            if (frame) Frame(rt, thin: true, Theme.FrameDim, 6);
             return img;
         }
 
-        /// <summary>A framed panel in the tavern style.</summary>
+        /// <summary>A framed panel in the tavern style: a dark ground in a gold double frame.</summary>
         public static Image Panel(Transform parent, string name, float x, float y, float w, float h)
         {
-            var img = Box(parent, name, Theme.Panel, frame: true);
+            var img = Box(parent, name, Theme.Panel);
             img.rectTransform.Place(x, y, w, h);
+            Frame(img.transform, thin: false);
+            return img;
+        }
+
+        // ---------------------------------------------------------------- interface pieces (Resources/UI)
+
+        static readonly System.Collections.Generic.Dictionary<string, Sprite> Sprites = new System.Collections.Generic.Dictionary<string, Sprite>();
+
+        /// <summary>A sprite from Resources/UI; `border` (texture pixels) makes it a 9-slice.</summary>
+        public static Sprite? UiSprite(string name, float border = 0)
+        {
+            var key = name + "#" + border;
+            if (Sprites.TryGetValue(key, out var s)) return s;
+            var tex = Resources.Load<Texture2D>("UI/" + name);
+            if (tex == null) return null;
+            s = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f), 100, 0, SpriteMeshType.FullRect,
+                new Vector4(border, border, border, border));
+            Sprites[key] = s;
+            return s;
+        }
+
+        /// <summary>
+        /// A gold frame over the whole parent (Kenney's Fantasy UI Borders, CC0): the double one for panels, the single one
+        /// for cards and buttons. `px` is how thick it is drawn. Clicks pass through.
+        /// </summary>
+        public static Image Frame(Transform parent, bool thin, Color? color = null, float px = 0)
+        {
+            var sprite = thin ? UiSprite("frame_single", 16) : UiSprite("frame_double", 32);
+            var img = Rect("Frame", parent).Fill().gameObject.AddComponent<Image>();
+            img.raycastTarget = false;
+            img.color = color ?? Theme.FrameGold;
+            if (sprite == null) { img.color = Color.clear; return img; }
+            img.sprite = sprite;
+            img.type = Image.Type.Sliced;
+            img.fillCenter = false;
+            var drawn = px > 0 ? px : thin ? 9 : 16;
+            img.pixelsPerUnitMultiplier = sprite.border.x / drawn;
+            return img;
+        }
+
+        /// <summary>A white icon from Resources/UI (game-icons.net, CC BY 3.0), tinted.</summary>
+        public static Image Icon(Transform parent, string name, float x, float y, float size, Color? color = null)
+        {
+            var img = Rect("Icon", parent).Place(x, y, size, size).gameObject.AddComponent<Image>();
+            img.sprite = UiSprite(name);
+            img.preserveAspect = true;
+            img.color = color ?? Theme.FrameGold;
+            img.raycastTarget = false;
+            return img;
+        }
+
+        /// <summary>A heading in the display face.</summary>
+        public static Text Title(Transform parent, string text, int size, Color color, float x, float y, float w, float h, TextAnchor align = TextAnchor.UpperLeft)
+        {
+            var t = Label(parent, text, size, color, x, y, w, h, serif: true, align: align);
+            t.font = Theme.Display;
+            return t;
+        }
+
+        /// <summary>A painted ground from Resources/UI (parchment, leather) over the whole parent, behind its other children.</summary>
+        public static Image Ground(Transform parent, string name, float border = 0)
+        {
+            var img = Rect("Ground", parent).Fill().gameObject.AddComponent<Image>();
+            img.sprite = UiSprite(name, border);
+            img.type = border > 0 ? Image.Type.Sliced : Image.Type.Simple;
+            img.raycastTarget = false;
+            img.transform.SetAsFirstSibling();
+            return img;
+        }
+
+
+        static Sprite? _soft;
+        /// <summary>A pale patch whose edges fade out (no hard rectangle), e.g. to calm a texture under small text.</summary>
+        public static Image Soft(Transform parent, Color color, float inset = 0)
+        {
+            if (_soft == null)
+            {
+                const int n = 64;
+                var tex = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+                for (int y = 0; y < n; y++)
+                    for (int x = 0; x < n; x++)
+                    {
+                        var edge = Mathf.Min(Mathf.Min(x, n - 1 - x), Mathf.Min(y, n - 1 - y)) / 24f;
+                        tex.SetPixel(x, y, new Color(1, 1, 1, Mathf.SmoothStep(0, 1, Mathf.Clamp01(edge))));
+                    }
+                tex.Apply();
+                _soft = Sprite.Create(tex, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 100, 0, SpriteMeshType.FullRect, new Vector4(26, 26, 26, 26));
+            }
+            var img = Rect("Soft", parent).Fill(inset).gameObject.AddComponent<Image>();
+            img.sprite = _soft;
+            img.type = Image.Type.Sliced;
+            img.pixelsPerUnitMultiplier = 0.4f;   // the fade spans about 65 px on screen
+            img.color = color;
+            img.raycastTarget = false;
+            return img;
+        }
+
+        /// <summary>
+        /// Dark text on a light page: the project blends in linear space, which thins dark glyphs on light grounds;
+        /// a faint same-coloured outline gives the strokes their weight back.
+        /// </summary>
+        public static Text Inked(this Text t)
+        {
+            var o = t.gameObject.AddComponent<Outline>();
+            o.effectColor = new Color(t.color.r, t.color.g, t.color.b, 0.35f);
+            o.effectDistance = new Vector2(0.5f, 0.5f);
+            return t;
+        }
+        static Sprite? _fade;
+        /// <summary>A dark fade rising from the bottom (names and bars over a portrait stay readable).</summary>
+        public static Image Fade(Transform parent, float strength = 0.95f)
+        {
+            if (_fade == null)
+            {
+                var tex = new Texture2D(1, 64, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+                for (int i = 0; i < 64; i++)
+                {
+                    var t = i / 63f;   // 0 at the bottom
+                    tex.SetPixel(0, i, new Color(0.03f, 0.02f, 0.01f, t < 0.4f ? 1f : Mathf.Clamp01(1f - (t - 0.4f) / 0.35f)));
+                }
+                tex.Apply();
+                _fade = Sprite.Create(tex, new Rect(0, 0, 1, 64), new Vector2(0.5f, 0.5f));
+            }
+            var img = Rect("Fade", parent).Fill().gameObject.AddComponent<Image>();
+            img.sprite = _fade;
+            img.color = new Color(1, 1, 1, strength);
+            img.raycastTarget = false;
             return img;
         }
 
@@ -86,7 +223,7 @@ namespace Tavern.Unity.Ui
         {
             var rt = Rect("Text", parent);
             var t = rt.gameObject.AddComponent<Text>();
-            t.font = serif ? Theme.Serif : Theme.Sans;
+            t.font = Theme.Serif;   // Mincho everywhere (the fantasy look); `serif` is kept for callers that meant headings
             t.fontSize = size; t.color = color; t.text = text; t.alignment = align;
             t.horizontalOverflow = HorizontalWrapMode.Wrap; t.verticalOverflow = VerticalWrapMode.Overflow;
             t.supportRichText = true;
@@ -104,8 +241,9 @@ namespace Tavern.Unity.Ui
 
         public static Button Button(Transform parent, string text, UnityAction onClick, int size = 20, bool gold = false)
         {
-            var img = Box(parent, "Button", Theme.Hex(gold ? "3d2f1c" : "2e241a"), frame: true);
-            if (gold) img.GetComponent<Outline>().effectColor = Theme.Gold;
+            // a dark plate in a thin gold frame; the "gold" one (the main action) is crimson in a bright frame
+            var img = Box(parent, "Button", Theme.Hex(gold ? "6e1f14" : "241a12"));
+            Frame(img.transform, thin: true, gold ? Theme.FrameGold : Theme.FrameDim, gold ? 9 : 7);
             var b = img.gameObject.AddComponent<Button>();
             var colors = b.colors;
             colors.normalColor = Color.white; colors.highlightedColor = new Color(1.25f, 1.15f, 0.95f); colors.pressedColor = new Color(0.8f, 0.75f, 0.7f);
@@ -113,7 +251,8 @@ namespace Tavern.Unity.Ui
             b.colors = colors;
             b.onClick.AddListener(() => Tavern.Unity.App.AudioDirector.Play("click", 0.6f));
             b.onClick.AddListener(onClick);
-            var t = Label(img.transform, text, size, gold ? Theme.GoldLight : Theme.Ink, align: TextAnchor.MiddleCenter);
+            var t = Label(img.transform, text, size, gold ? Theme.GoldLight : Theme.Ink, serif: true, align: TextAnchor.MiddleCenter);
+            t.fontStyle = FontStyle.Bold;
             t.rectTransform.Fill(6);
             t.horizontalOverflow = HorizontalWrapMode.Wrap;
             return b;
@@ -127,6 +266,18 @@ namespace Tavern.Unity.Ui
         }
 
         public static void SetText(this Button b, string text) => b.GetComponentInChildren<Text>().text = text;
+
+        /// <summary>A button with an icon before its label.</summary>
+        public static Button IconButton(Transform parent, string icon, string text, UnityAction onClick, float x, float y, float w, float h, int size = 16, bool gold = false)
+        {
+            var b = Button(parent, text, onClick, x, y, w, h, size, gold);
+            var t = b.GetComponentInChildren<Text>();
+            var s = Mathf.Min(h - 14, size + 6);
+            Icon(b.transform, icon, 10, (h - s) / 2, s, gold ? Theme.GoldLight : Theme.FrameGold);
+            t.rectTransform.offsetMin = new Vector2(s + 14, t.rectTransform.offsetMin.y);
+            t.horizontalOverflow = HorizontalWrapMode.Overflow;
+            return b;
+        }
 
         public static InputField Input(Transform parent, string placeholder, float x, float y, float w, float h, int size = 20, bool multiline = false)
         {
@@ -157,15 +308,16 @@ namespace Tavern.Unity.Ui
             return img;
         }
 
-        /// <summary>A thin bar (HP, focus). Returns the fill image; set fillAmount.</summary>
+        /// <summary>A gauge (HP, focus) in a thin gold frame. Returns the fill image; set fillAmount.</summary>
         public static Image Bar(Transform parent, float x, float y, float w, float h, Color fill)
         {
             var back = Box(parent, "Bar", Theme.Hex("0c0907"));
             back.rectTransform.Place(x, y, w, h);
             var f = Box(back.transform, "Fill", fill);
-            f.rectTransform.Fill(1);
+            f.rectTransform.Fill(Mathf.Max(1, h * 0.22f));
             f.type = Image.Type.Filled; f.fillMethod = Image.FillMethod.Horizontal;
             f.sprite = WhiteSprite;
+            if (h >= 10) Frame(back.transform, thin: true, Theme.FrameDim, Mathf.Clamp(h * 0.3f, 3, 6));
             return f;
         }
 

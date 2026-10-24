@@ -19,3 +19,12 @@ PagDev「Fireplace Sound loop」（OpenGameArt、CC0）
 
 ■ 文字（ブラウザ版）
 Noto Sans JP・Noto Serif JP（Google、SIL Open Font License 1.1、https://github.com/notofonts/noto-cjk）
+
+■ 画面の部品
+枠: Kenney「Fantasy UI Borders」（https://kenney.nl/、CC0）
+アイコン: game-icons.net の Lorc・Delapouite・Carl Olsen（CC BY 3.0、https://creativecommons.org/licenses/by/3.0/）
+羊皮紙と革の地は画像生成（FLUX.1 Kontext Pro）。
+
+■ 文字（見出しと数字）
+Zen Antique（Yoshimichi Ohira、SIL Open Font License 1.1）
+Cinzel（Natanael Gama、SIL Open Font License 1.1）

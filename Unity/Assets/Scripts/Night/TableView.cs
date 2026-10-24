@@ -70,7 +70,7 @@ namespace Tavern.Unity.Night
         sealed class PartyCard
         {
             public string Id = "";
-            public Image Frame = null!;
+            public Image Frame = null!, Border = null!;
             public RawImage Portrait = null!;
             public Text Name = null!, Hp = null!, Focus = null!, Status = null!;
             public Image HpBar = null!, FocusBar = null!;
@@ -124,53 +124,101 @@ namespace Tavern.Unity.Night
 
         void BuildTop(Transform root)
         {
-            var top = UiKit.Panel(root, "Top", 14, 12, 1892, 54).transform;
-            UiKit.Label(top, "酒場の語り部", 22, Theme.Gold, 14, 12, 180, 30, serif: true);
-            _actText = UiKit.Label(top, "", 19, Theme.Ink, 200, 14, 560, 30);
-            _clockRow = UiKit.Rect("Clocks", top).Place(770, 6, 470, 42);
-            var x = 1250f;
-            var clues = UiKit.Button(top, "手がかり", ShowClues, x, 6, 140, 42, 17); _clueButtonText = clues.GetComponentInChildren<Text>(); x += 146;
-            UiKit.Button(top, "ハンドアウト", ShowHandouts, x, 6, 116, 42, 16); x += 122;
-            UiKit.Button(top, "設定", ShowSettings, x, 6, 80, 42, 16); x += 86;
-            UiKit.Button(top, "語り部への注文", ShowRequests, x, 6, 150, 42, 16, gold: true); x += 156;
-            UiKit.Button(top, Guest ? "部屋を出る" : "保存して酒場へ", Quit, x, 6, 104, 42, 14);
+            // a leather strip with a gold edge (C8b)
+            var top = UiKit.Rect("Top", root).Place(0, 0, 1920, 72);
+            UiKit.Ground(top, "leather");
+            UiKit.Box(top, "Shade", new Color(0, 0, 0, 0.35f)).rectTransform.Fill();
+            UiKit.Box(top, "Edge", Theme.FrameGold).rectTransform.Place(0, 70, 1920, 2);
+            UiKit.Title(top, "酒場の語り部", 30, Theme.FrameGold, 24, 15, 240, 42).horizontalOverflow = HorizontalWrapMode.Overflow;
+            _actText = UiKit.Label(top, "", 19, Theme.Ink, 276, 24, 520, 30, serif: true);
+            _actText.horizontalOverflow = HorizontalWrapMode.Overflow;
+            _clockRow = UiKit.Rect("Clocks", top).Place(806, 12, 400, 48);
+            var x = 1214f;
+            var clues = UiKit.IconButton(top, "ic_clues", "手がかり", ShowClues, x, 14, 146, 44, 16); _clueButtonText = clues.GetComponentInChildren<Text>(); x += 152;
+            UiKit.IconButton(top, "ic_handout", "ハンドアウト", ShowHandouts, x, 14, 134, 44, 15); x += 140;
+            UiKit.IconButton(top, "ic_settings", "設定", ShowSettings, x, 14, 84, 44, 15); x += 90;
+            UiKit.IconButton(top, "ic_quill", "語り部への注文", ShowRequests, x, 14, 164, 44, 15, gold: true); x += 170;
+            UiKit.IconButton(top, "ic_tavern", Guest ? "部屋を出る" : "酒場へ戻る", Quit, x, 14, 134, 44, 15);
         }
+
+        /// <summary>The class's emblem (game-icons.net).</summary>
+        /// <summary>A portrait as a card: dark ground, the picture cropped to fill, a thin gold frame.</summary>
+        static RawImage PersonCard(Transform parent, Texture? tex, float x, float y, float w, float h, Color frame)
+        {
+            var ground = UiKit.Box(parent, "Card", Theme.Hex("0c0907"));
+            ground.rectTransform.Place(x, y, w, h);
+            var pic = UiKit.Picture(ground.transform, tex, 3, 3, w - 6, h - 6);
+            if (tex != null) pic.uvRect = ArtLibrary.Cover(tex, w - 6, h - 6, 0.7f);
+            UiKit.Frame(ground.transform, thin: true, frame, 7);
+            return pic;
+        }
+
+        /// <summary>A name on a dark plate, centred under a card.</summary>
+        static void NamePlate(Transform parent, string name, float x, float y, float w, Color color)
+        {
+            var plate = UiKit.Box(parent, "Plate", new Color(0.05f, 0.035f, 0.025f, 0.86f));
+            plate.rectTransform.Place(x + 6, y, w - 12, 24);
+            var t = UiKit.Label(plate.transform, name, 13, color, 0, 2, w - 12, 22, serif: true, align: TextAnchor.UpperCenter);
+            t.horizontalOverflow = HorizontalWrapMode.Wrap;
+            t.resizeTextForBestFit = true; t.resizeTextMinSize = 9; t.resizeTextMaxSize = 13;
+        }
+
+        static string ClassIcon(Adventurer a) => a.Class.Id switch { "warrior" => "ic_warrior", "mage" => "ic_mage", "thief" => "ic_thief", _ => "ic_priest" };
 
         void BuildParty(Transform root)
         {
-            var panel = UiKit.Panel(root, "Party", 14, 78, 260, 990).transform;
+            // illustration cards: the portrait over the whole card, name and gauges over a dark fade (C8b)
             for (int i = 0; i < E.Party.Count; i++)
             {
                 var a = E.Party[i];
-                var y = 10 + i * 238;
-                var frame = UiKit.Box(panel, "Card", Theme.Panel2, frame: true);
-                frame.rectTransform.Place(8, y, 244, 228);
-                var c = new PartyCard { Id = a.Id, Frame = frame };
-                var t = frame.transform;
-                c.Portrait = UiKit.Picture(t, ArtLibrary.Get(a.Portrait), 8, 8, 84, 112);
-                c.Name = UiKit.Label(t, "", 19, Theme.GoldLight, 100, 6, 140, 50, serif: true);
-                c.Hp = UiKit.Label(t, "", 14, Theme.Ink, 100, 58, 140, 20);
-                c.HpBar = UiKit.Bar(t, 100, 80, 136, 8, Theme.Red);
-                c.Focus = UiKit.Label(t, "", 14, Theme.Ink, 100, 92, 140, 20);
-                c.FocusBar = UiKit.Bar(t, 100, 114, 136, 8, Theme.Blue);
-                c.Status = UiKit.Label(t, "", 13, Theme.Dim, 8, 126, 228, 64);
+                var y = 84 + i * 246;
+                var card = UiKit.Box(root, "Card", Color.black);
+                card.rectTransform.Place(14, y, 260, 238);
+                var c = new PartyCard { Id = a.Id, Frame = card };
+                var t = card.transform;
+                var tex = ArtLibrary.Get(a.Portrait);
+                c.Portrait = UiKit.Picture(t, tex, 0, 0, 260, 238);
+                c.Portrait.uvRect = ArtLibrary.Cover(tex, 260, 238, 0.7f);
+                UiKit.Fade(t);
+                c.Border = UiKit.Frame(t, thin: true, Theme.FrameDim, 8);
+                UiKit.Icon(t, ClassIcon(a), 12, 12, 30);
                 var id = a.Id;
-                UiKit.Button(t, "詳しく", () => ShowSheet(id), 8, 190, 110, 30, 14);
-                c.Write = UiKit.Button(t, "宣言を書く", () => { var i2 = MyLiving.FindIndex(x => x.Id == id); if (i2 >= 0) Select(i2); }, 124, 190, 112, 30, 14);
-                c.Leave = UiKit.Button(t, "今夜は抜けた", () => Withdraw(id), 124, 190, 112, 30, 14);
+                // the whole card picks this adventurer for the declaration; the scroll opens the sheet
+                c.Write = card.gameObject.AddComponent<Button>();
+                c.Write.transition = Selectable.Transition.None;
+                c.Write.onClick.AddListener(() => { var i2 = MyLiving.FindIndex(x => x.Id == id); if (i2 >= 0) Select(i2); });
+                var sheet = UiKit.Button(t, "", () => ShowSheet(id), 214, 10, 36, 36, 12);
+                UiKit.Icon(sheet.transform, "ic_clues", 7, 7, 22);
+                c.Status = UiKit.Label(t, "", 13, Theme.Ink, 12, 112, 236, 40);
+                c.Status.gameObject.AddComponent<Shadow>().effectColor = Color.black;
+                c.Name = UiKit.Title(t, "", 24, Theme.GoldLight, 12, 150, 236, 34);
+                c.Name.horizontalOverflow = HorizontalWrapMode.Overflow;
+                c.Name.gameObject.AddComponent<Shadow>().effectColor = Color.black;
+                UiKit.Icon(t, "ic_life", 12, 190, 16, Theme.Hex("d8473a"));
+                c.HpBar = UiKit.Bar(t, 34, 190, 214, 16, Theme.Red);
+                c.Hp = UiKit.Label(t, "", 12, Theme.Hex("fff3d6"), 34, 190, 208, 16, align: TextAnchor.MiddleRight);
+                c.Hp.font = Theme.Number;
+                UiKit.Icon(t, "ic_focus", 12, 212, 16, Theme.Hex("6e9eea"));
+                c.FocusBar = UiKit.Bar(t, 34, 212, 214, 16, Theme.Blue);
+                c.Focus = UiKit.Label(t, "", 12, Theme.Hex("fff3d6"), 34, 212, 208, 16, align: TextAnchor.MiddleRight);
+                c.Focus.font = Theme.Number;
+                c.Leave = UiKit.Button(t, "今夜は抜けた", () => Withdraw(id), 120, 56, 128, 34, 14);
                 _cards.Add(c);
             }
         }
 
         void BuildScene(Transform root)
         {
-            var panel = UiKit.Panel(root, "Scene", 284, 78, 840, 560).transform;
-            _sceneBox = UiKit.Rect("Box", panel).Fill(6);
-            _sceneBg = UiKit.Picture(_sceneBox, null, 0, 0, 828, 548);
+            var panel = UiKit.Panel(root, "Scene", 284, 84, 840, 554).transform;
+            _sceneBox = UiKit.Rect("Box", panel).Fill(10);
+            _sceneBox.SetAsFirstSibling();   // under the panel's frame
+            _sceneBg = UiKit.Picture(_sceneBox, null, 0, 0, 820, 534);
             _sceneBg.rectTransform.Fill();
-            _placeText = UiKit.Label(_sceneBox, "", 20, Theme.GoldLight, 12, 8, 600, 30, serif: true);
+            var strip = UiKit.Box(_sceneBox, "PlaceStrip", new Color(0.03f, 0.02f, 0.01f, 0.72f));
+            strip.rectTransform.Place(0, 0, 820, 46);
+            _placeText = UiKit.Title(_sceneBox, "", 24, Theme.GoldLight, 16, 8, 600, 34);
             _placeText.gameObject.AddComponent<Shadow>();
-            _peopleRow = UiKit.Rect("People", _sceneBox).Place(828 - 8 - 4 * 96, 8, 4 * 96, 150);
+            _peopleRow = UiKit.Rect("People", _sceneBox).Place(820 - 8 - 4 * 106, 58, 4 * 106, 170);
             _enemyRow = UiKit.Rect("Enemies", _sceneBox).Place(10, 330, 808, 210);
             _warn = UiKit.Box(_sceneBox, "Warn", new Color(0.35f, 0.08f, 0.05f, 0.9f), frame: true).gameObject;
             ((RectTransform)_warn.transform).Place(150, 260, 528, 56);
@@ -183,10 +231,16 @@ namespace Tavern.Unity.Night
 
         void BuildLog(Transform root)
         {
-            var panel = UiKit.Panel(root, "Log", 1134, 78, 772, 990).transform;
-            UiKit.Label(panel, "語　り", 22, Theme.Gold, 18, 12, 200, 30, serif: true);
-            _quotaText = UiKit.Label(panel, "", 14, Theme.Dim, 260, 18, 494, 24, align: TextAnchor.UpperRight);
-            _log = UiKit.Scroll(panel, 14, 52, 744, 926, out _logScroll, spacing: 12);
+            // the storyteller's book: a parchment page in the gold frame (C8b)
+            var panel = UiKit.Panel(root, "Log", 1134, 84, 772, 984).transform;
+            var page = UiKit.Rect("Page", panel).Fill(12);
+            page.SetAsFirstSibling();
+            UiKit.Ground(page, "parchment", 90);
+            // a pale wash over the writing area keeps the mottled paper from fighting the small text
+            UiKit.Soft(page, new Color(0.95f, 0.89f, 0.75f, 0.55f), 40);
+            UiKit.Title(page, "語り部の書", 26, Theme.InkRed, 42, 22, 260, 36);
+            _quotaText = UiKit.Label(page, "", 14, Theme.InkBrown, 280, 30, 430, 24, align: TextAnchor.UpperRight).Inked();
+            _log = UiKit.Scroll(page, 40, 72, 680, 870, out _logScroll, spacing: 12);
             var click = panel.gameObject.AddComponent<Button>();
             click.transition = Selectable.Transition.None;
             click.onClick.AddListener(FinishTyping);
@@ -195,6 +249,10 @@ namespace Tavern.Unity.Night
         void BuildDeclare(Transform root)
         {
             var panel = UiKit.Panel(root, "Declare", 284, 648, 840, 420).transform;
+            var hide = UiKit.Rect("Leather", panel).Fill(10);
+            hide.SetAsFirstSibling();
+            UiKit.Ground(hide, "leather");
+            UiKit.Box(hide, "Shade", new Color(0, 0, 0, 0.3f)).rectTransform.Fill();
             _tabRow = UiKit.Rect("Tabs", panel).Place(14, 10, 812, 44);
             _declHeader = UiKit.Label(panel, "", 18, Theme.GoldLight, 14, 60, 640, 28);
             _input = UiKit.Input(panel, "自由に行動を書く…（例: 祭壇の燭台を調べて、【柱蹴りの一閃】で骨の兵士の首を狙う）", 14, 92, 620, 168, 18, multiline: true);
@@ -205,6 +263,10 @@ namespace Tavern.Unity.Night
             _cover.onValueChanged.AddListener(v => { if (MyLiving.Count > 0) _covers[Selected.Id] = v; });
             _declNote = UiKit.Label(panel, "", 14, Theme.Dim, 14, 316, 620, 90);
             _declare = UiKit.Button(panel, "全員の行動を\n宣言する", Declare, 648, 92, 178, 216, 22, gold: true);
+            UiKit.Icon(_declare.transform, "ic_seal", 51, 26, 76, Theme.GoldLight);
+            var dt = _declare.GetComponentInChildren<Text>();
+            dt.font = Theme.Display;
+            dt.rectTransform.offsetMax = new Vector2(dt.rectTransform.offsetMax.x, -104);
         }
 
         // ================================================================ refresh
@@ -228,16 +290,18 @@ namespace Tavern.Unity.Night
         void RefreshClocks()
         {
             UiKit.Clear(_clockRow);
-            var x = 0f;
-            foreach (var c in E.World.Clocks.All.Where(c => c.Visible && c.RunsIn(E.World.Act)))
+            // each clock: a candle (danger) or an hourglass (good), its name and how full it is
+            var clocks = E.World.Clocks.All.Where(c => c.Visible && c.RunsIn(E.World.Act)).ToList();
+            var w = clocks.Count == 0 ? 0 : Mathf.Min(200, 400f / clocks.Count);
+            for (int i = 0; i < clocks.Count; i++)
             {
-                UiKit.Label(_clockRow, c.Def.Name, 15, c.Def.Good ? Theme.Green : Theme.GoldLight, x, 2, 140, 20);
-                for (int i = 0; i < c.Def.Segments; i++)
-                {
-                    var seg = UiKit.Box(_clockRow, "Seg", i < c.Filled ? (c.Def.Good ? Theme.Green : Theme.Warn) : Theme.Hex("3a2e22"), frame: true);
-                    seg.rectTransform.Place(x + i * 16, 24, 13, 13);
-                }
-                x += Mathf.Max(150, c.Def.Segments * 16 + 20);
+                var c = clocks[i];
+                var x = i * w;
+                UiKit.Icon(_clockRow, c.Def.Good ? "ic_hourglass" : "ic_candle", x, 8, 30, c.Def.Good ? Theme.Hex("a9c98a") : Theme.FrameGold);
+                var name = UiKit.Label(_clockRow, c.Def.Name, 14, Theme.Ink, x + 34, 2, w - 38, 22, serif: true);
+                name.horizontalOverflow = HorizontalWrapMode.Overflow;
+                var n = UiKit.Label(_clockRow, $"{c.Filled} / {c.Def.Segments}", 16, c.Def.Good ? Theme.Hex("a9c98a") : Theme.Hex("f08a7c"), x + 34, 24, w - 38, 22);
+                n.font = Theme.Number;
             }
         }
 
@@ -246,10 +310,10 @@ namespace Tavern.Unity.Night
             foreach (var c in _cards)
             {
                 var a = E.Find(c.Id)!;
-                c.Name.text = $"{a.Name}\n<size=13>{a.Class.Name}{(Online ? "・" + OwnerName(a.Id) : "")}</size>";
-                c.Hp.text = $"HP {a.Hp}/{a.MaxHp}";
+                c.Name.text = $"{a.Name}<size=14>　{a.Class.Name}{(Online ? "・" + OwnerName(a.Id) : "")}</size>";
+                c.Hp.text = $"{a.Hp}/{a.MaxHp}";
                 c.HpBar.fillAmount = a.MaxHp == 0 ? 0 : (float)a.Hp / a.MaxHp;
-                c.Focus.text = $"気力 {a.Focus}/{a.MaxFocus}";
+                c.Focus.text = $"{a.Focus}/{a.MaxFocus}";
                 c.FocusBar.fillAmount = a.MaxFocus == 0 ? 0 : (float)a.Focus / a.MaxFocus;
                 var bits = new List<string>
                 {
@@ -263,11 +327,13 @@ namespace Tavern.Unity.Night
                 else if (!Online) bits.Add(_drafts.TryGetValue(a.Id, out var d) && d.Trim().Length > 0 ? "<color=#7a9a3a>宣言を書いた</color>" : "考え中");
                 else if (_ready.Contains(a.Id)) bits.Add("<color=#7a9a3a>宣言済み</color>" + (DeclarationShown(a.Id) is string said ? $"「{(said.Length > 30 ? said.Substring(0, 30) + "…" : said)}」" : ""));
                 else bits.Add(Away(a.Id) ? "<color=#c4553f>接続が切れている</color>" : "考え中");
-                c.Status.text = string.Join("\n", bits);
-                c.Write.gameObject.SetActive(IsMine(a.Id) && !a.Withdrawn && a.Life != Life.Dead);
+                // the coin line first, then the state (both short: they sit over the portrait)
+                c.Status.text = bits[0] + "\n" + string.Join("・", bits.Skip(1));
+                c.Write.interactable = IsMine(a.Id) && !a.Withdrawn && a.Life != Life.Dead;
                 c.Leave.gameObject.SetActive(HostOnline && Away(a.Id) && !a.Withdrawn && a.Life != Life.Dead);
-                c.Frame.color = a.Life == Life.Dead ? Theme.Hex("1a1512") : MyLiving.Count > 0 && Selected.Id == a.Id ? Theme.Hex("3a2e1c") : Theme.Panel2;
-                c.Portrait.color = a.Life == Life.Dead ? new Color(0.4f, 0.4f, 0.4f) : Color.white;
+                var chosen = MyLiving.Count > 0 && Selected.Id == a.Id;
+                c.Border.color = a.Life == Life.Dead ? Theme.Hex("4a4038") : chosen ? Theme.Hex("f7d682") : Theme.FrameDim;
+                c.Portrait.color = a.Life == Life.Dead ? new Color(0.35f, 0.35f, 0.35f) : chosen ? Color.white : new Color(0.86f, 0.84f, 0.8f);
             }
         }
 
@@ -277,28 +343,31 @@ namespace Tavern.Unity.Night
             _placeText.text = place?.Name ?? "";
             UiKit.Clear(_peopleRow);
             var here = place?.Id ?? Story.Start;
-            var x = 4 * 96f;
+            // the people here as framed cards along the right edge, a name plate under each
+            var x = 4 * 106f;
             foreach (var p in E.PeopleAt(here).Where(p => E.Story.PersonOf(p.Id)?.Enemy.Length == 0 || p.Fighting == null).Take(4))
             {
-                x -= 96;
-                var pic = UiKit.Picture(_peopleRow, ArtLibrary.Get(ArtLibrary.Has(p.Portrait) ? p.Portrait : "pt_youth"), x, 0, 90, 120);
-                UiKit.Label(_peopleRow, p.Name, 12, Theme.GoldLight, x - 4, 122, 98, 28, align: TextAnchor.UpperCenter).gameObject.AddComponent<Shadow>();
-                if (p.WithParty) pic.color = new Color(1, 1, 1, 0.85f);
+                x -= 106;
+                var card = PersonCard(_peopleRow, ArtLibrary.Get(ArtLibrary.Has(p.Portrait) ? p.Portrait : "pt_youth"), x, 0, 100, 134, Theme.FrameDim);
+                if (p.WithParty) card.color = new Color(1, 1, 1, 0.85f);
+                NamePlate(_peopleRow, p.Name, x - 4, 138, 108, Theme.GoldLight);
             }
             UiKit.Clear(_enemyRow);
             var combat = E.Combat;
             if (combat != null)
             {
+                // foes as framed cards along the bottom, each with a name plate and an HP gauge
                 var foes = combat.Foes.Where(f => !f.Left && !f.Killed).ToList();
-                var w = Mathf.Min(160, 808f / Mathf.Max(1, foes.Count));
+                var w = Mathf.Min(150, 800f / Mathf.Max(1, foes.Count));
+                var h = Mathf.Min(150, w * 1.3f);
                 for (int i = 0; i < foes.Count; i++)
                 {
                     var f = foes[i];
                     var art = Enemies(f.Source)?.Art ?? f.Art;
-                    var pic = UiKit.Picture(_enemyRow, ArtLibrary.Get(art), i * w + 4, 0, w - 8, w - 8);
-                    if (f.Down) pic.color = new Color(0.3f, 0.3f, 0.3f, 0.7f);
-                    UiKit.Label(_enemyRow, f.Name, 13, Theme.GoldLight, i * w, w - 6, w, 20, align: TextAnchor.UpperCenter).gameObject.AddComponent<Shadow>();
-                    var bar = UiKit.Bar(_enemyRow, i * w + 8, w + 14, w - 16, 7, Theme.Red);
+                    var card = PersonCard(_enemyRow, ArtLibrary.Get(art), i * w + 4, 210 - h - 48, w - 8, h, f.Boss ? Theme.Hex("e0583f") : Theme.Hex("a8463a"));
+                    if (f.Down) card.color = new Color(0.3f, 0.3f, 0.3f, 0.7f);
+                    NamePlate(_enemyRow, f.Name, i * w, 210 - 46, w, Theme.Hex("ffc4b6"));
+                    var bar = UiKit.Bar(_enemyRow, i * w + 8, 210 - 20, w - 16, 12, Theme.Red);
                     bar.fillAmount = f.MaxHp == 0 ? 0 : (float)f.Hp / f.MaxHp;
                 }
                 var due = combat.BigMoveDue.Select(id => combat.Find(id)?.Creature).FirstOrDefault(c => c?.BigMove != null);
@@ -525,9 +594,20 @@ namespace Tavern.Unity.Night
 
         void AddLine(string text, Color color, int size, bool serif = false)
         {
-            var t = UiKit.Label(_log, text, Reading.Font(size), color, serif);
+            var t = UiKit.Label(_log, text, Reading.Font(size), OnPage(color), serif).Inked();
             t.lineSpacing = 1.15f;
             ScrollDown();
+        }
+
+        /// <summary>The log is a parchment page: the light colours meant for dark panels become inks.</summary>
+        static Color OnPage(Color c)
+        {
+            if (c == Theme.Ink) return Theme.InkDark;
+            if (c == Theme.Gold || c == Theme.GoldLight) return Theme.InkRed;
+            if (c == Theme.Hex("c8d6a0")) return Theme.InkGreen;
+            if (c == Theme.Warn || c == Theme.Hex("d8a090")) return Theme.Hex("8e2a1c");
+            if (c == Theme.Hex("c9a0c0")) return Theme.Hex("5a2a5e");
+            return Theme.InkBrown;   // Dim, the said lines and anything else
         }
 
         void Queue(string who, string text, bool narration) => _pending.Enqueue((who, text, narration));
@@ -550,10 +630,10 @@ namespace Tavern.Unity.Night
             if (_typing == null && _pending.Count > 0 && Time.unscaledTime >= _hold)
             {
                 var (who, text, narration) = _pending.Dequeue();
-                UiKit.Label(_log, who, Reading.Font(14), Theme.Gold, serif: true);
-                _typing = UiKit.Label(_log, "", Reading.Font(21), Theme.Hex("efe3c8"), serif: true);
+                UiKit.Label(_log, who, Reading.Font(14), Theme.InkRed, serif: true).Inked();
+                _typing = UiKit.Label(_log, "", Reading.Font(21), Theme.InkDark, serif: true).Inked();
                 _typing.lineSpacing = 1.25f;
-                _typingFull = UiKit.Kinsoku(text, Theme.Serif, Reading.Font(21), FontStyle.Normal, 720);
+                _typingFull = UiKit.Kinsoku(text, Theme.Serif, Reading.Font(21), FontStyle.Normal, 676);
                 _typing.horizontalOverflow = HorizontalWrapMode.Overflow;
                 _typingPos = 0;
                 if (narration) AudioDirector.Play("page", 0.5f);

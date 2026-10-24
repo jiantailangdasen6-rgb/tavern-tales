@@ -97,6 +97,10 @@ static class Style
     {
         // scenes came out murky (dim, flat, a canvas haze over everything): they ask for a lit, readable place
         "scene" => $"Subject: {subject} An empty scene with no figures. Style: {SceneBible} {NoText}",
+        // interface pieces (frames, panels, textures): flat front view on plain black, to be cut out and sliced
+        "ui" => $"Subject: {subject} Style: a hand-painted interface element for a dark fantasy computer role-playing game, in the manner of classic painted RPG interfaces: " +
+                "aged gold, bronze, dark leather and parchment, fine engraving, soft painted highlights, rich but restrained. Flat front view, perfectly symmetrical, " +
+                $"centred, isolated on a plain pure black background, nothing else in the picture. {NoText}",
         "creature" => $"Subject: {subject} Style: {Bible} The creature is fully visible and centred, nothing important touches the edges. {Anatomy} {NoText}",
         "card" => $"Subject: {subject} Style: {Bible} The effect itself is the main subject, centred; any figure is secondary or seen from behind. {Anatomy} {NoText}",
         _ => $"Subject: {subject} Style: {Bible} The figure is centred with the face clearly lit. {Anatomy} {NoText}",

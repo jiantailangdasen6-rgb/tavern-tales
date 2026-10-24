@@ -1,4 +1,4 @@
-# クレジット（音の素材）
+# クレジット（音・画面の部品・文字の素材）
 
 ゲームのタイトル画面の「クレジット」と、配布用 zip の「はじめに.txt」にも同じ内容を載せる。
 表記が必須なのは CC BY 系（Tabletop Audio）だけ。CC0 と PeriTune は任意だが、感謝を込めて載せる。
@@ -33,3 +33,13 @@
 ## 文字（ブラウザ版）
 - Noto Sans JP・Noto Serif JP（https://github.com/notofonts/noto-cjk の SubsetOTF/JP）。SIL Open Font License 1.1。
   `Unity/Assets/Resources/Fonts/`（規約の全文は同じ場所の `OFL.txt`）。ブラウザは PC の游明朝・游ゴシックを使えないので、ブラウザ版だけがこれを使う。
+
+## 文字（見出しと数字、全版）
+- Zen Antique（Yoshimichi Ohira）・Cinzel（Natanael Gama）。どちらも SIL Open Font License 1.1。
+  `Unity/Assets/Resources/Fonts/`（規約の全文は `OFL-ZenAntique.txt`・`OFL-Cinzel.txt`）。本文は今まで通り游明朝（ブラウザ版は Noto Serif JP）。
+
+## 画面の部品（`Unity/Assets/Resources/UI/`）
+- **Kenney**「Fantasy UI Borders」（https://kenney.nl/, CC0）— `frame_double.png`・`frame_single.png`（白い枠を金色に染めて 9 分割で伸ばす）。
+- **game-icons.net**（https://game-icons.net/）の Lorc・Delapouite・Carl Olsen — CC BY 3.0（https://creativecommons.org/licenses/by/3.0/）。
+  `ic_*.png`（白い SVG を 128 px の PNG にした）。表記が必要。
+- 羊皮紙（`parchment.png`）と革（`leather.jpg`）は FLUX.1 Kontext Pro で描いた。
