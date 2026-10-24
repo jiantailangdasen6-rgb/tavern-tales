@@ -218,7 +218,7 @@ namespace Tavern.Unity.Night
             var save = SaveGame.FromJson(saveJson);
             var story = Stories.FirstOrDefault(s => s.Id == save.StoryId);
             if (story == null) { Room?.Close(); ShowError($"ホストの物語（{save.StoryId}）がこの版にありません。最新の版にしてください"); return null; }
-            var none = new Tavern.Core.Game.NoLlm();
+            var none = new NoLlm();
             return save.Load(story, Classes, Enemies, new Classifier(none), new Narrator(none), view);
         }
 

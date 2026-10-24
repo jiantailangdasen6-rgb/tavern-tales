@@ -9,6 +9,18 @@ namespace Tavern.Core.Flow
     // Online play on the new flow (09_Spec 14). The host owns the table and the AI; friends send what their own adventurer does and
     // draw the state the host sends them, cut to what that person may see. All messages are JSON (NetSession zips them).
 
+    /// <summary>The version a room checks: host and friends must match (stories, art and messages travel with it).</summary>
+    public static class GameVersion { public const string Current = "0.2.0"; }
+
+    /// <summary>A friend's PC never calls the AI; its mirrored table gets this.</summary>
+    public sealed class NoLlm : Tavern.Core.Gm.ILlmClient
+    {
+        public string Name => "none";
+        public System.Threading.Tasks.Task<Tavern.Core.Gm.LlmReply> ChatAsync(IReadOnlyList<Tavern.Core.Gm.ChatMessage> messages,
+            IReadOnlyList<Tavern.Core.Gm.ToolDef> tools, string? forceTool = null, System.Threading.CancellationToken ct = default)
+            => throw new System.InvalidOperationException("only the host talks to the AI");
+    }
+
     /// <summary>Message names (NetSession registers these).</summary>
     public static class NightMsg
     {

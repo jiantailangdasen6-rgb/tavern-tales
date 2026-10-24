@@ -31,6 +31,24 @@ namespace Tavern.Core.Tests.Play
         }
 
         [Test]
+        public void EveryPictureNamed_IsInTheArtFolder()
+        {
+            // places' and people's pictures in the sheets, the foes' pictures, and the art list the checker reads
+            var art = Path.Combine(Path.GetDirectoryName(PlayContent.Dir())!, "Art");
+            var named = new System.Collections.Generic.List<(string id, string from)>();
+            void Read(string file, string keys)
+            {
+                foreach (System.Text.RegularExpressions.Match m in System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(file), "\"(" + keys + ")\"\\s*:\\s*\"([^\"]+)\""))
+                    named.Add((m.Groups[2].Value, Path.GetFileName(file)));
+            }
+            foreach (var file in Directory.GetFiles(Path.Combine(PlayContent.Dir(), "Stories"), "*.json")) Read(file, "art|portrait");
+            Read(Path.Combine(PlayContent.Dir(), "Rules", "enemies.json"), "art");
+            Read(Path.Combine(PlayContent.Dir(), "art_catalog.json"), "id");
+            Assert.That(named.Count, Is.GreaterThan(100));
+            foreach (var (id, from) in named) Assert.That(File.Exists(Path.Combine(art, id + ".jpg")), $"{id} ({from})");
+        }
+
+        [Test]
         public void Shrine_ReadsAsWritten()
         {
             var s = StoryLoader.Load(ShrineJson());

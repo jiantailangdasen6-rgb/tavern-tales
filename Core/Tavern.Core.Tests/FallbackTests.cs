@@ -7,6 +7,16 @@ using Tavern.Core.Gm;
 
 namespace Tavern.Core.Tests
 {
+    /// <summary>Gives the replies in order.</summary>
+    sealed class ScriptedLlm : ILlmClient
+    {
+        readonly Queue<LlmReply> _replies;
+        public ScriptedLlm(params LlmReply[] replies) { _replies = new(replies); }
+        public string Name => "scripted";
+        public Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, string? forceTool = null, CancellationToken ct = default)
+            => Task.FromResult(_replies.Dequeue());
+    }
+
     public class FallbackTests
     {
         /// <summary>Answers only when cancelled (a model that takes minutes).</summary>

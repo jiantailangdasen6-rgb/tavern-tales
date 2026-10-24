@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Tavern.Core.Flow;
-using Tavern.Core.Game;
 using Tavern.Core.Play;
 using Tavern.Core.Story;
 using Tavern.Unity.Net;
