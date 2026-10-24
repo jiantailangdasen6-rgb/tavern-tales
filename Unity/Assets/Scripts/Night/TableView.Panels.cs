@@ -1,4 +1,5 @@
 #nullable enable
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -173,6 +174,22 @@ namespace Tavern.Unity.Night
             var pick = await done.Task;
             Close(layer);
             return pick;
+        }
+
+        /// <summary>Sound, text size and narration speed during the evening (the same panel as the title's).</summary>
+        void ShowSettings()
+        {
+            var layer = Overlay("Settings", 0, 0, 1920, 1080, 0f);
+            SettingsPanel.Show(layer, RebuildLog, () => Close(layer));
+        }
+
+        /// <summary>The log again at the new text size: the last lines of the evening, at once.</summary>
+        void RebuildLog()
+        {
+            _typing = null; _pending.Clear();   // what was still to come is in the log already
+            UiKit.Clear(_log);
+            foreach (var l in _t.Log.Skip(Math.Max(0, _t.Log.Count - 40)))
+                AddLine(l.StartsWith("語り: ") ? l.Substring(4) : l, l.StartsWith("語り: ") ? Theme.Ink : Theme.Dim, l.StartsWith("語り: ") ? 20 : 15, serif: l.StartsWith("語り: "));
         }
 
         /// <summary>A long story's break: saved here; the next evening resumes from "続きから" (or right away).</summary>

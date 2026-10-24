@@ -127,10 +127,11 @@ namespace Tavern.Unity.Night
             var top = UiKit.Panel(root, "Top", 14, 12, 1892, 54).transform;
             UiKit.Label(top, "酒場の語り部", 22, Theme.Gold, 14, 12, 180, 30, serif: true);
             _actText = UiKit.Label(top, "", 19, Theme.Ink, 200, 14, 560, 30);
-            _clockRow = UiKit.Rect("Clocks", top).Place(770, 6, 560, 42);
-            var x = 1340f;
-            var clues = UiKit.Button(top, "手がかり", ShowClues, x, 6, 150, 42, 17); _clueButtonText = clues.GetComponentInChildren<Text>(); x += 156;
-            UiKit.Button(top, "ハンドアウト", ShowHandouts, x, 6, 120, 42, 16); x += 126;
+            _clockRow = UiKit.Rect("Clocks", top).Place(770, 6, 470, 42);
+            var x = 1250f;
+            var clues = UiKit.Button(top, "手がかり", ShowClues, x, 6, 140, 42, 17); _clueButtonText = clues.GetComponentInChildren<Text>(); x += 146;
+            UiKit.Button(top, "ハンドアウト", ShowHandouts, x, 6, 116, 42, 16); x += 122;
+            UiKit.Button(top, "設定", ShowSettings, x, 6, 80, 42, 16); x += 86;
             UiKit.Button(top, "語り部への注文", ShowRequests, x, 6, 150, 42, 16, gold: true); x += 156;
             UiKit.Button(top, Guest ? "部屋を出る" : "保存して酒場へ", Quit, x, 6, 104, 42, 14);
         }
