@@ -30,12 +30,13 @@ namespace Tavern.Unity.App
 
             float y = 520;
             if (WebPage.IsBrowser) { BuildBrowserMenu(root, y); return; }
-            UiKit.Button(root, "友人と遊ぶ: 部屋を作る", () => _app.ShowParty(OnlineMode.Host), 560, y, 400, 70, 26, gold: true);
-            UiKit.Button(root, "友人の部屋に入る", () => _app.ShowParty(OnlineMode.Join), 980, y, 400, 70, 26, gold: true);
+            UiKit.Button(root, "友人と遊ぶ: 部屋を作る", () => _app.Night.ShowParty(Night.RoomMode.Host), 560, y, 400, 70, 26, gold: true);
+            UiKit.Button(root, "友人の部屋に入る", () => _app.Night.ShowParty(Night.RoomMode.Join), 980, y, 400, 70, 26, gold: true);
             y += 92;
             UiKit.Button(root, "ひとりで新しい夜をはじめる", () => _app.Night.ShowParty(), 760, y, 400, 60, 22);
             y += 76;
-            var cont = UiKit.Button(root, "続きから（ひとり）", () => _app.Night.Continue(), 760, y, 400, 56, 22);
+            var seats = _app.Night.Store.HasEvening ? _app.Night.Store.LoadSeats() : null;
+            var cont = UiKit.Button(root, seats?.HasFriends == true ? "続きから（部屋を開き直す）" : "続きから", () => _app.Night.Continue(), 760, y, 400, 56, 22);
             cont.interactable = _app.Night.Store.HasEvening;
             y += 72;
             UiKit.Button(root, "冒険者の名簿", () => Night.TavernBook.ShowRoster(_app.Night, root), 760, y, 130, 56, 19);
@@ -59,10 +60,10 @@ namespace Tavern.Unity.App
         /// <summary>The browser build only joins a friend's room (the host plays the Windows version, which calls the AI).</summary>
         void BuildBrowserMenu(Transform root, float y)
         {
-            UiKit.Button(root, "友人の部屋に入る", () => _app.ShowParty(OnlineMode.Join), 760, y, 400, 76, 28, gold: true);
+            UiKit.Button(root, "友人の部屋に入る", () => _app.Night.ShowParty(Night.RoomMode.Join), 760, y, 400, 76, 28, gold: true);
             y += 98;
-            UiKit.Button(root, "冒険者の名簿", _app.ShowRoster, 760, y, 195, 56, 20);
-            UiKit.Button(root, "語り部の記録帳", () => ShowChronicle(root), 965, y, 195, 56, 20);
+            UiKit.Button(root, "冒険者の名簿", () => Night.TavernBook.ShowRoster(_app.Night, root), 760, y, 195, 56, 20);
+            UiKit.Button(root, "語り部の記録帳", () => Night.TavernBook.ShowChronicle(_app.Night, root), 965, y, 195, 56, 20);
             y += 72;
             UiKit.Button(root, "遊び方", () => ShowHelp(root), 760, y, 195, 56, 22);
             UiKit.Button(root, "クレジット", () => ShowCredits(root), 965, y, 195, 56, 22);

@@ -9,6 +9,7 @@ using Tavern.Core.Flow;
 using Tavern.Core.Play;
 using Tavern.Unity.App;
 using Tavern.Unity.Dice;
+using Tavern.Unity.Net;
 using Tavern.Unity.Ui;
 using UnityEngine;
 using UnityEngine.Events;
@@ -16,7 +17,10 @@ using UnityEngine.UI;
 
 namespace Tavern.Unity.Night
 {
-    /// <summary>The players' side of the table on this PC: everyone's dice rolled together, fate coins, declaring again.</summary>
+    /// <summary>
+    /// The players' side of the table: everyone's dice rolled together, fate coins, declaring again. In a room each friend answers
+    /// for their own adventurer on their own PC (TableView.Online); the host answers for the rest here.
+    /// </summary>
     public sealed partial class TableView : IPlayers
     {
         const int MaxDice = 4;
@@ -49,11 +53,63 @@ namespace Tavern.Unity.Night
             }
         }
 
+        /// <summary>Splits requests by who answers them: a connected friend (by client id), or this PC.</summary>
+        (List<int> local, Dictionary<ulong, List<int>> byFriend) ByOwner(IReadOnlyList<string> who, bool awayHere)
+        {
+            var local = new List<int>();
+            var byFriend = new Dictionary<ulong, List<int>>();
+            for (int i = 0; i < who.Count; i++)
+            {
+                if (HostOnline && Room!.ClientOf(who[i]) is ulong c) { if (!byFriend.TryGetValue(c, out var l)) byFriend[c] = l = new List<int>(); l.Add(i); }
+                else if (awayHere || !HostOnline || IsMine(who[i])) local.Add(i);
+            }
+            return (local, byFriend);
+        }
+
         // ---------------------------------------------------------------- IPlayers
 
         public async Task<IReadOnlyList<int>> RollAsync(IReadOnlyList<RollRequest> rolls, CancellationToken ct)
         {
-            // 1. the dialog: what everyone rolls, veteran marks, one button (or 20 seconds)
+            // 1. everyone presses their own button (or 20 seconds): friends' dice are asked on their PCs, the rest here
+            var (local, byFriend) = ByOwner(rolls.Select(r => r.Who).ToList(), awayHere: true);
+            var waits = byFriend.Select(async kv =>
+            {
+                var answer = await Ask(kv.Key, new AskMsg { Kind = "roll", Rolls = kv.Value.Select(i => RollView.From(rolls[i])).ToList() });
+                foreach (var p in answer?.Picks ?? new List<int>()) if (p >= 0 && p < kv.Value.Count) UseMark(rolls[kv.Value[p]]);
+            }).ToList();
+            if (local.Count > 0)
+            {
+                var here = local.Select(i => rolls[i]).ToList();
+                waits.Add(RollDialog(here, j => here[j].Check is CheckRoll ch && !ch.MarkUsed && E.Find(here[j].Who)?.MarksLeft > 0, j => UseMark(here[j]), RollTimeout));
+            }
+            else _busyText.text = "友人がサイコロを振るのを待っている…";
+            await Task.WhenAll(waits);
+            _busyText.text = _busy ? "語り部が考えている…" : "";
+
+            // 2. the host rolls them all; everyone watches (a secret die only its roller)
+            var naturals = rolls.Select(_ => _t.Rng.D20()).ToList();
+            if (HostOnline)
+                foreach (var f in Room!.Friends.ToList())
+                {
+                    var seen = Enumerable.Range(0, rolls.Count).Where(i => !rolls[i].Private || Room.OwnerOf(rolls[i].Who) == f.PlayerName).ToList();
+                    if (seen.Count > 0)
+                        NetSession.Send(NightMsg.Dice, OnlineView.Json(new DiceMsg { Rolls = seen.Select(i => RollView.From(rolls[i])).ToList(), Naturals = seen.Select(i => naturals[i]).ToList() }), f.Id);
+                }
+            var shown = Enumerable.Range(0, rolls.Count).Where(i => !rolls[i].Private || IsMine(rolls[i].Who)).ToList();
+            await AnimateDice(shown.Select(i => rolls[i]).ToList(), shown.Select(i => naturals[i]).ToList());
+            return naturals;
+        }
+
+        bool UseMark(RollRequest r)
+        {
+            if (r.Check == null || E.Find(r.Who) is not Adventurer a || !r.Check.UseMark(a)) return false;
+            r.Target = r.Check.Target;
+            return true;
+        }
+
+        /// <summary>What these players roll, their veteran marks, one button (or the timer). useMark(i) spends the mark on roll i.</summary>
+        async Task RollDialog(IReadOnlyList<RollRequest> rolls, Func<int, bool> canMark, Func<int, bool> useMark, float seconds)
+        {
             _rollPressed = new TaskCompletionSource<bool>();
             var layer = Overlay("Roll", 284, 78, 840, 560, 0.55f);
             var panel = UiKit.Panel(layer, "Panel", 300, 96, 808, 90 + rolls.Count * 58).transform;
@@ -61,30 +117,34 @@ namespace Tavern.Unity.Night
             _rollTimer = UiKit.Label(panel, "", 15, Theme.Dim, 520, 16, 270, 24, align: TextAnchor.UpperRight);
             for (int i = 0; i < rolls.Count; i++)
             {
+                var idx = i;
                 var r = rolls[i];
                 var a = E.Find(r.Who);
                 var y = 48 + i * 58;
                 var why = r.Reasons.Count > 0 ? "　<size=13><color=#a8977a>" + string.Join(" / ", r.Reasons) + "</color></size>" : "";
                 var line = UiKit.Label(panel, $"{a?.Name}{(r.Private ? "（内緒）" : "")}: {r.For}\n<size=15>{r.Heading}{(r.Target > 0 && r.Kind != RollKind.Fate ? $"　{Odds(r)}" : "")}</size>{why}", 17, Theme.Ink, 18, y, 590, 56);
-                if (r.Check != null && a != null && a.MarksLeft > 0 && !r.Check.MarkUsed)
+                if (a != null && canMark(idx))
                 {
                     Button? mark = null;
                     mark = UiKit.Button(panel, $"歴戦の印（残り {a.MarksLeft}）", () =>
                     {
-                        if (r.Check.UseMark(a)) { r.Target = r.Check.Target; line.text = $"{a.Name}: {r.For}\n<size=15>{r.Check.Heading}（印で 1 段易しく）　{Odds(r)}</size>"; }
+                        if (canMark(idx) && useMark(idx))
+                            line.text = $"{a.Name}: {r.For}\n<size=15>{r.Check?.Heading ?? r.Heading}（印で 1 段易しく）{(r.Check != null ? "　" + Odds(r) : "")}</size>";
                         if (mark != null) mark.interactable = false;
                         RefreshCards();
                     }, 616, y + 6, 176, 42, 14);
                 }
             }
             UiKit.Button(panel, "振る", () => _rollPressed?.TrySetResult(true), 300, 40 + rolls.Count * 58, 208, 44, 22, gold: true);
-            _rollDeadline = Time.unscaledTime + (Auto ? 0.05f : RollTimeout);
+            _rollDeadline = Time.unscaledTime + (Auto ? 0.05f : seconds);
             await _rollPressed.Task;
             _rollPressed = null;
             Close(layer);
+        }
 
-            // 2. the dice, at most four at a time
-            var naturals = rolls.Select(_ => _t.Rng.D20()).ToList();
+        /// <summary>The dice, at most four at a time, with each result under its die.</summary>
+        async Task AnimateDice(IReadOnlyList<RollRequest> rolls, IReadOnlyList<int> naturals)
+        {
             for (int start = 0; start < rolls.Count; start += MaxDice)
             {
                 var batch = Enumerable.Range(start, Math.Min(MaxDice, rolls.Count - start)).ToList();
@@ -107,7 +167,7 @@ namespace Tavern.Unity.Night
                         (r.Kind == RollKind.Fate ? "" : r.Target > 0 ? (n == 20 ? "　大成功" : n == 1 ? "　大失敗" : ok ? "　成功" : "　失敗") : "");
                     if (n == 20) AudioDirector.Play("crit"); else if (n == 1) AudioDirector.Play("fumble");
                 }
-                await Task.Delay(Auto ? 100 : 1400);
+                await Wait(Auto ? 0.1f : 1.4f);
                 foreach (var slot in Enumerable.Range(0, batch.Count))
                 {
                     _diceViews[slot].pic.gameObject.SetActive(false);
@@ -115,7 +175,6 @@ namespace Tavern.Unity.Night
                     Pool[slot].Hide();
                 }
             }
-            return naturals;
         }
 
         static string Odds(RollRequest r)
@@ -125,6 +184,26 @@ namespace Tavern.Unity.Night
         }
 
         public async Task<IReadOnlyList<bool>> OfferCoinsAsync(IReadOnlyList<RollRequest> failed, CancellationToken ct)
+        {
+            var picks = failed.Select(_ => false).ToList();
+            var (local, byFriend) = ByOwner(failed.Select(r => r.Who).ToList(), awayHere: false);   // an away friend's coin stays unspent
+            var waits = byFriend.Select(async kv =>
+            {
+                var answer = await Ask(kv.Key, new AskMsg { Kind = "coins", Rolls = kv.Value.Select(i => RollView.From(failed[i])).ToList() });
+                foreach (var p in answer?.Picks ?? new List<int>()) if (p >= 0 && p < kv.Value.Count) picks[kv.Value[p]] = true;
+            }).ToList();
+            if (local.Count > 0) waits.Add(CoinsHere());
+            await Task.WhenAll(waits);
+            return picks;
+
+            async Task CoinsHere()
+            {
+                var here = await CoinsDialog(local.Select(i => failed[i]).ToList());
+                for (int j = 0; j < local.Count; j++) picks[local[j]] = here[j];
+            }
+        }
+
+        async Task<List<bool>> CoinsDialog(IReadOnlyList<RollRequest> failed)
         {
             if (Auto) return failed.Select(f => f.Important || f.Kind == RollKind.DeathSave).ToList();
             var picks = failed.Select(_ => false).ToList();
@@ -146,6 +225,27 @@ namespace Tavern.Unity.Night
         }
 
         public async Task<IReadOnlyList<Declaration>> RedeclareAsync(IReadOnlyList<(string who, string refusal)> refused, CancellationToken ct)
+        {
+            var result = refused.Select(r => new Declaration { Who = r.who, Text = "" }).ToList();
+            var (local, byFriend) = ByOwner(refused.Select(r => r.who).ToList(), awayHere: false);   // an away friend waits this turn
+            var waits = byFriend.Select(async kv =>
+            {
+                var answer = await Ask(kv.Key, new AskMsg { Kind = "redeclare", Who = kv.Value.Select(i => refused[i].who).ToList(), Refusals = kv.Value.Select(i => refused[i].refusal).ToList() });
+                foreach (var d in answer?.Declarations ?? new List<Declaration>())
+                    if (result.FirstOrDefault(x => x.Who == d.Who) is Declaration slot && Room!.ClientOf(d.Who) == kv.Key) slot.Text = Clip(d.Text, 200);
+            }).ToList();
+            if (local.Count > 0) waits.Add(RedeclareHere());
+            await Task.WhenAll(waits);
+            return result;
+
+            async Task RedeclareHere()
+            {
+                var here = await RedeclareDialog(local.Select(i => refused[i]).ToList());
+                for (int j = 0; j < local.Count; j++) result[local[j]].Text = here[j].Text;
+            }
+        }
+
+        async Task<IReadOnlyList<Declaration>> RedeclareDialog(IReadOnlyList<(string who, string refusal)> refused)
         {
             if (Auto) return refused.Select(r => new Declaration { Who = r.who, Text = E.Combat != null ? "目の前の敵に攻撃する" : "辺りを見回す" }).ToList();
             var inputs = new List<InputField>();

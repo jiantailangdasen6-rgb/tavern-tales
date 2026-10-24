@@ -23,7 +23,7 @@ namespace Tavern.Unity.Night
 
     /// <summary>
     /// The new evening (Docs/09_Spec.md, stage 5): party → map → handouts → table → ending, on the rules in Tavern.Core.Play and the
-    /// flow in Tavern.Core.Flow. Solo on one PC for now; friends join in stage 6.
+    /// flow in Tavern.Core.Flow. Alone on one PC, or with friends in a room (NightRoom): the host runs the table, friends mirror it.
     /// </summary>
     public sealed class NightApp
     {
@@ -36,6 +36,17 @@ namespace Tavern.Unity.Night
         NightAi? _ai;
         public NightAi Ai => _ai ??= NightAi.Create(AppMain.Flag("-demo"), AppMain.Flag("-testkey"), Store.CallsToday);
         public Difficulty Difficulty { get; set; } = Difficulty.Standard;
+
+        NightRoom? _room;
+        /// <summary>The friends' room (null when playing alone on this PC).</summary>
+        public NightRoom? Room
+        {
+            get => _room;
+            set { _room = value; if (value != null) value.Changed += () => { if (_room == value && _screen == "map") ShowRoom(); }; }
+        }
+        string _screen = "";
+        /// <summary>A friend's mirror of the host's table.</summary>
+        TableView? _guest;
 
         public NightApp(AppMain app)
         {
@@ -56,35 +67,75 @@ namespace Tavern.Unity.Night
 
         Transform Root => App.Root;
 
-        public void ShowParty()
+        void Screen(string name)
         {
             App.Tick = null;
+            _screen = name;
             UiKit.Clear(Root);
-            new PartyBuilder(this).Build(Root);
+        }
+
+        public void ShowParty() => ShowParty(RoomMode.Alone);
+
+        /// <summary>Tonight's adventurers: up to four on this PC, or one's own before opening or joining a room.</summary>
+        public void ShowParty(RoomMode mode)
+        {
+            Screen("party");
+            new PartyBuilder(this, mode).Build(Root);
         }
 
         public void ShowMap(List<Adventurer> party)
         {
-            App.Tick = null;
-            UiKit.Clear(Root);
+            Screen("map");
             new MapView(this, party).Build(Root);
+        }
+
+        /// <summary>The room's map: everyone's adventurer and pins; the host starts (09_Spec 11).</summary>
+        public void ShowRoom()
+        {
+            var room = Room;
+            if (room == null) { BackToTitle(); return; }
+            Screen("map");
+            new MapView(this, room.Players.Select(p => p.Adventurer.ToAdventurer(Classes)).ToList()).Build(Root);
+            // tests: -startwhen N starts on the first story once N players are in
+            if (room.Host && room.Phase == "map" && int.TryParse(AppMain.Arg("-startwhen"), out var n) && room.Players.Count >= n)
+            {
+                if (AppMain.Arg("-difficulty") is string d) room.Difficulty = d switch { "gentle" => Difficulty.Gentle, "harsh" => Difficulty.Harsh, _ => Difficulty.Standard };
+                Begin(Stories.FirstOrDefault(s => s.Id == (AppMain.Arg("-story") ?? "grey_shrine")) ?? Stories[0], room.Party(), room.Difficulty);
+            }
+        }
+
+        public void ShowWaiting(string text)
+        {
+            Screen("waiting");
+            UiKit.Picture(Root, ArtLibrary.Get("bg_tavern"), 0, 0, 1920, 1080).color = new Color(0.3f, 0.26f, 0.22f);
+            UiKit.Label(Root, text, 30, Theme.Ink, 260, 440, 1400, 200, serif: true, align: TextAnchor.UpperCenter);
+        }
+
+        public void ShowError(string message)
+        {
+            _guest = null;
+            _screen = "title";
+            App.Tick = null;
+            App.ShowError(message);
         }
 
         /// <summary>Starts an evening: the world from the sheet, the handouts (one call), then the table.</summary>
         public async void Begin(StoryDef story, List<Adventurer> party, Difficulty difficulty)
         {
             Difficulty = difficulty;
+            Room?.SetPhase("handouts");
             var e = Evening.Begin(story, party, difficulty);
             var tavern = Store.LoadTavern();
             e.Rumors.AddRange(tavern.RecentRumors);
             e.FirstEvening = Store.LoadChronicle().Count == 0;
             var table = NewTable(e, new SeededRandom((ulong)DateTime.Now.Ticks));
-            UiKit.Clear(Root);
+            Screen("handouts");
             var wait = UiKit.Label(Root, $"{story.Title}\n\n{story.Intro}\n\n（語り部がハンドアウトを用意している…）", 26, Theme.Ink, 360, 300, 1200, 500, serif: true, align: TextAnchor.UpperCenter);
             try { await table.DealHandoutsAsync(Ai.Bookends); }
             catch (Exception ex) { Debug.LogWarning("[Night] handouts: " + ex.Message); }
             if (wait != null) UnityEngine.Object.Destroy(wait.gameObject);
-            Store.SaveEvening(table);
+            Room?.SetPhase("table");
+            SaveEvening(table);
             ShowTable(table, opening: true);
         }
 
@@ -93,40 +144,96 @@ namespace Tavern.Unity.Night
             var view = new TableView(this);
             var t = new Table(e, Ai.Classifier, Ai.Narrator, view, rng, Enemies, Ai.Highlight);
             view.Attach(t);
-            t.Save = Store.SaveEvening;
+            t.Save = SaveEvening;
             return t;
+        }
+
+        /// <summary>The host's save: the table, and in a room who plays whom (so the room can be reopened).</summary>
+        public void SaveEvening(Table t)
+        {
+            Store.SaveEvening(t);
+            if (Room is NightRoom room) { if (room.Host) Store.SaveSeats(room.Seats()); }
+            else Store.ClearSeats();   // alone now: an old room's seats would reopen a room on "続きから"
         }
 
         void ShowTable(Table t, bool opening)
         {
             var view = (TableView)t.Players;
+            Screen("table");
             App.Tick = view.Update;
-            UiKit.Clear(Root);
             view.Build(Root, opening);
         }
 
-        /// <summary>Continues the saved evening (a turn decided but not told is told now).</summary>
-        public void Continue()
+        /// <summary>Continues the saved evening (a turn decided but not told is told now). A room's evening opens the room again.</summary>
+        public async void Continue()
         {
             var save = Store.LoadEvening();
             var story = save == null ? null : Stories.FirstOrDefault(s => s.Id == save.StoryId);
             if (save == null || story == null) { App.ShowTitle(); return; }
+            var seats = Store.LoadSeats();
+            if (seats != null && seats.HasFriends && Room == null)
+            {
+                ShowWaiting("部屋を開き直しています…");
+                try { Room = await NightRoom.ResumeAsync(this, seats); }
+                catch (Exception e) { ShowError("部屋を開けませんでした（ひとりで続けるなら、もう一度「続きから」）: " + e.Message); Store.ClearSeats(); return; }
+            }
             var view = new TableView(this);
             var t = save.Load(story, Classes, Enemies, Ai.Classifier, Ai.Narrator, view, Ai.Highlight);
             view.Attach(t);
-            t.Save = Store.SaveEvening;
+            t.Save = SaveEvening;
             ShowTable(t, opening: false);
+        }
+
+        // ---------------------------------------------------------------- a friend's side
+
+        /// <summary>A friend: the table as the host sent it (the first one opens the table, later ones update it).</summary>
+        public void OnGuestState(StateMsg m)
+        {
+            if (_guest != null && _screen == "table") { _guest.OnState(m); return; }
+            var view = new TableView(this);
+            var t = Mirror(m.Save, view);
+            if (t == null) return;
+            view.Attach(t);
+            _guest = view;
+            view.OnState(m, redraw: false);
+            ShowTable(t, opening: t.E.Turn == 0 && t.Log.Count == 0);
+        }
+
+        /// <summary>A friend: the evening is over; their own adventurer goes to their roster, the story to their chronicle.</summary>
+        public void OnGuestEnd(EndMsg m)
+        {
+            var t = Mirror(m.Save, new TableView(this));
+            if (t == null) return;
+            t.Ending = m.Ending;
+            if (m.Chronicle != null) Store.Record(t, m.Chronicle, m.Mine, guest: true);
+            Room?.Close();   // the evening is over: the host closing the room later is no surprise
+            Room = null;
+            _guest = null;
+            ShowEnding(t, m.Chronicle);
+        }
+
+        /// <summary>A read-only copy of the host's table (it never calls the AI).</summary>
+        public Table? Mirror(string saveJson, TableView view)
+        {
+            var save = SaveGame.FromJson(saveJson);
+            var story = Stories.FirstOrDefault(s => s.Id == save.StoryId);
+            if (story == null) { Room?.Close(); ShowError($"ホストの物語（{save.StoryId}）がこの版にありません。最新の版にしてください"); return null; }
+            var none = new Tavern.Core.Game.NoLlm();
+            return save.Load(story, Classes, Enemies, new Classifier(none), new Narrator(none), view);
         }
 
         public void ShowEnding(Table t, Chronicle? chronicle)
         {
-            App.Tick = null;
-            UiKit.Clear(Root);
+            Screen("ending");
             new EndingView(this, t, chronicle).Build(Root);
         }
 
         public void BackToTitle()
         {
+            Room?.Close();
+            Room = null;
+            _guest = null;
+            _screen = "title";
             App.Tick = null;
             App.ShowTitle();
         }
@@ -144,4 +251,7 @@ namespace Tavern.Unity.Night
             return presets.Take(Mathf.Clamp(size, 1, 4)).Select(p => new Adventurer(Classes[p.Item2], p.Item3, p.Item1) { Portrait = p.Item4, Background = p.Item5 }).ToList();
         }
     }
+
+    /// <summary>How the party screen is used: tonight's adventurers on this PC, or one's own before opening or joining a room.</summary>
+    public enum RoomMode { Alone, Host, Join }
 }

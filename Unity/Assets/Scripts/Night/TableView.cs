@@ -9,6 +9,7 @@ using Tavern.Core.Flow;
 using Tavern.Core.Play;
 using Tavern.Core.Story;
 using Tavern.Unity.App;
+using Tavern.Unity.Net;
 using Tavern.Unity.Ui;
 using UnityEngine;
 using UnityEngine.UI;
@@ -73,6 +74,7 @@ namespace Tavern.Unity.Night
             public RawImage Portrait = null!;
             public Text Name = null!, Hp = null!, Focus = null!, Status = null!;
             public Image HpBar = null!, FocusBar = null!;
+            public Button Write = null!, Leave = null!;
         }
 
         public TableView(NightApp n)
@@ -87,7 +89,7 @@ namespace Tavern.Unity.Night
 
         bool Auto => _autoTurns > 0 || AppMain.Flag("-autoquit");
         List<Adventurer> Living => E.Party.Where(a => a.Life != Life.Dead && !a.Withdrawn).ToList();
-        Adventurer Selected => Living.Count == 0 ? E.Party[0] : Living[Mathf.Clamp(_selected, 0, Living.Count - 1)];
+        Adventurer Selected { get { var mine = MyLiving; return mine.Count == 0 ? E.Party[0] : mine[Mathf.Clamp(_selected, 0, mine.Count - 1)]; } }
 
         // ================================================================ build
 
@@ -101,16 +103,21 @@ namespace Tavern.Unity.Night
             BuildLog(root);
             BuildDeclare(root);
             foreach (var l in _t.Log.Skip(Math.Max(0, _t.Log.Count - 40))) AddLine(l.StartsWith("語り: ") ? l.Substring(4) : l, l.StartsWith("語り: ") ? Theme.Ink : Theme.Dim, l.StartsWith("語り: ") ? 20 : 15, serif: l.StartsWith("語り: "));
+            Listen();
             if (opening)
             {
                 Queue("語り部 オルウェン", Story.Intro, true);
                 if (!Auto) ShowHandouts();
             }
-            else if (_t.Untold.Count > 0) _ = RunAsync(() => _t.TellUntoldAsync());
+            else if (_t.Untold.Count > 0 && !Guest) _ = RunAsync(() => _t.TellUntoldAsync());
             if (AppMain.Flag("-showsheet")) ShowSheet(E.Party[0].Id);   // screenshots
             if (AppMain.Flag("-showclues")) ShowClues();
             RefreshAll();
+            BroadcastState();
         }
+
+        /// <summary>The host's save (a friend's PC keeps no copy of the host's evening).</summary>
+        void Persist() { if (!Guest) _n.SaveEvening(_t); }
 
         StoryDef Story => E.Story;
 
@@ -124,7 +131,7 @@ namespace Tavern.Unity.Night
             var clues = UiKit.Button(top, "手がかり", ShowClues, x, 6, 150, 42, 17); _clueButtonText = clues.GetComponentInChildren<Text>(); x += 156;
             UiKit.Button(top, "ハンドアウト", ShowHandouts, x, 6, 120, 42, 16); x += 126;
             UiKit.Button(top, "語り部への注文", ShowRequests, x, 6, 150, 42, 16, gold: true); x += 156;
-            UiKit.Button(top, "保存して酒場へ", Quit, x, 6, 104, 42, 14);
+            UiKit.Button(top, Guest ? "部屋を出る" : "保存して酒場へ", Quit, x, 6, 104, 42, 14);
         }
 
         void BuildParty(Transform root)
@@ -147,7 +154,8 @@ namespace Tavern.Unity.Night
                 c.Status = UiKit.Label(t, "", 13, Theme.Dim, 8, 126, 228, 64);
                 var id = a.Id;
                 UiKit.Button(t, "詳しく", () => ShowSheet(id), 8, 190, 110, 30, 14);
-                UiKit.Button(t, "宣言を書く", () => { var i2 = Living.FindIndex(x => x.Id == id); if (i2 >= 0) Select(i2); }, 124, 190, 112, 30, 14);
+                c.Write = UiKit.Button(t, "宣言を書く", () => { var i2 = MyLiving.FindIndex(x => x.Id == id); if (i2 >= 0) Select(i2); }, 124, 190, 112, 30, 14);
+                c.Leave = UiKit.Button(t, "今夜は抜けた", () => Withdraw(id), 124, 190, 112, 30, 14);
                 _cards.Add(c);
             }
         }
@@ -189,10 +197,10 @@ namespace Tavern.Unity.Night
             _declHeader = UiKit.Label(panel, "", 18, Theme.GoldLight, 14, 60, 640, 28);
             _input = UiKit.Input(panel, "自由に行動を書く…（例: 祭壇の燭台を調べて、【柱蹴りの一閃】で骨の兵士の首を狙う）", 14, 92, 620, 168, 18, multiline: true);
             _input.characterLimit = 200;
-            _input.onValueChanged.AddListener(v => { if (Living.Count > 0) _drafts[Selected.Id] = v; RefreshDeclState(); });
+            _input.onValueChanged.AddListener(v => { if (MyLiving.Count > 0) _drafts[Selected.Id] = v; RefreshDeclState(); });
             _secretButton = UiKit.Button(panel, "内緒にする", ToggleSecret, 14, 268, 140, 40, 16);
             _cover = UiKit.Input(panel, "表向き: （内緒のとき、ほかの人に見える行動）", 162, 268, 472, 40, 15);
-            _cover.onValueChanged.AddListener(v => { if (Living.Count > 0) _covers[Selected.Id] = v; });
+            _cover.onValueChanged.AddListener(v => { if (MyLiving.Count > 0) _covers[Selected.Id] = v; });
             _declNote = UiKit.Label(panel, "", 14, Theme.Dim, 14, 316, 620, 90);
             _declare = UiKit.Button(panel, "全員の行動を\n宣言する", Declare, 648, 92, 178, 216, 22, gold: true);
         }
@@ -206,7 +214,7 @@ namespace Tavern.Unity.Night
             var place = Story.PlaceOf(here);
             _actText.text = $"第{E.World.Act}幕「{act?.Title}」 — {place?.Name}" + (E.Tension.On ? "　<color=#c4553f>緊迫</color>" : "");
             _clueButtonText.text = $"手がかり {E.World.SharedClues} / {Story.Clues.Count}";
-            _quotaText.text = _n.Ai.QuotaText() + (E.World.PlacesOfParty.Distinct().Count() > 1 ? "　一行は分かれている" : "");
+            _quotaText.text = (Guest ? "" : _n.Ai.QuotaText()) + (Online ? $"　部屋 {Room!.Code}" : "") + (E.World.PlacesOfParty.Distinct().Count() > 1 ? "　一行は分かれている" : "");
             RefreshClocks();
             RefreshCards();
             RefreshScene(place);
@@ -236,7 +244,7 @@ namespace Tavern.Unity.Night
             foreach (var c in _cards)
             {
                 var a = E.Find(c.Id)!;
-                c.Name.text = $"{a.Name}\n<size=13>{a.Class.Name}</size>";
+                c.Name.text = $"{a.Name}\n<size=13>{a.Class.Name}{(Online ? "・" + OwnerName(a.Id) : "")}</size>";
                 c.Hp.text = $"HP {a.Hp}/{a.MaxHp}";
                 c.HpBar.fillAmount = a.MaxHp == 0 ? 0 : (float)a.Hp / a.MaxHp;
                 c.Focus.text = $"気力 {a.Focus}/{a.MaxFocus}";
@@ -249,9 +257,14 @@ namespace Tavern.Unity.Night
                 else if (a.Life == Life.Dead) bits.Add("<color=#c4553f>死亡（聞くだけ）</color>");
                 if (a.Statuses.List.Count > 0) bits.Add(string.Join("・", a.Statuses.List.Select(s => s.Kind.Label())));
                 if (E.World.PlacesOfParty.Distinct().Count() > 1) bits.Add("@" + Story.PlaceOf(E.PlaceOf(a))?.Name);
-                bits.Add(_drafts.TryGetValue(a.Id, out var d) && d.Trim().Length > 0 ? "<color=#7a9a3a>宣言を書いた</color>" : "考え中");
+                if (a.Withdrawn) bits.Add("今夜は抜けた");
+                else if (!Online) bits.Add(_drafts.TryGetValue(a.Id, out var d) && d.Trim().Length > 0 ? "<color=#7a9a3a>宣言を書いた</color>" : "考え中");
+                else if (_ready.Contains(a.Id)) bits.Add("<color=#7a9a3a>宣言済み</color>" + (DeclarationShown(a.Id) is string said ? $"「{(said.Length > 30 ? said.Substring(0, 30) + "…" : said)}」" : ""));
+                else bits.Add(Away(a.Id) ? "<color=#c4553f>接続が切れている</color>" : "考え中");
                 c.Status.text = string.Join("\n", bits);
-                c.Frame.color = a.Life == Life.Dead ? Theme.Hex("1a1512") : Living.Count > 0 && Selected.Id == a.Id ? Theme.Hex("3a2e1c") : Theme.Panel2;
+                c.Write.gameObject.SetActive(IsMine(a.Id) && !a.Withdrawn && a.Life != Life.Dead);
+                c.Leave.gameObject.SetActive(HostOnline && Away(a.Id) && !a.Withdrawn && a.Life != Life.Dead);
+                c.Frame.color = a.Life == Life.Dead ? Theme.Hex("1a1512") : MyLiving.Count > 0 && Selected.Id == a.Id ? Theme.Hex("3a2e1c") : Theme.Panel2;
                 c.Portrait.color = a.Life == Life.Dead ? new Color(0.4f, 0.4f, 0.4f) : Color.white;
             }
         }
@@ -299,7 +312,7 @@ namespace Tavern.Unity.Night
         {
             UiKit.Clear(_tabRow);
             _tabs.Clear();
-            var living = Living;
+            var living = MyLiving;
             var w = Mathf.Min(200, 812f / Mathf.Max(1, living.Count));
             for (int i = 0; i < living.Count; i++)
             {
@@ -323,7 +336,7 @@ namespace Tavern.Unity.Night
 
         void RefreshDeclState()
         {
-            if (Living.Count == 0) return;
+            if (MyLiving.Count == 0) { RefreshWatching(); return; }
             var a = Selected;
             var phase = _t.Phase switch { Phase.Combat => "戦闘中（判定の要る行動は 1 つ）", Phase.Afterword => "その後の宣言（最後の 1 回）", Phase.Break => "中休み", Phase.Over => "物語は終わった", _ => "探索中（判定の要る行動は 2 つまで）" };
             _declHeader.text = $"{a.Name}の行動　<size=14><color=#a8977a>{phase}</color></size>";
@@ -336,13 +349,34 @@ namespace Tavern.Unity.Night
             _declNote.text = techniques + "思いついたことを文章で書けます。技に名前を付けるなら【】で囲む。台詞は「」。" +
                 (a.Life == Life.Down ? "\n倒れているので、仲間に起こしてもらうまで動けません。" : "");
             _declare.interactable = !_busy && !_ending && _t.Phase != Phase.Over;
-            _declare.SetText(_busy ? "語り部が\n考えている…" : _t.Phase == Phase.Afterword ? "その後を\n宣言する" : "全員の行動を\n宣言する");
             _input.interactable = !_busy;
+            if (!Online) { _declare.SetText(_busy ? "語り部が\n考えている…" : _t.Phase == Phase.Afterword ? "その後を\n宣言する" : "全員の行動を\n宣言する"); return; }
+            // in a room: who is still writing, the closing countdown, and (host) going on without the slow ones
+            var waiting = Living.Where(x => x.IsUp && !Away(x.Id) && !_ready.Contains(x.Id)).Select(x => x.Name).ToList();
+            var closing = _closeAt > 0 ? Mathf.CeilToInt(Mathf.Max(0, _closeAt - Time.unscaledTime)) : 0;
+            _declare.SetText(_busy ? "語り部が\n考えている…"
+                : !AllMineIn ? (_t.Phase == Phase.Afterword ? "その後を\n宣言する" : "宣言する")
+                : closing > 0 ? $"{closing} 秒で\n締め切り"
+                : HostOnline ? $"待たずに\n進める" : "書き直して\n送る");
+            if (!_busy) _busyText.text = closing > 0 ? $"全員そろった。{closing} 秒で締め切る（それまでは書き直せる）"
+                : waiting.Count > 0 && AllMineIn ? $"{string.Join("・", waiting)}の宣言を待っている" : "";
+        }
+
+        /// <summary>No adventurer of one's own can act (dead, or left tonight): this player watches.</summary>
+        void RefreshWatching()
+        {
+            _declHeader.text = "見ているだけ（あなたの冒険者は動けない）";
+            _declNote.text = Online ? "仲間の宣言と語りは、このまま見られます。" : "";
+            _declare.interactable = HostOnline && !_busy && !_ending && _t.Phase != Phase.Over && Living.Any(x => x.IsUp);
+            _declare.SetText(HostOnline ? "待たずに\n進める" : "見ている");
+            _input.interactable = false;
+            _secretButton.interactable = false;
+            _cover.gameObject.SetActive(false);
         }
 
         void ToggleSecret()
         {
-            if (Living.Count == 0 || E.Combat != null) return;
+            if (MyLiving.Count == 0 || E.Combat != null) return;
             var id = Selected.Id;
             if (!_secret.Remove(id)) _secret.Add(id);
             RefreshDeclState();
@@ -365,11 +399,24 @@ namespace Tavern.Unity.Night
         {
             if (_busy || _ending || _t.Phase == Phase.Over) return;
             var decls = new List<Declaration>();
-            foreach (var a in Living.Where(a => a.IsUp))
+            foreach (var a in MyLiving.Where(a => a.IsUp))
             {
                 var text = _drafts.TryGetValue(a.Id, out var d) ? d.Trim() : "";
                 if (text.Length == 0) text = E.Combat != null ? "身を守る" : "様子を見る";   // nothing written: wait and see (in a fight, defend)
                 decls.Add(new Declaration { Who = a.Id, Text = text, Secret = _secret.Contains(a.Id) && E.Combat == null, Cover = _covers.TryGetValue(a.Id, out var c) ? c.Trim() : "" });
+            }
+            if (Guest) { if (decls.Count > 0) GuestDeclare(decls); return; }
+            if (HostOnline)
+            {
+                // the host's own declarations go in with the friends'; pressing again once in goes on without the slow ones
+                var again = decls.Count == 0 || AllMineIn;
+                foreach (var d in decls) { _decls[d.Who] = d; _ready.Add(d.Who); }
+                CheckClose();
+                if (again && _closeAt <= 0) _closeAt = Time.unscaledTime;
+                BroadcastState();
+                RefreshCards();
+                RefreshDeclState();
+                return;
             }
             if (decls.Count == 0) return;
             foreach (var d in decls) AddLine($"{E.Find(d.Who)?.Name}{(d.Secret ? "（内緒）" : "")}: {d.Text}", Theme.Hex("b9a989"), 15);
@@ -383,6 +430,7 @@ namespace Tavern.Unity.Night
             _busy = true;
             _busyText.text = "語り部が考えている…";
             RefreshDeclState();
+            BroadcastState();
             TurnReport? r = null;
             try { r = await turn(); }
             catch (Exception e)
@@ -394,6 +442,7 @@ namespace Tavern.Unity.Night
             _busy = false;
             _busyText.text = "";
             if (r != null) Show(r);
+            if (r != null) SendReport(r); else BroadcastState();
             if (_n.Ai.Meter is Tavern.Core.Ai.CallMeter meter)
             {
                 _n.Store.SaveCalls(_n.Ai.KeyName, meter);
@@ -408,12 +457,12 @@ namespace Tavern.Unity.Night
         void Show(TurnReport r)
         {
             foreach (var l in r.Lines) { AddLine(l, LineColor(l), 15); Sfx(l); }
-            foreach (var kv in r.PrivateLines)
+            foreach (var kv in r.PrivateLines.Where(kv => IsMine(kv.Key)))
                 foreach (var l in kv.Value) AddLine($"（{E.Find(kv.Key)?.Name}だけ）{l}", Theme.Hex("c9a0c0"), 15);
             if (r.Narration.Length > 0) Queue("語り部 オルウェン", r.Narration, true);
-            foreach (var kv in r.PrivateNarration) Queue($"{E.Find(kv.Key)?.Name}だけに", kv.Value, true);
-            foreach (var kv in r.Deferred) _drafts[kv.Key] = string.Join("。", kv.Value);
-            if (Living.Count > 0) Select(Mathf.Min(_selected, Living.Count - 1));
+            foreach (var kv in r.PrivateNarration.Where(kv => IsMine(kv.Key))) Queue($"{E.Find(kv.Key)?.Name}だけに", kv.Value, true);
+            foreach (var kv in r.Deferred.Where(kv => IsMine(kv.Key))) _drafts[kv.Key] = string.Join("。", kv.Value);
+            if (MyLiving.Count > 0) Select(Mathf.Min(_selected, MyLiving.Count - 1));
         }
 
         static Color LineColor(string l) =>
@@ -438,29 +487,31 @@ namespace Tavern.Unity.Night
         {
             _ending = true;
             while (_typing != null || _pending.Count > 0) await Task.Yield();
-            await Task.Delay(Auto ? 200 : 1500);
+            await Wait(Auto ? 0.2f : 1.5f);
             Chronicle? chronicle = null;
             try
             {
                 AddLine("（語り部が記録帳を書いている…）", Theme.Dim, 15);
                 chronicle = await _t.WrapUpAsync(_n.Ai.Bookends);
-                _n.Store.Record(_t, chronicle);
+                _n.Store.Record(_t, chronicle, Online ? Room!.MineOf(Room.Me) : null);
             }
             catch (Exception e) { Debug.LogWarning("[Night] wrap up: " + e); }
+            SendEnd(chronicle);
             _n.ShowEnding(_t, chronicle);
         }
 
         void AskToStopForTonight()
         {
-            _n.Store.SaveEvening(_t);
+            Persist();
             Dialog("今夜の AI の枠が尽きました", "保存して、今夜はここで区切りますか？（続きは枠が戻ってから「続きから」で）",
                 ("保存して酒場へ", Quit), ("もう一度試す", null));
         }
 
         void Quit()
         {
-            if (_busy) return;
-            _n.Store.SaveEvening(_t);
+            if (_busy && !Guest) return;
+            Persist();
+            if (HostOnline) NetSession.Send(NightMsg.Closed, "{}");   // friends go back to their title; the room reopens with "続きから"
             _n.BackToTitle();
         }
 
@@ -510,7 +561,13 @@ namespace Tavern.Unity.Night
                 if (n >= _typingFull.Length) { _typing = null; _hold = Time.unscaledTime + (Auto ? 0.1f : 0.6f); }
             }
             UpdateRoll();
-            if (_autoTurns > 0 && !_busy && !_ending && _typing == null && _pending.Count == 0 && _dialog == null && _t.Phase != Phase.Over)
+            if (_closeAt > 0)
+            {
+                if (HostOnline && Time.unscaledTime >= _closeAt && !_busy && !_ending) CloseTurn();
+                else if (Time.frameCount % 15 == 0) RefreshDeclState();   // the countdown
+            }
+            var waitingForOthers = Online && MyLiving.Any(a => a.IsUp) && AllMineIn;
+            if (_autoTurns > 0 && !_busy && !_ending && !waitingForOthers && _typing == null && _pending.Count == 0 && _dialog == null && _t.Phase != Phase.Over)
             {
                 _autoWait += Time.unscaledDeltaTime;
                 if (_autoWait > 0.8f) { _autoWait = 0; _autoTurns--; BotDeclare(); }
@@ -524,7 +581,7 @@ namespace Tavern.Unity.Night
             if (E.Combat != null)
             {
                 var foe = E.Combat.Foes.Where(f => f.InFight).OrderBy(f => f.Hp).FirstOrDefault();
-                foreach (var a in Living.Where(a => a.IsUp)) _drafts[a.Id] = a.Class.Id == "mage" ? $"魔力の矢を{foe?.Name}に放つ" : $"{foe?.Name}に攻撃する";
+                foreach (var a in MyLiving.Where(a => a.IsUp)) _drafts[a.Id] = a.Class.Id == "mage" ? $"魔力の矢を{foe?.Name}に放つ" : $"{foe?.Name}に攻撃する";
             }
             else if (_walk.Count > 0)
             {
@@ -536,11 +593,11 @@ namespace Tavern.Unity.Night
                     var i = part.IndexOf(':');
                     if (i < 0) continue;
                     var who = part.Substring(0, i).Trim();
-                    var a = E.Party.FirstOrDefault(x => x.Name == who || x.Id == who) ?? Living.FirstOrDefault(x => who.EndsWith(x.Name));
+                    var a = E.Party.FirstOrDefault(x => x.Name == who || x.Id == who) ?? MyLiving.FirstOrDefault(x => who.EndsWith(x.Name));
                     if (a != null) _drafts[a.Id] = part.Substring(i + 1).Trim();
                 }
             }
-            else foreach (var a in Living.Where(a => a.IsUp)) _drafts[a.Id] = "辺りを調べる";
+            else foreach (var a in MyLiving.Where(a => a.IsUp)) _drafts[a.Id] = "辺りを調べる";
             Declare();
         }
     }

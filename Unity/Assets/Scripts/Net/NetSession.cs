@@ -32,6 +32,11 @@ namespace Tavern.Unity.Net
         public static bool IsClient => _nm != null && _nm.IsClient && !_nm.IsHost;
         public static ulong LocalId => _nm != null ? _nm.LocalClientId : 0;
         public static string? JoinCode { get; private set; }
+        /// <summary>The anonymous sign-in id: the same on this PC and profile each time (a friend who drops out gets their seat back).</summary>
+        public static string PlayerKey
+        {
+            get { try { return AuthenticationService.Instance.IsSignedIn ? AuthenticationService.Instance.PlayerId : ""; } catch (Exception) { return ""; } }
+        }
 
         /// <summary>Host: someone joined / left (client id). Client: the connection to the host ended.</summary>
         public static event Action<ulong>? ClientJoined, ClientLeft;
@@ -143,7 +148,7 @@ namespace Tavern.Unity.Net
         public static void ClearHandlers() => Handlers.Clear();
 
         static readonly HashSet<string> Registered = new HashSet<string>();
-        static readonly string[] Names = { "hello", "lobby", "start", "declare", "turn", "ask_reroll", "reroll", "ask_growth", "growth", "order", "status" };
+        static readonly string[] Names = new[] { "hello", "lobby", "start", "declare", "turn", "ask_reroll", "reroll", "ask_growth", "growth", "order", "status" }.Concat(Tavern.Core.Flow.NightMsg.All).ToArray();
 
         static void RegisterHandlers()
         {
@@ -166,22 +171,26 @@ namespace Tavern.Unity.Net
         /// <summary>Host: to one client (or all with to == null). Client: to the host.</summary>
         public static void Send(string name, string json, ulong? to = null)
         {
-            if (_nm == null || !(_nm.IsHost || _nm.IsClient)) return;
+            if (_nm == null || !(_nm.IsHost || _nm.IsClient) || _nm.ShutdownInProgress || _nm.CustomMessagingManager == null) return;   // also while shutting down (a friend leaving as the game quits)
             var bytes = Zip(json);
             using var writer = new FastBufferWriter(bytes.Length + 8, Allocator.Temp, bytes.Length + 64);
             writer.WriteValueSafe(bytes.Length);
             writer.WriteBytesSafe(bytes, bytes.Length);
             var cm = _nm.CustomMessagingManager;
-            if (_nm.IsHost)
+            try
             {
-                if (to.HasValue) { if (to.Value != NetworkManager.ServerClientId) cm.SendNamedMessage(name, to.Value, writer, NetworkDelivery.ReliableFragmentedSequenced); }
-                else
+                if (_nm.IsHost)
                 {
-                    var others = _nm.ConnectedClientsIds.Where(id => id != NetworkManager.ServerClientId).ToList();
-                    if (others.Count > 0) cm.SendNamedMessage(name, others, writer, NetworkDelivery.ReliableFragmentedSequenced);
+                    if (to.HasValue) { if (to.Value != NetworkManager.ServerClientId) cm.SendNamedMessage(name, to.Value, writer, NetworkDelivery.ReliableFragmentedSequenced); }
+                    else
+                    {
+                        var others = _nm.ConnectedClientsIds.Where(id => id != NetworkManager.ServerClientId).ToList();
+                        if (others.Count > 0) cm.SendNamedMessage(name, others, writer, NetworkDelivery.ReliableFragmentedSequenced);
+                    }
                 }
+                else cm.SendNamedMessage(name, NetworkManager.ServerClientId, writer, NetworkDelivery.ReliableFragmentedSequenced);
             }
-            else cm.SendNamedMessage(name, NetworkManager.ServerClientId, writer, NetworkDelivery.ReliableFragmentedSequenced);
+            catch (Exception e) { Debug.LogWarning($"[Online] send {name}: {e.Message}"); }   // a friend who is just leaving
         }
 
         static byte[] Zip(string text)

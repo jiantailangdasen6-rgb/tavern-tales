@@ -34,19 +34,48 @@ namespace Tavern.Unity.Night
             public Dictionary<string, Image> ClassButtons = new Dictionary<string, Image>();
         }
 
-        public PartyBuilder(NightApp n) { _n = n; }
+        readonly RoomMode _mode;
+        InputField? _player, _code;
+        Text? _note;
+        Button _done = null!;
+
+        public PartyBuilder(NightApp n, RoomMode mode = RoomMode.Alone) { _n = n; _mode = mode; }
+
+        bool Online => _mode != RoomMode.Alone;
 
         public void Build(Transform root)
         {
             _root = root;
             UiKit.Picture(root, ArtLibrary.Get("bg_tavern"), 0, 0, 1920, 1080).color = new Color(0.35f, 0.3f, 0.26f);
-            UiKit.Label(root, "今宵の冒険者たち", 44, Theme.Gold, 0, 30, 1920, 60, serif: true, align: TextAnchor.UpperCenter);
-            UiKit.Label(root, "職業と見た目を選び、名前と生い立ちを書いてください（1〜4 人）。名簿から前の冒険者も呼べます。", 20, Theme.Ink, 0, 92, 1920, 30, align: TextAnchor.UpperCenter);
-            for (int i = 0; i < 4; i++) _seats.Add(BuildSeat(root, i));
+            UiKit.Label(root, _mode switch { RoomMode.Host => "部屋を作る: あなたの冒険者", RoomMode.Join => "友人の部屋に入る: あなたの冒険者", _ => "今宵の冒険者たち" },
+                44, Theme.Gold, 0, 30, 1920, 60, serif: true, align: TextAnchor.UpperCenter);
+            UiKit.Label(root, Online ? "あなたが今夜使う冒険者を 1 人。職業と見た目を選び、名前と生い立ちを書いてください。名簿から前の冒険者も呼べます。"
+                : "職業と見た目を選び、名前と生い立ちを書いてください（1〜4 人）。名簿から前の冒険者も呼べます。", 20, Theme.Ink, 0, 92, 1920, 30, align: TextAnchor.UpperCenter);
+            for (int i = 0; i < (Online ? 1 : 4); i++) _seats.Add(BuildSeat(root, i));
             Enable(_seats[0], true);
+            if (Online) BuildRoomBox(root);
             UiKit.Button(root, "もどる", _n.BackToTitle, 70, 960, 220, 64, 22);
-            UiKit.Button(root, "この顔ぶれで地図へ", Done, 1460, 950, 400, 80, 28, gold: true);
+            _done = UiKit.Button(root, _mode switch { RoomMode.Host => "部屋を作る", RoomMode.Join => "部屋に入る", _ => "この顔ぶれで地図へ" }, Done, 1460, 950, 400, 80, 28, gold: true);
             Refresh();
+        }
+
+        /// <summary>Online: the player's name in the room, and the room code to join (from an invite link if there was one).</summary>
+        void BuildRoomBox(Transform root)
+        {
+            var box = UiKit.Panel(root, "Room", 70 + SeatW + 40, 140, 900, 400).transform;
+            UiKit.Label(box, "あなたの名前（部屋でほかの人に見える）", 18, Theme.Dim, 30, 24, 800, 26);
+            _player = UiKit.Input(box, "例: たろう", 30, 54, 500, 46, 20);
+            _player.characterLimit = 12;
+            _player.text = PlayerPrefs.GetString("night_player", "");
+            if (_mode == RoomMode.Join)
+            {
+                UiKit.Label(box, "部屋のコード（ホストから聞く）", 18, Theme.Dim, 30, 124, 800, 26);
+                _code = UiKit.Input(box, "例: ABC123", 30, 154, 500, 46, 22);
+                _code.text = _n.App.InviteCode ?? "";
+            }
+            _note = UiKit.Label(box, _mode == RoomMode.Host
+                ? "部屋を作ると、コードと招待リンクが出ます。友人にはそれを送ってください。語り部の AI はこの PC で動きます（4 人まで）。"
+                : "途中で切れても、同じコードで入り直せば自分の冒険者に戻れます。", 17, Theme.Ink, 30, 230, 840, 140);
         }
 
         Seat BuildSeat(Transform root, int i)
@@ -74,7 +103,7 @@ namespace Tavern.Unity.Night
             s.Background.characterLimit = 300;
             s.FromText = UiKit.Label(b, "", 14, Theme.GoldLight, 16, 574, SeatW - 32, 20);
             UiKit.Button(b, "名簿から呼ぶ", () => PickFromRoster(s), 16, 594, 200, 36, 16, gold: true);
-            UiKit.Button(b, "この席を空ける", () => { Enable(s, false); Refresh(); }, 226, 594, SeatW - 242, 36, 16);
+            if (!Online) UiKit.Button(b, "この席を空ける", () => { Enable(s, false); Refresh(); }, 226, 594, SeatW - 242, 36, 16);
             s.Empty = UiKit.Rect("Empty", panel).Fill().gameObject;
             UiKit.Button(s.Empty.transform, "＋ 冒険者を加える", () => { Enable(s, true); Refresh(); }, (SeatW - 300) / 2, 280, 300, 80, 24);
             Enable(s, false);
@@ -143,7 +172,30 @@ namespace Tavern.Unity.Night
                 party.Add(a);
             }
             if (party.Count == 0) return;
-            _n.ShowMap(party);
+            if (Online) Connect(party[0]);
+            else _n.ShowMap(party);
+        }
+
+        async void Connect(Adventurer mine)
+        {
+            var name = _player?.text.Trim() ?? "";
+            if (name.Length == 0) name = "旅人";
+            PlayerPrefs.SetString("night_player", name);
+            var code = _code?.text.Trim() ?? "";
+            if (_mode == RoomMode.Join && code.Length == 0) { _note!.text = "<color=#c4553f>部屋のコードを入れてください</color>"; return; }
+            _done.interactable = false;
+            _note!.text = _mode == RoomMode.Host ? "部屋を作っています…" : "部屋に入っています…（少しかかることがあります）";
+            try
+            {
+                _n.Room = _mode == RoomMode.Host ? await NightRoom.HostAsync(_n, name, mine) : await NightRoom.JoinAsync(_n, code, name, mine);
+                _n.ShowRoom();
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning("[Online] " + e);
+                _note.text = $"<color=#c4553f>{(_mode == RoomMode.Host ? "部屋を作れませんでした" : "部屋に入れませんでした")}: {e.Message}</color>";
+                _done.interactable = true;
+            }
         }
     }
 }

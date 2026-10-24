@@ -82,7 +82,20 @@ namespace Tavern.Unity.Night
             try { return HasEvening ? SaveGame.FromJson(File.ReadAllText(EveningPath)) : null; }
             catch (Exception e) { Debug.LogWarning("[Night] cannot read the evening: " + e.Message); return null; }
         }
-        public void ClearEvening() { try { if (HasEvening) File.Delete(EveningPath); } catch (Exception e) { Debug.LogWarning(e.Message); } }
+        public void ClearEvening()
+        {
+            try { if (HasEvening) File.Delete(EveningPath); } catch (Exception e) { Debug.LogWarning(e.Message); }
+            ClearSeats();
+        }
+
+        string SeatsPath => P("night_seats.json");
+        public void SaveSeats(NightSeats s) => Write(SeatsPath, JsonConvert.SerializeObject(s, Formatting.Indented));
+        public NightSeats? LoadSeats()
+        {
+            try { return File.Exists(SeatsPath) ? JsonConvert.DeserializeObject<NightSeats>(File.ReadAllText(SeatsPath)) : null; }
+            catch (Exception e) { Debug.LogWarning("[Night] seats: " + e.Message); return null; }
+        }
+        public void ClearSeats() { try { if (File.Exists(SeatsPath)) File.Delete(SeatsPath); } catch (Exception e) { Debug.LogWarning(e.Message); } }
 
         public List<RosterEntry> LoadRoster() => ReadList<RosterEntry>(P("night_roster.json"));
         public void SaveRoster(List<RosterEntry> r) => WriteList(P("night_roster.json"), r);
@@ -133,14 +146,14 @@ namespace Tavern.Unity.Night
 
         /// <summary>
         /// After an evening: the roster keeps everyone (the dead get an epitaph), the chronicle gets the story, the tavern its rumours,
-        /// bonds, wall and the played mark.
+        /// bonds, wall and the played mark. In a room each PC keeps only its own adventurers (mine); a friend's PC (guest) also gets the chronicle, while the tavern stays on the host and the friend's own evening is kept.
         /// </summary>
-        public void Record(Table t, Chronicle c)
+        public void Record(Table t, Chronicle c, ICollection<string>? mine = null, bool guest = false)
         {
             var e = t.E;
             var end = t.Ending!;
             var roster = LoadRoster();
-            foreach (var a in e.Party)
+            foreach (var a in e.Party.Where(a => mine == null || mine.Contains(a.Id)))
             {
                 var r = roster.FirstOrDefault(x => x.Id == a.RosterId) ?? roster.FirstOrDefault(x => x.Id == a.Id);
                 if (r == null) { r = new RosterEntry { Id = a.RosterId.Length > 0 ? a.RosterId : Guid.NewGuid().ToString("N") }; roster.Add(r); a.RosterId = r.Id; }
@@ -163,6 +176,7 @@ namespace Tavern.Unity.Night
             });
             SaveChronicle(chron);
 
+            if (guest) return;
             var tavern = LoadTavern();
             tavern.Rumors.Add(c.Rumors.ToList());
             while (tavern.Rumors.Count > 3) tavern.Rumors.RemoveAt(0);

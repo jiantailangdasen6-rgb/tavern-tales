@@ -24,7 +24,7 @@ namespace Tavern.Unity.Boot
         IEnumerator Start()
         {
             var quitArg = Arg("-autoquit");
-            if (quitArg != null) AudioListener.volume = 0f;
+            if (quitArg != null) { AudioListener.volume = 0f; StartCoroutine(QuitAt(float.Parse(quitArg, System.Globalization.CultureInfo.InvariantCulture))); }   // on time, even with shots still to come
             var path = Arg("-screenshot");
             if (path != null)
             {
@@ -39,13 +39,13 @@ namespace Tavern.Unity.Boot
                     Debug.Log("[DevShot] " + file);
                 }
             }
-            if (quitArg != null)
-            {
-                var t = float.Parse(quitArg, System.Globalization.CultureInfo.InvariantCulture);
-                while (Time.realtimeSinceStartup < t) yield return null;
-                yield return new WaitForSeconds(0.5f);
-                Application.Quit();
-            }
+        }
+
+        static IEnumerator QuitAt(float t)
+        {
+            while (Time.realtimeSinceStartup < t) yield return null;
+            yield return new WaitForSeconds(0.5f);
+            Application.Quit();
         }
     }
 }

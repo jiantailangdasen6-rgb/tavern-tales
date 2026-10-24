@@ -12,27 +12,31 @@ namespace Tavern.Unity.Night
 {
     /// <summary>
     /// The region map spread on the tavern table (09_Spec 11): a mark where each story happens; press one for its title and
-    /// introduction, pick the difficulty, start. Played stories show their endings.
+    /// introduction, pick the difficulty, start. Played stories show their endings. In a room everyone's pin is on the map and the host
+    /// starts the story with the most pins.
     /// </summary>
     public sealed class MapView
     {
         const float MapX = 60, MapY = 110, MapW = 1180, MapH = 860;
         readonly NightApp _n;
         readonly List<Adventurer> _party;
+        readonly NightRoom? _room;
         StoryDef? _pick;
         Text _title = null!, _body = null!;
         Button _start = null!;
-        readonly Dictionary<Difficulty, Image> _diffButtons = new Dictionary<Difficulty, Image>();
+        readonly Dictionary<Difficulty, Button> _diffButtons = new Dictionary<Difficulty, Button>();
         TavernState _tavern = null!;
 
-        public MapView(NightApp n, List<Adventurer> party) { _n = n; _party = party; }
+        public MapView(NightApp n, List<Adventurer> party) { _n = n; _party = party; _room = n.Room; }
 
         public void Build(Transform root)
         {
             _tavern = _n.Store.LoadTavern();
             UiKit.Box(root, "Bg", Theme.Bg).rectTransform.Fill();
             UiKit.Label(root, "ヴァルデン辺境領の地図", 38, Theme.Gold, MapX, 40, 900, 56, serif: true);
-            UiKit.Label(root, $"今宵の顔ぶれ: {string.Join("・", _party.Select(a => $"{a.Name}（{a.Class.Name}）"))}", 18, Theme.Ink, MapX + 520, 56, 1300, 30);
+            if (_room == null)
+                UiKit.Label(root, $"今宵の顔ぶれ: {string.Join("・", _party.Select(a => $"{a.Name}（{a.Class.Name}）"))}", 18, Theme.Ink, MapX + 520, 56, 1300, 30);
+            else BuildRoomTop(root, _room);
 
             // the map: parchment with the regions
             var map = UiKit.Box(root, "Map", Theme.Hex("3a2e20"), frame: true);
@@ -53,7 +57,9 @@ namespace Tavern.Unity.Night
                 foreach (var (s, i) in stories.Select((s, i) => (s, i)))
                 {
                     var played = _tavern.Played.ContainsKey(s.Id);
-                    var pin = UiKit.Button(root, (played ? "✓ " : "◆ ") + s.Title, () => Pick(s), x - 120, y - 58 - i * 46, 240, 40, 17, gold: true);
+                    var pins = _room?.Pins.Where(kv => kv.Value == s.Id).Select(kv => kv.Key).ToList() ?? new List<string>();
+                    var label = (played ? "✓ " : "◆ ") + s.Title + (pins.Count > 0 ? $"　<color=#e8d9a8>ピン {pins.Count}</color>" : "");
+                    var pin = UiKit.Button(root, label, () => Pick(s, fromClick: true), x - 140, y - 58 - i * 46, 280, 40, 17, gold: true);
                     pin.name = "Pin_" + s.Id;
                 }
             }
@@ -62,31 +68,76 @@ namespace Tavern.Unity.Night
             var side = UiKit.Panel(root, "Side", 1270, 110, 590, 860).transform;
             _title = UiKit.Label(side, "地図の印を押すと、物語の導入が出ます", 28, Theme.Gold, 24, 20, 540, 80, serif: true);
             _body = UiKit.Label(side, "", 19, Theme.Ink, 24, 110, 540, 520);
-            UiKit.Label(side, "難易度", 18, Theme.Dim, 24, 650, 200, 26);
+            UiKit.Label(side, _room != null && !_room.Host ? "難易度（ホストが決める）" : "難易度", 18, Theme.Dim, 24, 650, 300, 26);
             foreach (var (d, i) in new[] { Difficulty.Gentle, Difficulty.Standard, Difficulty.Harsh }.Select((d, i) => (d, i)))
             {
-                var b = UiKit.Button(side, d.Label(), () => { _n.Difficulty = d; RefreshDiff(); }, 24 + i * 180, 680, 170, 48, 20);
-                _diffButtons[d] = b.GetComponent<Image>();
+                var b = UiKit.Button(side, d.Label(), () => SetDifficulty(d), 24 + i * 180, 680, 170, 48, 20);
+                b.interactable = _room == null || _room.Host;
+                _diffButtons[d] = b;
             }
             RefreshDiff();
-            _start = UiKit.Button(side, "この物語で始める", () => { if (_pick != null) _n.Begin(_pick, _party, _n.Difficulty); }, 24, 770, 542, 66, 26, gold: true);
+            var startLabel = _room == null ? "この物語で始める" : _room.Host ? "ピンの多い物語で始める" : "ホストが始めます";
+            _start = UiKit.Button(side, startLabel, Start, 24, 770, 542, 66, 26, gold: true);
             _start.interactable = false;
-            UiKit.Button(root, "顔ぶれを選び直す", _n.ShowParty, MapX, 990, 260, 56, 20);
-            if (_n.Stories.Count == 1) Pick(_n.Stories[0]);
+            if (_room == null) UiKit.Button(root, "顔ぶれを選び直す", _n.ShowParty, MapX, 990, 260, 56, 20);
+            else UiKit.Button(root, "部屋を出る", _n.BackToTitle, MapX, 990, 260, 56, 20);
+
+            var mine = _room != null && _room.Pins.TryGetValue(_room.Me, out var id) ? _n.Stories.FirstOrDefault(s => s.Id == id) : null;
+            if (mine != null) Pick(mine, fromClick: false);
+            else if (_n.Stories.Count == 1 && _room == null) Pick(_n.Stories[0], fromClick: false);
+        }
+
+        /// <summary>The room: the code to share (host), and who is in with their adventurer.</summary>
+        void BuildRoomTop(Transform root, NightRoom room)
+        {
+            if (room.Host)
+            {
+                UiKit.Label(root, $"部屋のコード <color=#e8d9a8><size=30>{room.Code}</size></color>", 20, Theme.Ink, MapX + 520, 46, 420, 44);
+                UiKit.Button(root, "コードをコピー", () => GUIUtility.systemCopyBuffer = room.Code, MapX + 940, 48, 170, 42, 16);
+                UiKit.Button(root, "招待リンクをコピー", () => GUIUtility.systemCopyBuffer = InviteLink.For(room.Code), MapX + 1120, 48, 200, 42, 16, gold: true);
+            }
+            else UiKit.Label(root, $"部屋のコード {room.Code}", 20, Theme.Ink, MapX + 520, 56, 600, 30);
+            var who = room.Players.Select(p =>
+            {
+                var a = p.Adventurer;
+                var cls = _n.Classes.Classes.TryGetValue(a.ClassId, out var c) ? c.Name : a.ClassId;
+                var pin = room.Pins.TryGetValue(p.PlayerName, out var s) ? _n.Stories.FirstOrDefault(x => x.Id == s)?.Title ?? s : "まだ";
+                return $"{a.Name}（{cls}）— {p.PlayerName}{(p.Host ? "・ホスト" : "")}{(p.PlayerName == room.Me ? "（あなた）" : "")}　ピン: {pin}";
+            });
+            UiKit.Label(root, (room.Host && room.Players.Count < 2 ? "友人が入るのを待っています（ひとりでも始められます）\n" : "") + string.Join("\n", who),
+                17, Theme.Ink, MapX + 290, 984, 1500, 96);
+        }
+
+        void SetDifficulty(Difficulty d)
+        {
+            if (_room != null && !_room.Host) return;
+            _n.Difficulty = d;
+            if (_room != null) { _room.Difficulty = d; _room.Send(); }
+            RefreshDiff();
         }
 
         void RefreshDiff()
         {
-            foreach (var kv in _diffButtons) kv.Value.color = kv.Key == _n.Difficulty ? Theme.Hex("6a5228") : Theme.Hex("2e241a");
+            var current = _room?.Difficulty ?? _n.Difficulty;
+            foreach (var kv in _diffButtons) kv.Value.GetComponent<Image>().color = kv.Key == current ? Theme.Hex("6a5228") : Theme.Hex("2e241a");
         }
 
-        void Pick(StoryDef s)
+        void Pick(StoryDef s, bool fromClick)
         {
             _pick = s;
             _title.text = s.Title;
             var played = _tavern.Played.TryGetValue(s.Id, out var list) ? "\n\nこれまで: " + string.Join(" / ", list) : "";
             _body.text = $"{(s.Long ? "中編（2 晩）" : "短編（一晩）")}・{s.Kind}・闇の深さ {s.Darkness}\n\n{s.Intro}{played}";
-            _start.interactable = true;
+            _start.interactable = _room == null || _room.Host;
+            if (fromClick && _room != null) _room.SetPin(s.Id);   // the room redraws the map with the pin
+        }
+
+        void Start()
+        {
+            if (_room == null) { if (_pick != null) _n.Begin(_pick, _party, _n.Difficulty); return; }
+            if (!_room.Host) return;
+            var story = _room.Chosen(new SeededRandom((ulong)System.DateTime.Now.Ticks)) ?? _pick;
+            if (story != null) _n.Begin(story, _room.Party(), _room.Difficulty);
         }
     }
 }

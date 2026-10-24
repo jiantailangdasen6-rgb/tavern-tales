@@ -1,10 +1,12 @@
 #nullable enable
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Tavern.Core.Ai;
 using Tavern.Core.Flow;
 using Tavern.Core.Play;
 using Tavern.Unity.App;
+using Tavern.Unity.Net;
 using Tavern.Unity.Ui;
 using UnityEngine;
 using UnityEngine.UI;
@@ -43,7 +45,7 @@ namespace Tavern.Unity.Night
             UiKit.Label(p, "名付けた技: " + (a.Techniques.Count == 0 ? "まだない（宣言の中で【】に名前を書くと残る）" : string.Join("　", a.Techniques.Select(t => $"【{t.Name}】{t.Kind.Label()}・{t.Size.Label()}（{t.Note}）"))), 18, Theme.Ink, 30, 410, 1240, 60);
             UiKit.Label(p, "生い立ち: " + (a.Background.Length > 0 ? a.Background : "（なし）"), 17, Theme.Dim, 30, 480, 1240, 80);
             var h = _t.Handouts.FirstOrDefault(x => x.Who == a.Id);
-            if (h != null)
+            if (h != null && IsMine(a.Id))
             {
                 var goal = Story.PersonalGoals.FirstOrDefault(g => g.Id == h.GoalId)?.Text ?? "";
                 UiKit.Label(p, $"ハンドアウト（本人だけ）\n縁: {h.Bond}\n目的: {goal}" + (h.Fragment.Length > 0 ? $"\n断片: {h.Fragment}" : ""), 17, Theme.Hex("c9a0c0"), 30, 570, 1240, 200);
@@ -58,12 +60,20 @@ namespace Tavern.Unity.Night
             var list = UiKit.Scroll(p, 30, 90, 1140, 660, out _);
             foreach (var c in Story.Clues.Where(c => E.World.Clues.TryGetValue(c.Id, out var w) && w.Contains(World.Shown)))
                 UiKit.Label(list, "・" + c.Text, 19, Theme.Ink);
-            foreach (var a in E.Party)
+            foreach (var a in E.Party.Where(a => IsMine(a.Id)))
                 foreach (var c in Story.Clues.Where(c => E.World.Clues.TryGetValue(c.Id, out var w) && !w.Contains(World.Shown) && w.Contains(a.Id)))
                 {
                     var row = UiKit.Label(list, $"・（{a.Name}だけが知っている）{c.Text}", 19, Theme.Hex("c9a0c0"));
                     var cid = c.Id;
-                    var b = UiKit.Button(list, "見せる（仲間にも）", () => { E.World.ShowClue(cid); _n.Store.SaveEvening(_t); Close((RectTransform)p.parent); ShowClues(); }, 17);
+                    var b = UiKit.Button(list, "見せる（仲間にも）", () =>
+                    {
+                        E.World.ShowClue(cid);
+                        if (Guest) NetSession.Send(NightMsg.Clue, OnlineView.Json(new ClueMsg { ClueId = cid }));
+                        Persist();
+                        BroadcastState();
+                        Close((RectTransform)p.parent);
+                        ShowClues();
+                    }, 17);
                     b.gameObject.AddComponent<LayoutElement>().preferredHeight = 40;
                 }
             foreach (var c in Story.Conclusions.Where(c => E.World.Convictions.Contains(c.Id)))
@@ -74,11 +84,12 @@ namespace Tavern.Unity.Night
         /// <summary>The handouts (each is the owner's; on one PC they are all here).</summary>
         void ShowHandouts()
         {
-            if (_t.Handouts.Count == 0) return;
+            var mine = _t.Handouts.Where(h => IsMine(h.Who)).ToList();
+            if (mine.Count == 0) return;
             var p = Sheet("Handouts", 1300, 860);
-            UiKit.Label(p, "ハンドアウト（本来は本人だけが読む）", 30, Theme.Gold, 30, 24, 1000, 48, serif: true);
+            UiKit.Label(p, Online ? "ハンドアウト（あなただけが読む）" : "ハンドアウト（本来は本人だけが読む）", 30, Theme.Gold, 30, 24, 1000, 48, serif: true);
             var list = UiKit.Scroll(p, 30, 90, 1240, 660, out _, spacing: 18);
-            foreach (var h in _t.Handouts)
+            foreach (var h in mine)
             {
                 var a = E.Find(h.Who);
                 var goal = Story.PersonalGoals.FirstOrDefault(g => g.Id == h.GoalId)?.Text ?? "";
@@ -93,8 +104,21 @@ namespace Tavern.Unity.Night
             UiKit.Label(p, "語り部への注文", 30, Theme.Gold, 30, 24, 900, 48, serif: true);
             UiKit.Label(p, "変えられるのは語り方だけ（長さ・調子）。ルール・数字・物語の秘密は変わりません。", 18, Theme.Dim, 30, 80, 1040, 30);
             var input = UiKit.Input(p, "例: もっと短く / 情景を多めに", 30, 120, 1040, 110, 19, multiline: true);
-            UiKit.Button(p, "次の語りに伝える", () => { if (input.text.Trim().Length > 0) { _t.Requests.Add(input.text.Trim()); AddLine("（注文: " + input.text.Trim() + "）", Theme.Dim, 14); } }, 30, 240, 300, 52, 19, gold: true);
-            UiKit.Button(p, "手がかりがほしい", () => { E.Hints.Ask(E.Difficulty); AddLine("（語り部に、手がかりを頼んだ）", Theme.Dim, 14); }, 350, 240, 300, 52, 19);
+            UiKit.Button(p, "次の語りに伝える", () =>
+            {
+                var text = input.text.Trim();
+                if (text.Length == 0) return;
+                if (Guest) NetSession.Send(NightMsg.Order, OnlineView.Json(new NightOrder { Text = text }));
+                else _t.Requests.Add(text);
+                AddLine("（注文: " + text + "）", Theme.Dim, 14);
+            }, 30, 240, 300, 52, 19, gold: true);
+            UiKit.Button(p, "手がかりがほしい", () =>
+            {
+                if (Guest) NetSession.Send(NightMsg.Order, OnlineView.Json(new NightOrder { Hint = true }));
+                else E.Hints.Ask(E.Difficulty);
+                AddLine("（語り部に、手がかりを頼んだ）", Theme.Dim, 14);
+            }, 350, 240, 300, 52, 19);
+            if (Guest) { UiKit.Label(p, "語りの量と難易度は、ホストが決めます。", 18, Theme.Dim, 30, 320, 800, 28); return; }
             UiKit.Label(p, "語りの量", 18, Theme.Dim, 30, 320, 200, 28);
             foreach (var (len, label, i) in new[] { (Telling.Short, "短め", 0), (Telling.Standard, "標準", 1), (Telling.Long, "長め", 2) })
                 UiKit.Button(p, label + (_t.Length == len ? "（いま）" : ""), () => { _t.Length = len; Close((RectTransform)p.parent); ShowRequests(); }, 30 + i * 200, 352, 190, 48, 18);
@@ -106,34 +130,54 @@ namespace Tavern.Unity.Night
         /// <summary>Growth at the end of an act: each standing adventurer picks one (an ability, HP, or a new specialty sentence).</summary>
         void ShowGrowth()
         {
-            var id = _t.GrowthDue.FirstOrDefault();
-            if (id == null) return;
+            if (Guest) return;   // the host asks
+            foreach (var friend in _t.GrowthDue.Where(i => !IsMine(i) && _growthAsked.Add(i)).ToList()) _ = AskGrowthAsync(friend);
+            var id = _t.GrowthDue.FirstOrDefault(IsMine);
+            if (id == null || _growing) return;
+            _ = GrowHere(id);
+        }
+
+        bool _growing;
+
+        async Task GrowHere(string id)
+        {
+            _growing = true;
             var a = E.Find(id)!;
             var options = Table.GrowthOptions(a);
-            if (Auto) { _t.Grow(id, options.First(o => o.Toughen)); RefreshAll(); if (_t.GrowthDue.Count > 0) ShowGrowth(); return; }
+            var pick = await GrowthDialog(a);
+            _growing = false;
+            if (_t.Grow(id, options[pick])) AddLine($"{a.Name}は成長した: {options[pick].Label}", Theme.GoldLight, 15);
+            Persist();
+            BroadcastState();
+            RefreshAll();
+            ShowGrowth();
+        }
+
+        /// <summary>The growth choices of one adventurer; returns the picked option's index (Table.GrowthOptions).</summary>
+        async Task<int> GrowthDialog(Adventurer a)
+        {
+            var options = Table.GrowthOptions(a);
+            var toughen = options.FindIndex(o => o.Toughen);
+            if (Auto) return toughen;
+            var done = new TaskCompletionSource<int>();
             var layer = Overlay("Growth", 0, 0, 1920, 1080, 0.7f);
             var panel = UiKit.Panel(layer, "Panel", 360, 120, 1200, 120 + options.Count * 56).transform;
             UiKit.Label(panel, $"{a.Name}の成長（幕の終わり）", 28, Theme.Gold, 30, 20, 1100, 44, serif: true);
             AudioDirector.Play("growth");
             for (int i = 0; i < options.Count; i++)
             {
-                var o = options[i];
-                UiKit.Button(panel, o.Label, () =>
-                {
-                    _t.Grow(id, o);
-                    AddLine($"{a.Name}は成長した: {o.Label}", Theme.GoldLight, 15);
-                    Close(layer);
-                    _n.Store.SaveEvening(_t);
-                    RefreshAll();
-                    ShowGrowth();
-                }, 30, 76 + i * 56, 1140, 48, 17);
+                var idx = i;
+                UiKit.Button(panel, options[i].Label, () => done.TrySetResult(idx), 30, 76 + i * 56, 1140, 48, 17);
             }
+            var pick = await done.Task;
+            Close(layer);
+            return pick;
         }
 
         /// <summary>A long story's break: saved here; the next evening resumes (the party may change).</summary>
         void ShowBreak()
         {
-            _n.Store.SaveEvening(_t);
+            Persist();
             Dialog("中休み", "物語は一晩明かします。続きは次の晩に「続きから」で（顔ぶれを選び直せます）。", ("保存して酒場へ", () => _n.BackToTitle()));
         }
     }

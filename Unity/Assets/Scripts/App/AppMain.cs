@@ -105,7 +105,7 @@ namespace Tavern.Unity.App
             else if (Flag("-onlinehost") || Arg("-onlinejoinfile") != null) StartCoroutine(AutoOnline());
             else if (Flag("-continue") && File.Exists(SavePath)) ContinueEvening();
             else if (Flag("-quickstart")) StartEvening(PartyScreen.Preset(Db, int.TryParse(Arg("-partysize"), out var ps) ? ps : 3), Storyteller.Find(Arg("-teller")), Arg("-story") is string st ? new StoryChoice { Prepared = st.StartsWith("prepared"), PreparedId = st.StartsWith("prepared:") ? st.Substring(9) : null, TemplateId = st == "auto" || st.StartsWith("prepared") ? null : st } : null);
-            else if (InviteCode != null) ShowParty(OnlineMode.Join);   // opened from an invite link
+            else if (InviteCode != null) Night.ShowParty(Tavern.Unity.Night.RoomMode.Join);   // opened from an invite link
             else if (Flag("-partyscreen")) ShowParty();
             else if (Flag("-roster")) ShowRoster();
             else if (int.TryParse(Arg("-dicetest"), out var face))
@@ -125,11 +125,16 @@ namespace Tavern.Unity.App
 
         void Update() { _table?.Update(); Tick?.Invoke(); }
 
-        void OnApplicationQuit() => StartingOllama.StopStarted();   // a local AI the game started goes with it
+        void OnApplicationQuit()
+        {
+            StartingOllama.StopStarted();   // a local AI the game started goes with it
+            Tavern.Unity.Net.NetSession.Leave();   // the room hears at once that this player left
+        }
 
         /// <summary>-night: the new evening. With -quickstart (a preset party, -partysize, -story, -difficulty), -continue, or -map.</summary>
         void StartNight()
         {
+            if (Flag("-onlinehost") || Arg("-onlinejoinfile") != null) { StartCoroutine(AutoNightOnline()); return; }
             if (Flag("-continue") && Night.Store.HasEvening) { Night.Continue(); return; }
             var size = int.TryParse(Arg("-partysize"), out var ps) ? ps : 3;
             if (Flag("-quickstart"))
@@ -225,13 +230,44 @@ namespace Tavern.Unity.App
             _table.Build(Root, opening: false);
         }
 
-        void ShowError(string message)
+        public void ShowError(string message)
         {
             ShowTitle();
             var box = UiKit.Box(Root, "Error", new Color(0.24f, 0.04f, 0.03f, 0.9f), frame: true);
             box.rectTransform.Place(460, 900, 1000, 60);
             UiKit.Label(box.transform, message, 20, Theme.Hex("ffd9c9"), align: TextAnchor.MiddleCenter).rectTransform.Fill(6);
             Debug.LogWarning("[Online] " + message);
+        }
+
+        /// <summary>
+        /// Tests of the new flow's rooms (Tools/OnlineTest.ps1): -night -onlinehost (-codefile, -startwhen N) or -night -onlinejoinfile,
+        /// each with a preset adventurer (-presetchar N) and a player name (-playername S).
+        /// </summary>
+        System.Collections.IEnumerator AutoNightOnline()
+        {
+            var preset = Night.PresetParty(4);
+            var index = int.TryParse(Arg("-presetchar"), out var n) ? Mathf.Clamp(n, 0, preset.Count - 1) : 0;
+            var name = Arg("-playername") ?? "旅人" + (index + 1);
+            string? code = null;
+            if (!Flag("-onlinehost"))
+            {
+                var file = Arg("-onlinejoinfile")!;
+                while (!File.Exists(file) || new FileInfo(file).Length == 0) yield return new WaitForSeconds(0.5f);
+                yield return new WaitForSeconds(0.5f);
+                code = File.ReadAllText(file).Trim();
+            }
+            OpenNightRoom(code, name, preset[index]);
+        }
+
+        async void OpenNightRoom(string? code, string name, Tavern.Core.Play.Adventurer mine)
+        {
+            try
+            {
+                Night.Room = code == null ? await Tavern.Unity.Night.NightRoom.HostAsync(Night, name, mine) : await Tavern.Unity.Night.NightRoom.JoinAsync(Night, code, name, mine);
+                if (code == null && Arg("-codefile") is string file) File.WriteAllText(file, Night.Room!.Code);
+                Night.ShowRoom();
+            }
+            catch (Exception e) { ShowError((code == null ? "部屋を作れなかった: " : "部屋に入れなかった: ") + e.Message); }
         }
 
         /// <summary>Test flags: -onlinehost / -onlinejoinfile with a preset character (-presetchar N, -playername S).</summary>

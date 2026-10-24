@@ -9,7 +9,7 @@ namespace Tavern.Core.Game
 
     /// <summary>The released version (bump with each GitHub release). Host and friends compare it in the lobby: a friend on an
     /// older version misses the art and stories added since, which looked like a bug.</summary>
-    public static class GameVersion { public const string Current = "0.1.3"; }
+    public static class GameVersion { public const string Current = "0.2.0"; }
 
     public sealed class HelloMsg
     {

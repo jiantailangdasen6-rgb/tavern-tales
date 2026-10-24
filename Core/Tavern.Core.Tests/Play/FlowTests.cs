@@ -323,5 +323,53 @@ namespace Tavern.Core.Tests.Play
             Assert.That(report.Ending!.Card, Is.EqualTo(Card.Bitter), "a dead adventurer is always a heavy loss");
             Assert.That(report.Ending.Personal["gareth"].done, Is.True);
         }
+
+        [Test]
+        public void OnlineView_ShowsOnlyWhatTheReaderMaySee()
+        {
+            var (t, _, e) = New("village");
+            e.World.Learn("c1_1", "gareth", secret: true);
+            e.World.Learn("c1_2", "rocco", secret: true);
+            e.World.Learn("c1_3", "rocco", secret: false);
+            t.Handouts.Add(new Handout { Who = "gareth", Bond = "ガレスの縁" });
+            t.Handouts.Add(new Handout { Who = "rocco", Bond = "ロッコの縁" });
+            t.Secrets.Add(new SecretRecord { Who = "rocco", Text = "銀貨をくすねる" });
+            t.PersonalGoals["rocco"] = "g1";
+            for (int i = 0; i < 80; i++) t.Log.Add("行 " + i);
+
+            var mine = new[] { "gareth" };
+            var s = OnlineView.SaveFor(t, mine);
+            Assert.That(s.Handouts.Select(h => h.Who), Is.EqualTo(new[] { "gareth" }));
+            Assert.That(s.Secrets, Is.Empty);
+            Assert.That(s.PersonalGoals, Is.Empty);
+            Assert.That(s.Clues.Keys, Is.EquivalentTo(new[] { "c1_1", "c1_3" }), "rocco's secret clue is not sent to gareth's player");
+            Assert.That(s.Log, Has.Count.EqualTo(OnlineView.LogLines));
+            Assert.That(s.RngState, Is.EqualTo(0UL));
+
+            var back = OnlineView.Read<SaveGame>(OnlineView.Json(s));
+            Assert.That(back.Party.Select(p => p.Id), Is.EqualTo(new[] { "gareth", "rocco" }));
+
+            var r = new TurnReport { Narration = "語り" };
+            r.Lines.Add("みんなの行");
+            r.Private("rocco", "ロッコだけの行");
+            r.PrivateNarration["rocco"] = "ロッコだけの語り";
+            var forGareth = OnlineView.Read<ReportMsg>(OnlineView.Json(ReportMsg.For(r, mine))).ToReport();
+            Assert.That(forGareth.Lines, Is.EqualTo(new[] { "みんなの行" }));
+            Assert.That(forGareth.PrivateLines, Is.Empty);
+            Assert.That(forGareth.PrivateNarration, Is.Empty);
+            Assert.That(ReportMsg.For(r, new[] { "rocco" }).PrivateNarration["rocco"], Is.EqualTo("ロッコだけの語り"));
+        }
+
+        [Test]
+        public void OnlineView_EndingSurvivesTheTrip()
+        {
+            var end = new EndingResult { Card = Card.Bitter };
+            end.Personal["gareth"] = ("村を守る", true);
+            end.Lost.Add("★トム");
+            var back = OnlineView.Read<EndMsg>(OnlineView.Json(new EndMsg { Ending = end })).Ending;
+            Assert.That(back.Card, Is.EqualTo(Card.Bitter));
+            Assert.That(back.Personal["gareth"].done, Is.True);
+            Assert.That(back.Lost, Is.EqualTo(new[] { "★トム" }));
+        }
     }
 }

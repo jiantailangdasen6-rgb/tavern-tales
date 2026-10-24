@@ -80,7 +80,8 @@ namespace Tavern.Core.Flow
         public Action<Table>? Save { get; set; }
         /// <summary>Each adventurer's handout personal goal id.</summary>
         public Dictionary<string, string> PersonalGoals { get; } = new Dictionary<string, string>();
-        public EndingResult? Ending { get; private set; }
+        /// <summary>Decided by Finish (a friend's mirror of the table gets it from the host).</summary>
+        public EndingResult? Ending { get; set; }
         /// <summary>The evening so far: result lines and narrations (for the chronicle call).</summary>
         public List<string> Log { get; } = new List<string>();
         /// <summary>The last turn's lines while its telling has not finished (a reload tells them again).</summary>
