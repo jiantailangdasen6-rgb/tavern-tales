@@ -273,6 +273,9 @@ static class Bench
 
 static class Keys
 {
-    /// <summary>The key the test tools use: the test quota, or the play key with --play-key (only when the test quota is used up).</summary>
-    public static string Env(List<string> a) => a.Contains("--play-key") ? "GEMINI_API_KEY" : "GEMINI_API_KEY_TEST";
+    /// <summary>
+    /// The key the test tools use: the test quota; --paid-key the paid test key (its own project with prepaid credit, no daily cap);
+    /// --play-key the play key (only when the test quota is used up, never on friends' play days).
+    /// </summary>
+    public static string Env(List<string> a) => a.Contains("--paid-key") ? "GEMINI_API_KEY_PAID" : a.Contains("--play-key") ? "GEMINI_API_KEY" : "GEMINI_API_KEY_TEST";
 }
