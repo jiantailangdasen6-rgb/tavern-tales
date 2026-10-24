@@ -117,6 +117,7 @@ namespace Tavern.Unity.Night
             if (AppMain.Flag("-showrequests")) ShowRequests();
             if (AppMain.Flag("-showsettings")) ShowSettings();
             if (AppMain.Flag("-showending")) { PreviewEnding(); return; }
+            if (AppMain.Flag("-showfight")) PreviewFight();
             RefreshAll();
             BroadcastState();
         }
@@ -161,10 +162,11 @@ namespace Tavern.Unity.Night
         static void NamePlate(Transform parent, string name, float x, float y, float w, Color color)
         {
             var plate = UiKit.Box(parent, "Plate", new Color(0.05f, 0.035f, 0.025f, 0.86f));
-            plate.rectTransform.Place(x + 6, y, w - 12, 24);
-            var t = UiKit.Label(plate.transform, name, 13, color, 0, 2, w - 12, 22, serif: true, align: TextAnchor.UpperCenter);
-            t.horizontalOverflow = HorizontalWrapMode.Wrap;
-            t.resizeTextForBestFit = true; t.resizeTextMinSize = 9; t.resizeTextMaxSize = 13;
+            // a long name (ロウフォードの薬屋) takes two lines rather than shrinking out of sight
+            var two = name.Length * 13 > w - 18;
+            plate.rectTransform.Place(x + 6, y, w - 12, two ? 40 : 24);
+            var t = UiKit.Label(plate.transform, name, 13, color, 3, 3, w - 18, two ? 36 : 20, serif: true, align: TextAnchor.UpperCenter);
+            t.lineSpacing = 0.95f;
         }
 
         static string ClassIcon(Adventurer a) => a.Class.Id switch { "warrior" => "ic_warrior", "mage" => "ic_mage", "thief" => "ic_thief", _ => "ic_priest" };
@@ -242,7 +244,8 @@ namespace Tavern.Unity.Night
             UiKit.Ground(page, "parchment", 90);
             // a pale wash over the writing area keeps the mottled paper from fighting the small text
             UiKit.Soft(page, new Color(0.95f, 0.89f, 0.75f, 0.55f), 40);
-            UiKit.Title(page, "語り部の書", 26, Theme.InkRed, 42, 22, 260, 36);
+            PersonCard(page, ArtLibrary.Get("pt_olwen"), 40, 14, 52, 52, Theme.FrameDim);   // the storyteller Olwen, by the book
+            UiKit.Title(page, "語り部の書", 26, Theme.InkRed, 104, 22, 260, 36).Inked();
             _quotaText = UiKit.Label(page, "", 14, Theme.InkBrown, 280, 30, 430, 24, align: TextAnchor.UpperRight).Inked();
             _log = UiKit.Scroll(page, 40, 72, 680, 870, out _logScroll, spacing: 12);
             var click = panel.gameObject.AddComponent<Button>();

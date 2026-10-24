@@ -55,12 +55,14 @@ namespace Tavern.Unity.App
             y += 72;
             UiKit.Button(root, "終わる", Application.Quit, 760, y, 400, 56, 22);
 
-            UiKit.Label(root, _app.Night.Ai.Description, 18, Theme.Dim, 0, 1030, 1900, 30, align: TextAnchor.MiddleRight);
-            UiKit.IconButton(root, "ic_settings", "設定", () =>
+            var aiText = UiKit.Label(root, _app.Night.Ai.Description, 18, Theme.Dim, 0, 1030, 1900, 30, align: TextAnchor.MiddleRight);
+            void OpenSettings()
             {
                 var layer = UiKit.Rect("Settings", root).Fill();
-                SettingsPanel.Show(layer, null, () => Object.Destroy(layer.gameObject));
-            }, 1720, 30, 160, 50, 20);
+                SettingsPanel.Show(layer, null, () => Object.Destroy(layer.gameObject), () => { _app.Night.ResetAi(); aiText.text = _app.Night.Ai.Description; });
+            }
+            UiKit.IconButton(root, "ic_settings", "設定", OpenSettings, 1720, 30, 160, 50, 20);
+            if (AppMain.Flag("-showsettings")) OpenSettings();
             if (AppMain.Flag("-showcredits")) ShowCredits(root);   // for screenshots
             if (AppMain.Flag("-showhelp")) ShowHelp(root);
             if (AppMain.Flag("-showroster")) Night.TavernBook.ShowRoster(_app.Night, root);

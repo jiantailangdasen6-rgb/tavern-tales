@@ -181,7 +181,7 @@ namespace Tavern.Unity.Night
         void ShowSettings()
         {
             var layer = Overlay("Settings", 0, 0, 1920, 1080, 0f);
-            SettingsPanel.Show(layer, RebuildLog, () => Close(layer));
+            SettingsPanel.Show(layer, RebuildLog, () => Close(layer), aiNow: Guest ? "" : _n.Ai.Description);
         }
 
         /// <summary>The log again at the new text size: the last lines of the evening, at once.</summary>
@@ -206,6 +206,16 @@ namespace Tavern.Unity.Night
         {
             var act = Story.Acts.FirstOrDefault(a => a.N == E.World.Act);
             Dialog("中休みの明け", $"{Story.Title}の続き、{act?.Title}から。\n顔ぶれがそろったら始めます。", ("次の晩を始める", ResumeNight));
+        }
+
+        /// <summary>Screenshots only (-showfight): a fight against the story's first foes, to see the foe cards without playing to one.</summary>
+        void PreviewFight()
+        {
+            var ids = Story.Places.SelectMany(p => p.Enemies).Where(_n.Enemies.Has).Distinct().Take(2).ToList();
+            ids.AddRange(_n.Enemies.Enemies.Values.Where(d => d.Boss).Select(d => d.Id).Take(1));
+            var foes = ids.Select((id, i) => { var d = _n.Enemies[id]; return Creature.FromEnemy(d, $"{d.Id}_{i}", d.Name, d.Hp); }).ToList();
+            foes.Add(Creature.FromEnemy(_n.Enemies[ids[0]], ids[0] + "_x", _n.Enemies[ids[0]].Name + "B", _n.Enemies[ids[0]].Hp / 2));
+            E.Combat = Combat.Start(E.Party, Array.Empty<Creature>(), foes, E.Party.ToDictionary(a => a.Id, a => 10), false, E.Difficulty, _t.Rng);
         }
 
         /// <summary>Screenshots only (-showending): the ending screen with sample facts, without playing the story through.</summary>

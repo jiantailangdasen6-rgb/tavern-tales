@@ -35,7 +35,10 @@ namespace Tavern.Unity.Night
         public List<Region> Regions { get; } = new List<Region>();
         public NightStore Store { get; }
         NightAi? _ai;
-        public NightAi Ai => _ai ??= NightAi.Create(AppMain.Flag("-demo"), AppMain.Flag("-testkey"), Store.CallsToday);
+        public NightAi Ai => _ai ??= NightAi.Create(AppMain.Flag("-demo"), AppMain.Flag("-testkey"), Store.CallsToday, AiChoice.Paid || AppMain.Flag("-paidkey"), AiChoice.Model);
+
+        /// <summary>The host changed the AI in the tavern's settings: the next evening makes it anew.</summary>
+        public void ResetAi() => _ai = null;
         public Difficulty Difficulty { get; set; } = Difficulty.Standard;
 
         NightRoom? _room;
@@ -140,6 +143,7 @@ namespace Tavern.Unity.Night
             UiKit.Label(page, story.Intro, 22, Theme.InkDark, 64, 136, 872, 460).Inked().Wrapped(868).lineSpacing = 1.25f;
             UiKit.Label(page, "（語り部がハンドアウトを用意している…）", 19, Theme.InkBrown, 64, 640, 872, 40, align: TextAnchor.UpperCenter).Inked();
             var wait = page.gameObject;
+            if (AppMain.Flag("-holdopening")) await System.Threading.Tasks.Task.Delay(8000);   // screenshots of this page
             try { await table.DealHandoutsAsync(Ai.Bookends); }
             catch (Exception ex) { Debug.LogWarning("[Night] handouts: " + ex.Message); }
             if (wait != null) UnityEngine.Object.Destroy(wait);

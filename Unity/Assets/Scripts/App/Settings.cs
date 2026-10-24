@@ -36,25 +36,83 @@ namespace Tavern.Unity.App
         public static float CharsPerSecond => new[] { 18f, 28f, 56f, float.PositiveInfinity }[Speed];
     }
 
-    /// <summary>Sound, text size and narration speed for this PC (the title screen).</summary>
+    /// <summary>
+    /// Which Gemini key the host's storyteller uses (kept in PlayerPrefs on the host PC; the keys themselves stay in the
+    /// environment): the free tier (GEMINI_API_KEY, 500 calls a day) or the paid key (GEMINI_API_KEY_PAID, prepaid credit).
+    /// With the paid key the narration model can be chosen; the sorting stays on Flash-Lite, which the rules were tuned on.
+    /// </summary>
+    public static class AiChoice
+    {
+        public static readonly string[] SourceNames = { "無料枠", "有料キー" };
+        public static readonly string[] ModelNames = { "Flash-Lite", "Flash", "Pro" };
+        public static readonly string[] ModelNotes =
+        {
+            "いつもと同じ（調整済み）。いちばん安い",
+            "語りを Flash で。語りが豊かになり、費用は数倍",
+            "語りは Flash、大事な場面（ボスの登場と結末）は Pro。いちばん高い",
+        };
+
+        public static bool Paid
+        {
+            get => PlayerPrefs.GetInt("ai_paid", 0) == 1;
+            set { PlayerPrefs.SetInt("ai_paid", value ? 1 : 0); PlayerPrefs.Save(); }
+        }
+
+        /// <summary>0 Flash-Lite, 1 Flash, 2 Pro (paid key only).</summary>
+        public static int Model
+        {
+            get => Mathf.Clamp(int.TryParse(AppMain.Arg("-aimodel"), out var m) ? m : PlayerPrefs.GetInt("ai_model", 0), 0, ModelNames.Length - 1);   // -aimodel: tests, not saved
+            set { PlayerPrefs.SetInt("ai_model", Mathf.Clamp(value, 0, ModelNames.Length - 1)); PlayerPrefs.Save(); }
+        }
+
+        public static bool HasKey(string name) =>
+            !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(name) ?? Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.User));
+    }
+
+    /// <summary>Sound, text size and narration speed for this PC; on the host's title screen also the storyteller's AI.</summary>
     public static class SettingsPanel
     {
-        /// <summary>Fills layer with the panel; onTextSize redraws text after a size change, close removes the layer.</summary>
-        public static void Show(Transform layer, Action? onTextSize, Action close)
+        /// <summary>
+        /// Fills layer with the panel; onTextSize redraws text after a size change, close removes the layer. onAi (the title
+        /// screen of the Windows version) adds the AI choice and is called after it changes; at the table, aiNow just says
+        /// which AI tonight uses (it is chosen in the tavern, before the evening).
+        /// </summary>
+        public static void Show(Transform layer, Action? onTextSize, Action close, Action? onAi = null, string aiNow = "")
         {
             var shade = UiKit.Box(layer, "Shade", new Color(0, 0, 0, 0.6f));
             shade.rectTransform.Fill();
-            var panel = UiKit.Panel(layer, "Settings", 560, 300, 800, 400).transform;
+            var h = onAi != null ? 600f : aiNow.Length > 0 ? 440f : 400f;
+            var panel = UiKit.Panel(layer, "Settings", 560, (1080 - h) / 2, 800, h).transform;
             UiKit.Heading(panel, "設定（この PC だけ）", 30, 18, 740, "ic_settings", size: 28);
 
             Row(panel, 90, "音", new[] { "なし", "小", "中", "大" }, () => AudioDirector.Level, v => AudioDirector.Level = v);
             Row(panel, 160, "文字の大きさ", Reading.SizeNames, () => Reading.Size, v => { Reading.Size = v; onTextSize?.Invoke(); });
             Row(panel, 230, "語りの速さ", Reading.SpeedNames, () => Reading.Speed, v => Reading.Speed = v);
 
-            UiKit.Button(panel, "閉じる", () => close(), 590, 330, 180, 50, 20, gold: true);
+            if (onAi != null)
+            {
+                UiKit.Rule(panel, 30, 296, 740, Theme.FrameDim);
+                var note = UiKit.Label(panel, "", 16, Theme.Ink, 200, 428, 570, 70);
+                List<Button> models = null!;
+                void Explain()
+                {
+                    foreach (var b in models) b.interactable = AiChoice.Paid;
+                    var key = AiChoice.Paid ? "GEMINI_API_KEY_PAID" : "GEMINI_API_KEY";
+                    note.text = !AiChoice.HasKey(key) ? $"<color=#f08a7c>この PC に {key} が見つかりません（見本の AI で動きます）</color>"
+                        : AiChoice.Paid ? AiChoice.ModelNotes[AiChoice.Model] + "。仕分け（ルールの判断）は調整済みの Flash-Lite のまま"
+                        : "1 日 500 回まで（16:00 に戻る）。費用はかかりません";
+                }
+                Row(panel, 316, "語り部の AI", AiChoice.SourceNames, () => AiChoice.Paid ? 1 : 0, v => { AiChoice.Paid = v == 1; Explain(); onAi(); });
+                models = Row(panel, 376, "有料のモデル", AiChoice.ModelNames, () => AiChoice.Model, v => { AiChoice.Model = v; Explain(); onAi(); });
+                Explain();
+            }
+            else if (aiNow.Length > 0)
+                UiKit.Label(panel, $"語り部の AI: {aiNow.Replace("AI: ", "")}（酒場の設定で変えます）", 16, Theme.Dim, 30, 296, 740, 30);
+
+            UiKit.Button(panel, "閉じる", () => close(), 590, h - 70, 180, 50, 20, gold: true);
         }
 
-        static void Row(Transform panel, float y, string label, string[] names, Func<int> get, Action<int> set)
+        static List<Button> Row(Transform panel, float y, string label, string[] names, Func<int> get, Action<int> set)
         {
             UiKit.Label(panel, label, 19, Theme.Ink, 30, y + 8, 170, 32);
             var buttons = new List<Button>();
@@ -65,6 +123,7 @@ namespace Tavern.Unity.App
                 buttons.Add(UiKit.Button(panel, names[i], () => { set(v); Paint(); }, 200 + i * 140, y, 130, 46, 18));
             }
             Paint();
+            return buttons;
         }
     }
 }

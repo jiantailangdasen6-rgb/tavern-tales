@@ -35,7 +35,19 @@ namespace Tavern.Unity.Night
         /// <summary>The key's name in the call counter file ("play" or "test").</summary>
         public string KeyName { get; private set; } = "play";
 
-        public static NightAi Create(bool demo, bool testKey, Func<string, int>? usedToday = null)
+        /// <summary>The narration models for the paid key (App.AiChoice.ModelNames): everyday narration, then the boss's entrance and the ending.</summary>
+        static readonly (string everyday, string strong)[] PaidModels =
+        {
+            ("gemini-3.5-flash-lite", "gemini-3.8-flash"),
+            ("gemini-3.8-flash", "gemini-3.8-flash"),
+            ("gemini-3.8-flash", "gemini-pro-latest"),
+        };
+
+        /// <summary>
+        /// paid: GEMINI_API_KEY_PAID (prepaid credit) instead of the free tier; model picks the narration (PaidModels). The sorting
+        /// always stays on Flash-Lite with minimal thinking, which the classifier's prompt and safety nets were tuned on.
+        /// </summary>
+        public static NightAi Create(bool demo, bool testKey, Func<string, int>? usedToday = null, bool paid = false, int model = 0)
         {
             var ai = new NightAi();
             if (demo)
@@ -46,7 +58,8 @@ namespace Tavern.Unity.Night
                 ai.Description = "AI: 見本（-demo）";
                 return ai;
             }
-            var name = testKey ? "GEMINI_API_KEY_TEST" : "GEMINI_API_KEY";
+            paid &= !testKey;
+            var name = testKey ? "GEMINI_API_KEY_TEST" : paid ? "GEMINI_API_KEY_PAID" : "GEMINI_API_KEY";
             var key = Environment.GetEnvironmentVariable(name) ?? Environment.GetEnvironmentVariable(name, EnvironmentVariableTarget.User);
             if (string.IsNullOrWhiteSpace(key))
             {
@@ -56,25 +69,49 @@ namespace Tavern.Unity.Night
                 ai.Description = $"AI: {name} が見つからないので見本で動いています";
                 return ai;
             }
-            ai.KeyName = testKey ? "test" : "play";
-            var meter = new CallMeter(new GeminiClient(Http, key!, "gemini-3.5-flash-lite", "minimal"), 500, usedToday?.Invoke(ai.KeyName) ?? 0);
-            var strong = new FallbackLlm(new GeminiClient(Http, key!, "gemini-3.8-flash", "low"), meter) { Patience = TimeSpan.FromSeconds(40) };
-            ai.Set(meter, strong);
+            ai.KeyName = testKey ? "test" : paid ? "paid" : "play";
+            ai.Paid = paid;
+            // the paid key has no daily quota; its meter is only a guard against a runaway evening
+            var meter = new CallMeter(new GeminiClient(Http, key!, "gemini-3.5-flash-lite", "minimal"), paid ? 3000 : 500, usedToday?.Invoke(ai.KeyName) ?? 0);
+            if (!paid)
+            {
+                var strong = new FallbackLlm(new GeminiClient(Http, key!, "gemini-3.8-flash", "low"), meter) { Patience = TimeSpan.FromSeconds(40) };
+                ai.Set(meter, meter, strong);
+                ai.Description = "AI: Gemini（無料枠）" + (testKey ? "・試験用のキー" : "");
+            }
+            else
+            {
+                var (everyday, strongModel) = PaidModels[Math.Clamp(model, 0, PaidModels.Length - 1)];
+                // a richer narrator falls back to Flash-Lite when it is slow or fails, like the strong one always did
+                ILlmClient tell = everyday == "gemini-3.5-flash-lite" ? meter
+                    : new FallbackLlm(ai.Count(new GeminiClient(Http, key!, everyday, "low")), meter) { Patience = TimeSpan.FromSeconds(30) };
+                var strong = new FallbackLlm(ai.Count(new GeminiClient(Http, key!, strongModel, "low")), meter) { Patience = TimeSpan.FromSeconds(strongModel.Contains("pro") ? 60 : 40) };
+                ai.Set(meter, tell, strong);
+                ai.Description = $"AI: Gemini（有料キー・{App.AiChoice.ModelNames[Math.Clamp(model, 0, PaidModels.Length - 1)]}）";
+            }
             ai.Meter = meter;
-            ai.Description = "AI: Gemini（無料枠）" + (testKey ? "・試験用のキー" : "");
             return ai;
         }
 
-        void Set(ILlmClient everyday, ILlmClient strong)
+        /// <summary>The paid key is in use (no daily quota to show, only the count).</summary>
+        public bool Paid { get; private set; }
+
+        /// <summary>Flash and Pro calls with the paid key, counted apart from the Flash-Lite meter (shown with it).</summary>
+        readonly List<CallMeter> _rich = new List<CallMeter>();
+        CallMeter Count(ILlmClient inner) { var m = new CallMeter(inner, int.MaxValue); _rich.Add(m); return m; }
+
+        void Set(ILlmClient sort, ILlmClient tell, ILlmClient strong)
         {
-            Classifier = new Classifier(everyday);
-            Narrator = new Narrator(everyday);
+            Classifier = new Classifier(sort);
+            Narrator = new Narrator(tell);
             Highlight = new Narrator(strong);
-            Bookends = new Bookends(everyday);
+            Bookends = new Bookends(tell);
         }
 
-        /// <summary>"AI 残り 431 回（16:00 に戻る）", or empty for the demo.</summary>
-        public string QuotaText() => Meter == null ? "" :
+        void Set(ILlmClient everyday, ILlmClient strong) => Set(everyday, everyday, strong);
+
+        /// <summary>"AI 残り 431 回（16:00 に戻る）"; with the paid key "有料キー・今日 52 回"; empty for the demo.</summary>
+        public string QuotaText() => Meter == null ? "" : Paid ? $"AI 有料キー・今日 {Meter.Used + _rich.Sum(m => m.Used)} 回" :
             $"AI 残り {Meter.Left} 回（{Meter.ResetsAt.ToOffset(TimeZoneInfo.Local.GetUtcOffset(DateTime.UtcNow)):HH:mm} に戻る）";
     }
 
