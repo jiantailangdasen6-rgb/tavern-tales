@@ -75,7 +75,7 @@ namespace Tavern.Unity.Night
 
         /// <summary>"AI 残り 431 回（16:00 に戻る）", or empty for the demo.</summary>
         public string QuotaText() => Meter == null ? "" :
-            $"AI 残り {Meter.Left} 回（{Meter.ResetsAt.ToOffset(App.AiSetup.LocalOffset):HH:mm} に戻る）";
+            $"AI 残り {Meter.Left} 回（{Meter.ResetsAt.ToOffset(TimeZoneInfo.Local.GetUtcOffset(DateTime.UtcNow)):HH:mm} に戻る）";
     }
 
     /// <summary>

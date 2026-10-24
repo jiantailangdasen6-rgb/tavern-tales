@@ -23,7 +23,7 @@ namespace Tavern.Unity.Net
     /// </summary>
     public static class NetSession
     {
-        public const int MaxPlayers = 4;   // PartyScreen.MaxSeats
+        public const int MaxPlayers = 4;
         static NetworkManager? _nm;
         static readonly Dictionary<string, Action<ulong, string>> Handlers = new Dictionary<string, Action<ulong, string>>();
 
@@ -148,7 +148,7 @@ namespace Tavern.Unity.Net
         public static void ClearHandlers() => Handlers.Clear();
 
         static readonly HashSet<string> Registered = new HashSet<string>();
-        static readonly string[] Names = new[] { "hello", "lobby", "start", "declare", "turn", "ask_reroll", "reroll", "ask_growth", "growth", "order", "status" }.Concat(Tavern.Core.Flow.NightMsg.All).ToArray();
+        static readonly string[] Names = Tavern.Core.Flow.NightMsg.All.ToArray();
 
         static void RegisterHandlers()
         {

@@ -524,7 +524,7 @@ namespace Tavern.Unity.Night
 
         void AddLine(string text, Color color, int size, bool serif = false)
         {
-            var t = UiKit.Label(_log, text, size, color, serif);
+            var t = UiKit.Label(_log, text, Reading.Font(size), color, serif);
             t.lineSpacing = 1.15f;
             ScrollDown();
         }
@@ -549,17 +549,18 @@ namespace Tavern.Unity.Night
             if (_typing == null && _pending.Count > 0 && Time.unscaledTime >= _hold)
             {
                 var (who, text, narration) = _pending.Dequeue();
-                UiKit.Label(_log, who, 14, Theme.Gold, serif: true);
-                _typing = UiKit.Label(_log, "", 21, Theme.Hex("efe3c8"), serif: true);
+                UiKit.Label(_log, who, Reading.Font(14), Theme.Gold, serif: true);
+                _typing = UiKit.Label(_log, "", Reading.Font(21), Theme.Hex("efe3c8"), serif: true);
                 _typing.lineSpacing = 1.25f;
-                _typingFull = UiKit.Kinsoku(text, Theme.Serif, 21, FontStyle.Normal, 720);
+                _typingFull = UiKit.Kinsoku(text, Theme.Serif, Reading.Font(21), FontStyle.Normal, 720);
                 _typing.horizontalOverflow = HorizontalWrapMode.Overflow;
                 _typingPos = 0;
                 if (narration) AudioDirector.Play("page", 0.5f);
             }
             if (_typing != null)
             {
-                _typingPos += Time.unscaledDeltaTime * (Auto ? 400 : 28);
+                // the reading speed of this PC (設定); "すぐ全部" shows it at once
+                _typingPos = float.IsInfinity(Reading.CharsPerSecond) && !Auto ? _typingFull.Length : _typingPos + Time.unscaledDeltaTime * (Auto ? 400 : Reading.CharsPerSecond);
                 var n = Mathf.Min(_typingFull.Length, Mathf.FloorToInt(_typingPos));
                 _typing.text = _typingFull.Substring(0, n);
                 ScrollDown();
