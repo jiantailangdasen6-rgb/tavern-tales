@@ -46,7 +46,8 @@ namespace Tavern.Unity.Night
             var art = ArtLibrary.Get("bg_map_valden");
             var pic = UiKit.Picture(map.transform, art, 0, 0, MapW, MapH);
             pic.rectTransform.Fill(8);
-            pic.uvRect = ArtLibrary.Cover(art, MapW - 16, MapH - 16);
+            // the right edge stays in view (the compass sits in that corner); the open sea on the left is what gets cut
+            pic.uvRect = ArtLibrary.Cover(art, MapW - 16, MapH - 16, focusX: 1f);
             UiKit.Frame(map.transform, thin: false);
             // Region names first, then each story's sign where it overlaps nothing placed so far (eleven stories crowded the north).
             var taken = new List<Rect>();

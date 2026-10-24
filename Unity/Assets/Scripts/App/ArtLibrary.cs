@@ -38,13 +38,13 @@ namespace Tavern.Unity.App
         }
 
         /// <summary>UV rect that crops a texture to fill a box of the given aspect (like CSS object-fit: cover).</summary>
-        public static Rect Cover(Texture tex, float boxW, float boxH, float focusY = 0.5f)
+        public static Rect Cover(Texture tex, float boxW, float boxH, float focusY = 0.5f, float focusX = 0.5f)
         {
             float texAspect = (float)tex.width / tex.height, boxAspect = boxW / boxH;
             if (texAspect > boxAspect)
             {
                 var w = boxAspect / texAspect;
-                return new Rect((1 - w) / 2, 0, w, 1);
+                return new Rect(Mathf.Clamp(focusX - w / 2, 0, 1 - w), 0, w, 1);
             }
             var h = texAspect / boxAspect;
             return new Rect(0, Mathf.Clamp(focusY - h / 2, 0, 1 - h), 1, h);

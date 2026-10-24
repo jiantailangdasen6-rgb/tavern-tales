@@ -106,12 +106,14 @@ namespace Tavern.Unity.Editor
                 var p = AssetDatabase.GUIDToAssetPath(guid);
                 if (!(AssetImporter.GetAtPath(p) is TextureImporter ti)) continue;
                 var max = Path.GetFileName(p).StartsWith("bg_") ? 2048 : 1024;
-                if (ti.maxTextureSize == max && !ti.mipmapEnabled && ti.textureCompression == TextureImporterCompression.CompressedHQ) continue;
+                if (ti.maxTextureSize == max && !ti.mipmapEnabled && ti.textureCompression == TextureImporterCompression.CompressedHQ
+                    && ti.npotScale == TextureImporterNPOTScale.None) continue;
                 ti.textureType = TextureImporterType.Default;
                 ti.mipmapEnabled = false;
                 ti.maxTextureSize = max;
                 ti.textureCompression = TextureImporterCompression.CompressedHQ;
                 ti.wrapMode = TextureWrapMode.Clamp;
+                ti.npotScale = TextureImporterNPOTScale.None;   // keep 1344x768 and 512x768: rescaled to powers of two, ArtLibrary.Cover cropped every picture with the wrong shape
                 ti.SaveAndReimport();
             }
         }
