@@ -13,6 +13,20 @@ using System.Text.Json.Nodes;
 var a = args.ToList();
 string? Opt(string n) { int i = a.IndexOf(n); return i >= 0 && i + 1 < a.Count ? a[i + 1] : null; }
 
+// edit <src.png> <outDir> "<instruction>" [--seeds 1,2]: Kontext edits one picture (e.g. take out a second compass); writes <name>_edit_<seed>.png
+if (a.Count > 0 && a[0] == "edit")
+{
+    Directory.CreateDirectory(a[2]);
+    using var eh = new HttpClient { Timeout = TimeSpan.FromMinutes(10) };
+    foreach (var seed in (Opt("--seeds") ?? "1").Split(',').Select(long.Parse))
+    {
+        var outPath = Path.Combine(a[2], $"{Path.GetFileNameWithoutExtension(a[1])}_edit_{seed}.png");
+        try { await File.WriteAllBytesAsync(outPath, await Fal.Edit(eh, a[1], a[3], seed)); Console.WriteLine($"{outPath} ... OK"); }
+        catch (Exception ex) { Console.WriteLine($"{outPath} ... FAILED: {ex.Message}"); }
+    }
+    return 0;
+}
+
 // import <srcDir> <destDir> [--engine sdxl] [--pick id=2,id=1] [--only id,..] [--trim-bottom 0.08]: copy the chosen candidate of each id as a JPEG
 // (backgrounds 1344 wide, the rest 512x768) into Unity/Assets/Resources/Art.
 if (a.Count > 0 && a[0] == "import")
@@ -116,18 +130,28 @@ static class Style
 
 static class Fal
 {
-    public static async Task<byte[]> TextToImage(HttpClient http, string prompt, string aspect, long seed)
-    {
-        var key = Environment.GetEnvironmentVariable("FAL_KEY") ?? Environment.GetEnvironmentVariable("FAL_KEY", EnvironmentVariableTarget.User)
-            ?? throw new Exception("FAL_KEY is not set");
-        var body = new JsonObject
+    public static Task<byte[]> TextToImage(HttpClient http, string prompt, string aspect, long seed) =>
+        Run(http, "https://fal.run/fal-ai/flux-pro/kontext/text-to-image", new JsonObject
         {
             ["prompt"] = prompt, ["aspect_ratio"] = aspect, ["num_images"] = 1, ["seed"] = seed,
             ["safety_tolerance"] = "5", ["output_format"] = "png",
-        };
+        });
+
+    /// <summary>Kontext's image editing: the picture is sent inline (a data URI) with an instruction like "remove the compass in the corner".</summary>
+    public static Task<byte[]> Edit(HttpClient http, string imagePath, string instruction, long seed) =>
+        Run(http, "https://fal.run/fal-ai/flux-pro/kontext", new JsonObject
+        {
+            ["prompt"] = instruction, ["image_url"] = "data:image/png;base64," + Convert.ToBase64String(File.ReadAllBytes(imagePath)),
+            ["num_images"] = 1, ["seed"] = seed, ["safety_tolerance"] = "5", ["output_format"] = "png",
+        });
+
+    static async Task<byte[]> Run(HttpClient http, string endpoint, JsonObject body)
+    {
+        var key = Environment.GetEnvironmentVariable("FAL_KEY") ?? Environment.GetEnvironmentVariable("FAL_KEY", EnvironmentVariableTarget.User)
+            ?? throw new Exception("FAL_KEY is not set");
         for (int attempt = 0; ; attempt++)
         {
-            using var req = new HttpRequestMessage(HttpMethod.Post, "https://fal.run/fal-ai/flux-pro/kontext/text-to-image")
+            using var req = new HttpRequestMessage(HttpMethod.Post, endpoint)
             { Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json") };
             req.Headers.Authorization = new AuthenticationHeaderValue("Key", key);
             using var res = await http.SendAsync(req);
