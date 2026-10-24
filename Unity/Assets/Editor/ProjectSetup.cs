@@ -130,7 +130,9 @@ namespace Tavern.Unity.Editor
                 var name = Path.GetFileName(p);
                 var small = name.StartsWith("ic_") || name.StartsWith("frame_");
                 var compression = small ? TextureImporterCompression.Uncompressed : TextureImporterCompression.CompressedHQ;
-                if (ti.mipmapEnabled && ti.alphaIsTransparency && ti.textureCompression == compression && ti.wrapMode == TextureWrapMode.Clamp) continue;
+                if (ti.mipmapEnabled && ti.alphaIsTransparency && ti.textureCompression == compression && ti.wrapMode == TextureWrapMode.Clamp
+                    && ti.npotScale == TextureImporterNPOTScale.None) continue;
+                ti.npotScale = TextureImporterNPOTScale.None;   // the leather and parchment keep their own size (no blur from rescaling)
                 ti.textureType = TextureImporterType.Default;
                 ti.mipmapEnabled = true;
                 ti.alphaIsTransparency = true;

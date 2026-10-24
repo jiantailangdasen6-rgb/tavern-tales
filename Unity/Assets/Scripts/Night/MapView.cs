@@ -33,7 +33,9 @@ namespace Tavern.Unity.Night
         {
             _tavern = _n.Store.LoadTavern();
             UiKit.Box(root, "Bg", Theme.Bg).rectTransform.Fill();
-            UiKit.Label(root, "ヴァルデン辺境領の地図", 38, Theme.Gold, MapX, 40, 900, 56, serif: true);
+            UiKit.Picture(root, ArtLibrary.Get("bg_tavern"), 0, 0, 1920, 1080).color = new Color(0.22f, 0.19f, 0.16f);
+            UiKit.Title(root, "ヴァルデン辺境領の地図", 40, Theme.FrameGold, MapX, 34, 900, 56).gameObject.AddComponent<Shadow>();
+            UiKit.Rule(root, MapX, 88, 480, Theme.FrameDim);
             if (_room == null)
                 UiKit.Label(root, $"今宵の顔ぶれ: {string.Join("・", _party.Select(a => $"{a.Name}（{a.Class.Name}）"))}", 18, Theme.Ink, MapX + 520, 56, 1300, 30);
             else BuildRoomTop(root, _room);
@@ -45,6 +47,7 @@ namespace Tavern.Unity.Night
             var pic = UiKit.Picture(map.transform, art, 0, 0, MapW, MapH);
             pic.rectTransform.Fill(8);
             pic.uvRect = ArtLibrary.Cover(art, MapW - 16, MapH - 16);
+            UiKit.Frame(map.transform, thin: false);
             // Region names first, then each story's sign where it overlaps nothing placed so far (eleven stories crowded the north).
             var taken = new List<Rect>();
             var spots = _n.Regions.Select(r => (r, stories: _n.Stories.Where(s => s.Region == r.Id).ToList(),
@@ -104,9 +107,10 @@ namespace Tavern.Unity.Night
         {
             // the side panel: the picked story
             var side = UiKit.Panel(root, "Side", 1270, 110, 590, 860).transform;
-            _title = UiKit.Label(side, "地図の印を押すと、物語の導入が出ます", 28, Theme.Gold, 24, 20, 540, 80, serif: true);
+            _title = UiKit.Title(side, "地図の印を押すと、物語の導入が出ます", 26, Theme.FrameGold, 28, 24, 534, 80);
             _body = UiKit.Label(side, "", 19, Theme.Ink, 24, 110, 540, 520);
-            UiKit.Label(side, _room != null && !_room.Host ? "難易度（ホストが決める）" : "難易度", 18, Theme.Dim, 24, 650, 300, 26);
+            UiKit.Rule(side, 28, 636, 534, Theme.FrameDim);
+            UiKit.Label(side, _room != null && !_room.Host ? "難易度（ホストが決める）" : "難易度", 18, Theme.Ink, 28, 650, 300, 26);
             foreach (var (d, i) in new[] { Difficulty.Gentle, Difficulty.Standard, Difficulty.Harsh }.Select((d, i) => (d, i)))
             {
                 var b = UiKit.Button(side, d.Label(), () => SetDifficulty(d), 24 + i * 180, 680, 170, 48, 20);
@@ -157,7 +161,7 @@ namespace Tavern.Unity.Night
         void RefreshDiff()
         {
             var current = _room?.Difficulty ?? _n.Difficulty;
-            foreach (var kv in _diffButtons) kv.Value.GetComponent<Image>().color = kv.Key == current ? Theme.Hex("6a5228") : Theme.Hex("2e241a");
+            foreach (var kv in _diffButtons) kv.Value.GetComponent<Image>().color = kv.Key == current ? Theme.Hex("6e1f14") : Theme.Hex("241a12");
         }
 
         void Pick(StoryDef s, bool fromClick)

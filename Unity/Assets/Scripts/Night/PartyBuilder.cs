@@ -48,9 +48,10 @@ namespace Tavern.Unity.Night
             _root = root;
             UiKit.Picture(root, ArtLibrary.Get("bg_tavern"), 0, 0, 1920, 1080).color = new Color(0.35f, 0.3f, 0.26f);
             UiKit.Label(root, _mode switch { RoomMode.Host => "部屋を作る: あなたの冒険者", RoomMode.Join => "友人の部屋に入る: あなたの冒険者", _ => "今宵の冒険者たち" },
-                44, Theme.Gold, 0, 30, 1920, 60, serif: true, align: TextAnchor.UpperCenter);
+                44, Theme.FrameGold, 0, 26, 1920, 60, serif: true, align: TextAnchor.UpperCenter).font = Theme.Display;
+            UiKit.Rule(root, 560, 94, 800, Theme.FrameDim);
             UiKit.Label(root, Online ? "あなたが今夜使う冒険者を 1 人。職業と見た目を選び、名前と生い立ちを書いてください。名簿から前の冒険者も呼べます。"
-                : "職業と見た目を選び、名前と生い立ちを書いてください（1〜4 人）。名簿から前の冒険者も呼べます。", 20, Theme.Ink, 0, 92, 1920, 30, align: TextAnchor.UpperCenter);
+                : "職業と見た目を選び、名前と生い立ちを書いてください（1〜4 人）。名簿から前の冒険者も呼べます。", 20, Theme.Ink, 0, 104, 1920, 30, align: TextAnchor.UpperCenter);
             for (int i = 0; i < (Online ? 1 : 4); i++) _seats.Add(BuildSeat(root, i));
             Enable(_seats[0], true);
             if (Online) BuildRoomBox(root);
@@ -84,8 +85,11 @@ namespace Tavern.Unity.Night
             var panel = UiKit.Panel(root, "Seat" + i, 70 + i * (SeatW + 15), 140, SeatW, SeatH).transform;
             s.Body = UiKit.Rect("Body", panel).Fill().gameObject;
             var b = s.Body.transform;
-            s.Portrait = UiKit.Picture(b, null, 16, 16, 150, 225);
-            s.ClassName = UiKit.Label(b, "", 28, Theme.Gold, 182, 14, 240, 40, serif: true);
+            var card = UiKit.Box(b, "Card", Theme.Hex("0c0907"));
+            card.rectTransform.Place(16, 16, 156, 231);
+            s.Portrait = UiKit.Picture(card.transform, null, 3, 3, 150, 225);
+            UiKit.Frame(card.transform, thin: true, Theme.FrameGold, 7);
+            s.ClassName = UiKit.Title(b, "", 30, Theme.FrameGold, 186, 12, 240, 40);
             s.Stats = UiKit.Label(b, "", 15, Theme.Ink, 182, 56, 246, 60);
             for (int c = 0; c < 4; c++)
             {
@@ -122,7 +126,7 @@ namespace Tavern.Unity.Night
                 s.Stats.text = string.Join("  ", new[] { Ability.Str, Ability.Dex, Ability.Agi, Ability.Int, Ability.Mnd }.Select(a => $"{a.Code()}+{cls.Stats[a]}")) + $"\nHP {cls.Hp}　気力 {cls.Focus}";
                 var probe = new Adventurer(cls, "probe");
                 s.ClassText.text = probe.ClassText();
-                foreach (var kv in s.ClassButtons) kv.Value.color = kv.Key == s.ClassId ? Theme.Hex("6a5228") : Theme.Hex("2e241a");
+                foreach (var kv in s.ClassButtons) kv.Value.color = kv.Key == s.ClassId ? Theme.Hex("6e1f14") : Theme.Hex("241a12");
                 s.FromText.text = s.From == null ? "" : $"名簿から: 歴戦の印 {s.From.Marks.Count}・名付けた技 {s.From.Techniques.Count}";
             }
         }
@@ -132,8 +136,8 @@ namespace Tavern.Unity.Night
             var layer = UiKit.Rect("Roster", _root).Fill();
             UiKit.Box(layer, "Dim", new Color(0, 0, 0, 0.7f)).rectTransform.Fill();
             var panel = UiKit.Panel(layer, "Panel", 460, 140, 1000, 800).transform;
-            UiKit.Label(panel, "冒険者の名簿", 30, Theme.Gold, 30, 20, 600, 44, serif: true);
-            var list = UiKit.Scroll(panel, 30, 80, 940, 620, out _);
+            UiKit.Heading(panel, "冒険者の名簿", 30, 18, 940, "ic_tavern", size: 30);
+            var list = UiKit.Scroll(panel, 30, 86, 940, 614, out _);
             var living = _n.Store.LoadRoster().Where(r => !r.Dead && _seats.All(x => x.From?.Id != r.Id)).ToList();
             if (living.Count == 0) UiKit.Label(list, "まだ誰もいません。今夜の冒険を終えると、ここに名前が残ります。", 20, Theme.Dim);
             foreach (var r in living)

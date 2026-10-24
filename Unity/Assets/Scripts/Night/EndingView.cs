@@ -6,6 +6,7 @@ using Tavern.Core.Play;
 using Tavern.Unity.App;
 using Tavern.Unity.Ui;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Tavern.Unity.Night
 {
@@ -27,9 +28,12 @@ namespace Tavern.Unity.Night
             var e = _t.E;
             AudioDirector.Music("ending_" + (end.Card == Card.Success ? "success" : end.Card == Card.Bitter ? "bitter" : "failure"));
             UiKit.Picture(root, ArtLibrary.Get("bg_tavern"), 0, 0, 1920, 1080).color = new Color(0.3f, 0.26f, 0.22f);
-            UiKit.Label(root, e.Story.Title, 30, Theme.Dim, 0, 40, 1920, 44, serif: true, align: TextAnchor.UpperCenter);
-            var color = end.Card == Card.Success ? Theme.Gold : end.Card == Card.Bitter ? Theme.Hex("c9a0a0") : Theme.Hex("a08080");
-            UiKit.Label(root, EndingResult.Label(end.Card), 72, color, 0, 90, 1920, 100, serif: true, align: TextAnchor.UpperCenter);
+            UiKit.Title(root, e.Story.Title, 30, Theme.Ink, 0, 40, 1920, 44, align: TextAnchor.UpperCenter).gameObject.AddComponent<Shadow>();
+            var color = end.Card == Card.Success ? Theme.Hex("e2bf6e") : end.Card == Card.Bitter ? Theme.Hex("c9a0a0") : Theme.Hex("a08080");
+            var card = UiKit.Title(root, EndingResult.Label(end.Card), 76, color, 0, 84, 1920, 104, align: TextAnchor.UpperCenter);
+            card.gameObject.AddComponent<Outline>().effectColor = new Color(0.1f, 0.05f, 0.02f, 0.9f);
+            card.gameObject.AddComponent<Shadow>().effectDistance = new Vector2(3, -4);
+            UiKit.Rule(root, 560, 196, 800, Theme.FrameGold);
 
             var left = UiKit.Panel(root, "Facts", 80, 220, 840, 760).transform;
             var lines = new System.Collections.Generic.List<string>();
@@ -48,14 +52,17 @@ namespace Tavern.Unity.Night
                 lines.Add("\n<color=#c9a24a>種明かし（今夜の内緒の行動）</color>");
                 foreach (var s in end.Reveal) lines.Add($"・{e.Find(s.Who)?.Name}: {s.Text} → {s.Result}{(s.Found ? "（見つかった）" : "")}");
             }
-            var facts = UiKit.Scroll(left, 20, 20, 800, 720, out _);
-            UiKit.Label(facts, string.Join("\n", lines), 19, Theme.Ink);
+            UiKit.Heading(left, "この晩の顛末", 36, 30, 768, "ic_seal", size: 30);
+            var facts = UiKit.Scroll(left, 36, 98, 768, 636, out _);
+            UiKit.Label(facts, string.Join("\n", lines), 19, Theme.Ink).lineSpacing = 1.15f;
 
-            var right = UiKit.Panel(root, "Chronicle", 940, 220, 900, 760).transform;
-            UiKit.Label(right, "語り部の記録帳", 26, Theme.Gold, 24, 18, 600, 40, serif: true);
-            var story = UiKit.Scroll(right, 24, 70, 852, 600, out _);
-            UiKit.Label(story, _c == null ? "（記録帳を書けなかった）" : $"「{_c.Title}」\n\n{_c.Story}", 20, Theme.Hex("efe3c8"), serif: true);
-            UiKit.Button(right, "酒場へ戻る", _n.BackToTitle, 600, 690, 280, 56, 22, gold: true);
+            // the record book's page: parchment, like the storyteller's book at the table
+            var right = UiKit.Panel(root, "Chronicle", 940, 220, 900, 760, leather: false).transform;
+            UiKit.Paper(right);
+            UiKit.Heading(right, "語り部の記録帳", 46, 36, 808, "ic_quill", paper: true, size: 30);
+            var story = UiKit.Scroll(right, 46, 104, 808, 560, out _);
+            UiKit.Label(story, _c == null ? "（記録帳を書けなかった）" : $"「{_c.Title}」\n\n{_c.Story}", 20, Theme.InkDark, serif: true).Inked().Wrapped(780).lineSpacing = 1.2f;
+            UiKit.Button(right, "酒場へ戻る", _n.BackToTitle, 574, 680, 280, 56, 22, gold: true);
         }
     }
 }

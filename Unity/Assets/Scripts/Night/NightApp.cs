@@ -11,6 +11,7 @@ using Tavern.Core.Story;
 using Tavern.Unity.App;
 using Tavern.Unity.Ui;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Tavern.Unity.Night
 {
@@ -108,7 +109,8 @@ namespace Tavern.Unity.Night
         {
             Screen("waiting");
             UiKit.Picture(Root, ArtLibrary.Get("bg_tavern"), 0, 0, 1920, 1080).color = new Color(0.3f, 0.26f, 0.22f);
-            UiKit.Label(Root, text, 30, Theme.Ink, 260, 440, 1400, 200, serif: true, align: TextAnchor.UpperCenter);
+            UiKit.Label(Root, text, 30, Theme.Ink, 260, 440, 1400, 200, serif: true, align: TextAnchor.UpperCenter).gameObject.AddComponent<Shadow>();
+            UiKit.Rule(Root, 660, 420, 600, Theme.FrameDim);
         }
 
         public void ShowError(string message)
@@ -130,10 +132,17 @@ namespace Tavern.Unity.Night
             e.FirstEvening = Store.LoadChronicle().Count == 0;
             var table = NewTable(e, new SeededRandom((ulong)DateTime.Now.Ticks));
             Screen("handouts");
-            var wait = UiKit.Label(Root, $"{story.Title}\n\n{story.Intro}\n\n（語り部がハンドアウトを用意している…）", 26, Theme.Ink, 360, 300, 1200, 500, serif: true, align: TextAnchor.UpperCenter);
+            // the story's opening on a parchment page while the storyteller writes the handouts
+            UiKit.Picture(Root, ArtLibrary.Get("bg_tavern"), 0, 0, 1920, 1080).color = new Color(0.28f, 0.24f, 0.2f);
+            var page = UiKit.Panel(Root, "Opening", 460, 170, 1000, 740, leather: false).transform;
+            UiKit.Paper(page);
+            UiKit.Heading(page, story.Title, 60, 50, 880, "ic_quill", paper: true, size: 36);
+            UiKit.Label(page, story.Intro, 22, Theme.InkDark, 64, 136, 872, 460).Inked().Wrapped(868).lineSpacing = 1.25f;
+            UiKit.Label(page, "（語り部がハンドアウトを用意している…）", 19, Theme.InkBrown, 64, 640, 872, 40, align: TextAnchor.UpperCenter).Inked();
+            var wait = page.gameObject;
             try { await table.DealHandoutsAsync(Ai.Bookends); }
             catch (Exception ex) { Debug.LogWarning("[Night] handouts: " + ex.Message); }
-            if (wait != null) UnityEngine.Object.Destroy(wait.gameObject);
+            if (wait != null) UnityEngine.Object.Destroy(wait);
             Room?.SetPhase("table");
             SaveEvening(table);
             ShowTable(table, opening: true);

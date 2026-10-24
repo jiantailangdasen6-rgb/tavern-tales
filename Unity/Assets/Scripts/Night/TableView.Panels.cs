@@ -16,10 +16,11 @@ namespace Tavern.Unity.Night
 {
     public sealed partial class TableView
     {
-        RectTransform Sheet(string name, float w = 1300, float h = 900)
+        RectTransform Sheet(string name, float w = 1300, float h = 900, bool paper = false)
         {
             var layer = Overlay(name, 0, 0, 1920, 1080, 0.7f);
-            var panel = UiKit.Panel(layer, "Panel", (1920 - w) / 2, (1080 - h) / 2, w, h);
+            var panel = UiKit.Panel(layer, "Panel", (1920 - w) / 2, (1080 - h) / 2, w, h, leather: !paper);
+            if (paper) UiKit.Paper(panel.transform);
             UiKit.Button(panel.transform, "閉じる", () => Close(layer), w - 200, h - 72, 180, 52, 20, gold: true);
             return (RectTransform)panel.transform;
         }
@@ -30,8 +31,8 @@ namespace Tavern.Unity.Night
             var a = E.Find(id);
             if (a == null) return;
             var p = Sheet("Sheet");
-            UiKit.Picture(p, ArtLibrary.Get(a.Portrait), 30, 30, 200, 300);
-            UiKit.Label(p, $"{a.Name}　<size=22>{a.Class.Name}</size>", 36, Theme.Gold, 250, 24, 800, 50, serif: true);
+            PersonCard(p, ArtLibrary.Get(a.Portrait), 30, 30, 200, 300, Theme.FrameGold);
+            UiKit.Heading(p, $"{a.Name}<size=22>　{a.Class.Name}</size>", 250, 18, 1020, ClassIcon(a), size: 34);
             var stats = string.Join("　", new[] { Ability.Str, Ability.Dex, Ability.Agi, Ability.Int, Ability.Mnd }.Select(x => $"{x.Code()} +{a.Modifier(x)}<size=13>（{x.Meaning()}）</size>"));
             UiKit.Label(p, stats, 22, Theme.Ink, 250, 84, 1020, 40);
             UiKit.Label(p, $"HP {a.Hp}/{a.MaxHp}　気力 {a.Focus}/{a.MaxFocus}　運命のコイン {a.FateCoins}　銀貨 {a.Silver}" +
@@ -56,15 +57,15 @@ namespace Tavern.Unity.Night
         /// <summary>The clue book: "手がかり 4 / 12", the shared clues, each one's own secret clues, convictions (never which question).</summary>
         void ShowClues()
         {
-            var p = Sheet("Clues", 1200, 860);
-            UiKit.Label(p, $"手がかり帳　{E.World.SharedClues} / {Story.Clues.Count}", 32, Theme.Gold, 30, 24, 900, 50, serif: true);
-            var list = UiKit.Scroll(p, 30, 90, 1140, 660, out _);
+            var p = Sheet("Clues", 1200, 860, paper: true);
+            UiKit.Heading(p, $"手がかり帳　{E.World.SharedClues} / {Story.Clues.Count}", 50, 40, 1000, "ic_clues", paper: true);
+            var list = UiKit.Scroll(p, 50, 112, 1100, 630, out _);
             foreach (var c in Story.Clues.Where(c => E.World.Clues.TryGetValue(c.Id, out var w) && w.Contains(World.Shown)))
-                UiKit.Label(list, "・" + c.Text, 19, Theme.Ink);
+                UiKit.Label(list, "・" + c.Text, 19, Theme.InkDark).Inked();
             foreach (var a in E.Party.Where(a => IsMine(a.Id)))
                 foreach (var c in Story.Clues.Where(c => E.World.Clues.TryGetValue(c.Id, out var w) && !w.Contains(World.Shown) && w.Contains(a.Id)))
                 {
-                    var row = UiKit.Label(list, $"・（{a.Name}だけが知っている）{c.Text}", 19, Theme.Hex("c9a0c0"));
+                    var row = UiKit.Label(list, $"・（{a.Name}だけが知っている）{c.Text}", 19, Theme.Hex("5a2a5e")).Inked();
                     var cid = c.Id;
                     var b = UiKit.Button(list, "見せる（仲間にも）", () =>
                     {
@@ -78,8 +79,8 @@ namespace Tavern.Unity.Night
                     b.gameObject.AddComponent<LayoutElement>().preferredHeight = 40;
                 }
             foreach (var c in Story.Conclusions.Where(c => E.World.Convictions.Contains(c.Id)))
-                UiKit.Label(list, "確信: " + c.Text, 20, Theme.GoldLight);
-            if (E.World.Clues.Count == 0) UiKit.Label(list, "まだ何も見つけていない。", 19, Theme.Dim);
+                UiKit.Label(list, "確信: " + c.Text, 20, Theme.InkRed).Inked();
+            if (E.World.Clues.Count == 0) UiKit.Label(list, "まだ何も見つけていない。", 19, Theme.InkBrown).Inked();
         }
 
         /// <summary>The handouts (each is the owner's; on one PC they are all here).</summary>
@@ -87,14 +88,14 @@ namespace Tavern.Unity.Night
         {
             var mine = _t.Handouts.Where(h => IsMine(h.Who)).ToList();
             if (mine.Count == 0) return;
-            var p = Sheet("Handouts", 1300, 860);
-            UiKit.Label(p, Online ? "ハンドアウト（あなただけが読む）" : "ハンドアウト（本来は本人だけが読む）", 30, Theme.Gold, 30, 24, 1000, 48, serif: true);
-            var list = UiKit.Scroll(p, 30, 90, 1240, 660, out _, spacing: 18);
+            var p = Sheet("Handouts", 1300, 860, paper: true);
+            UiKit.Heading(p, Online ? "ハンドアウト（あなただけが読む）" : "ハンドアウト（本来は本人だけが読む）", 50, 40, 1100, "ic_handout", paper: true);
+            var list = UiKit.Scroll(p, 50, 112, 1200, 630, out _, spacing: 18);
             foreach (var h in mine)
             {
                 var a = E.Find(h.Who);
                 var goal = Story.PersonalGoals.FirstOrDefault(g => g.Id == h.GoalId)?.Text ?? "";
-                UiKit.Label(list, $"<color=#c9a24a>{a?.Name}</color>\n縁: {h.Bond}\n個人の目的: {goal}" + (h.Fragment.Length > 0 ? $"\n断片: {h.Fragment}" : ""), 19, Theme.Ink);
+                UiKit.Label(list, UiKit.OnPaper($"<color=#c9a24a>{a?.Name}</color>\n縁: {h.Bond}\n個人の目的: {goal}" + (h.Fragment.Length > 0 ? $"\n断片: {h.Fragment}" : "")), 19, Theme.InkDark).Inked();
             }
         }
 
@@ -102,8 +103,8 @@ namespace Tavern.Unity.Night
         void ShowRequests()
         {
             var p = Sheet("Requests", 1100, 640);
-            UiKit.Label(p, "語り部への注文", 30, Theme.Gold, 30, 24, 900, 48, serif: true);
-            UiKit.Label(p, "変えられるのは語り方だけ（長さ・調子）。ルール・数字・物語の秘密は変わりません。", 18, Theme.Dim, 30, 80, 1040, 30);
+            UiKit.Heading(p, "語り部への注文", 30, 20, 1040, "ic_quill", size: 30);
+            UiKit.Label(p, "変えられるのは語り方だけ（長さ・調子）。ルール・数字・物語の秘密は変わりません。", 18, Theme.Ink, 30, 84, 1040, 30);
             var input = UiKit.Input(p, "例: もっと短く / 情景を多めに", 30, 120, 1040, 110, 19, multiline: true);
             UiKit.Button(p, "次の語りに伝える", () =>
             {
@@ -164,7 +165,7 @@ namespace Tavern.Unity.Night
             var done = new TaskCompletionSource<int>();
             var layer = Overlay("Growth", 0, 0, 1920, 1080, 0.7f);
             var panel = UiKit.Panel(layer, "Panel", 360, 120, 1200, 120 + options.Count * 56).transform;
-            UiKit.Label(panel, $"{a.Name}の成長（幕の終わり）", 28, Theme.Gold, 30, 20, 1100, 44, serif: true);
+            UiKit.Heading(panel, $"{a.Name}の成長（幕の終わり）", 30, 16, 1140, ClassIcon(a), size: 28);
             AudioDirector.Play("growth");
             for (int i = 0; i < options.Count; i++)
             {
@@ -205,6 +206,19 @@ namespace Tavern.Unity.Night
         {
             var act = Story.Acts.FirstOrDefault(a => a.N == E.World.Act);
             Dialog("中休みの明け", $"{Story.Title}の続き、{act?.Title}から。\n顔ぶれがそろったら始めます。", ("次の晩を始める", ResumeNight));
+        }
+
+        /// <summary>Screenshots only (-showending): the ending screen with sample facts, without playing the story through.</summary>
+        void PreviewEnding()
+        {
+            var end = new EndingResult { Card = Card.Bitter };
+            end.Lost.Add("（見本）古城の礼拝堂");
+            foreach (var a in E.Party.Take(2)) end.Personal[a.Id] = ("（見本の目的）", a == E.Party[0]);
+            end.Convictions.Add("（見本の確信）");
+            _t.Ending = end;
+            var c = new Chronicle { Title = "（見本）灯りの消えた夜", Story = "（見本の記録）" + Story.Intro };
+            c.Rumors.Add("（見本の噂）北の丘に、もう灯りはともらない。");
+            _n.ShowEnding(_t, c);
         }
 
         void ResumeNight()

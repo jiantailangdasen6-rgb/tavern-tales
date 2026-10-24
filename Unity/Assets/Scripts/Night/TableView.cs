@@ -113,6 +113,10 @@ namespace Tavern.Unity.Night
             else if (_t.Phase == Phase.Break && !Guest) { if (_t.GrowthDue.Count > 0) ShowGrowth(); else ShowNextNight(); }
             if (AppMain.Flag("-showsheet")) ShowSheet(E.Party[0].Id);   // screenshots
             if (AppMain.Flag("-showclues")) ShowClues();
+            if (AppMain.Flag("-showhandouts")) ShowHandouts();
+            if (AppMain.Flag("-showrequests")) ShowRequests();
+            if (AppMain.Flag("-showsettings")) ShowSettings();
+            if (AppMain.Flag("-showending")) { PreviewEnding(); return; }
             RefreshAll();
             BroadcastState();
         }
@@ -209,7 +213,7 @@ namespace Tavern.Unity.Night
 
         void BuildScene(Transform root)
         {
-            var panel = UiKit.Panel(root, "Scene", 284, 84, 840, 554).transform;
+            var panel = UiKit.Panel(root, "Scene", 284, 84, 840, 554, leather: false).transform;
             _sceneBox = UiKit.Rect("Box", panel).Fill(10);
             _sceneBox.SetAsFirstSibling();   // under the panel's frame
             _sceneBg = UiKit.Picture(_sceneBox, null, 0, 0, 820, 534);
@@ -232,7 +236,7 @@ namespace Tavern.Unity.Night
         void BuildLog(Transform root)
         {
             // the storyteller's book: a parchment page in the gold frame (C8b)
-            var panel = UiKit.Panel(root, "Log", 1134, 84, 772, 984).transform;
+            var panel = UiKit.Panel(root, "Log", 1134, 84, 772, 984, leather: false).transform;
             var page = UiKit.Rect("Page", panel).Fill(12);
             page.SetAsFirstSibling();
             UiKit.Ground(page, "parchment", 90);
@@ -248,7 +252,7 @@ namespace Tavern.Unity.Night
 
         void BuildDeclare(Transform root)
         {
-            var panel = UiKit.Panel(root, "Declare", 284, 648, 840, 420).transform;
+            var panel = UiKit.Panel(root, "Declare", 284, 648, 840, 420, leather: false).transform;
             var hide = UiKit.Rect("Leather", panel).Fill(10);
             hide.SetAsFirstSibling();
             UiKit.Ground(hide, "leather");
@@ -262,7 +266,7 @@ namespace Tavern.Unity.Night
             _cover = UiKit.Input(panel, "表向き: （内緒のとき、ほかの人に見える行動）", 162, 268, 472, 40, 15);
             _cover.onValueChanged.AddListener(v => { if (MyLiving.Count > 0) _covers[Selected.Id] = v; });
             _declNote = UiKit.Label(panel, "", 14, Theme.Dim, 14, 316, 620, 90);
-            _declare = UiKit.Button(panel, "全員の行動を\n宣言する", Declare, 648, 92, 178, 216, 22, gold: true);
+            _declare = UiKit.Button(panel, "行動を\n宣言する", Declare, 648, 92, 178, 216, 22, gold: true);
             UiKit.Icon(_declare.transform, "ic_seal", 51, 26, 76, Theme.GoldLight);
             var dt = _declare.GetComponentInChildren<Text>();
             dt.font = Theme.Display;
@@ -421,7 +425,7 @@ namespace Tavern.Unity.Night
                 (a.Life == Life.Down ? "\n倒れているので、仲間に起こしてもらうまで動けません。" : "");
             _declare.interactable = !_busy && !_ending && _t.Phase != Phase.Over;
             _input.interactable = !_busy;
-            if (!Online) { _declare.SetText(_busy ? "語り部が\n考えている…" : _t.Phase == Phase.Afterword ? "その後を\n宣言する" : "全員の行動を\n宣言する"); return; }
+            if (!Online) { _declare.SetText(_busy ? "語り部が\n考えている…" : _t.Phase == Phase.Afterword ? "その後を\n宣言する" : "行動を\n宣言する"); return; }
             // in a room: who is still writing, the closing countdown, and (host) going on without the slow ones
             var waiting = Living.Where(x => x.IsUp && !Away(x.Id) && !_ready.Contains(x.Id)).Select(x => x.Name).ToList();
             var closing = _closeAt > 0 ? Mathf.CeilToInt(Mathf.Max(0, _closeAt - Time.unscaledTime)) : 0;

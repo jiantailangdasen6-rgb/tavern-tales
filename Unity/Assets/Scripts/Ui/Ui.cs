@@ -84,13 +84,98 @@ namespace Tavern.Unity.Ui
             return img;
         }
 
-        /// <summary>A framed panel in the tavern style: a dark ground in a gold double frame.</summary>
-        public static Image Panel(Transform parent, string name, float x, float y, float w, float h)
+        /// <summary>
+        /// A framed panel in the tavern style: dark leather in a gold double frame. `leather: false` leaves the plain dark ground,
+        /// for a panel whose ground is a picture or a page (Paper).
+        /// </summary>
+        public static Image Panel(Transform parent, string name, float x, float y, float w, float h, bool leather = true)
         {
             var img = Box(parent, name, Theme.Panel);
             img.rectTransform.Place(x, y, w, h);
+            if (leather)
+            {
+                var ground = Ground(img.transform, "leather");
+                ground.sprite = Part("leather", 0.09f, 0.53f, 0.47f, 0.91f) ?? ground.sprite;   // one quarter, without the stitched seams
+                ground.color = new Color(0.6f, 0.55f, 0.5f);
+            }
             Frame(img.transform, thin: false);
             return img;
+        }
+
+        /// <summary>A parchment page inside a framed panel (the storyteller's book); write on it in the ink colours (Theme.InkDark…).</summary>
+        public static RectTransform Paper(Transform panel, float inset = 12)
+        {
+            var page = Rect("Page", panel).Fill(inset);
+            page.SetAsFirstSibling();   // under the panel's frame and content
+            Ground(page, "parchment", 90);
+            Soft(page, new Color(0.95f, 0.89f, 0.75f, 0.55f), 40);
+            return page;
+        }
+
+        /// <summary>A modal layer over everything: a dark veil that swallows clicks, and a panel (leather, or parchment with `paper`).</summary>
+        public static (RectTransform layer, Transform panel) Modal(Transform root, string name, float x, float y, float w, float h, bool paper = false, float veil = 0.75f)
+        {
+            var layer = Rect(name, root).Fill();
+            Box(layer, "Veil", new Color(0, 0, 0, veil)).rectTransform.Fill();
+            var panel = Panel(layer, "Panel", x, y, w, h, leather: !paper).transform;
+            if (paper) Paper(panel);
+            return (layer, panel);
+        }
+
+        /// <summary>A heading: an optional icon, the display face, and a gold rule fading out at both ends under it.</summary>
+        public static Text Heading(Transform parent, string text, float x, float y, float w, string? icon = null, bool paper = false, int size = 32)
+        {
+            var color = paper ? Theme.InkRed : Theme.FrameGold;
+            var tx = x;
+            if (icon != null) { Icon(parent, icon, x, y + 2, size + 6, color); tx += size + 18; }
+            var t = Title(parent, text, size, color, tx, y, w - (tx - x), size + 14);
+            if (paper) t.Inked();
+            else t.gameObject.AddComponent<Shadow>().effectColor = new Color(0, 0, 0, 0.8f);
+            Rule(parent, x, y + size + 20, w, paper ? Theme.WithAlpha(Theme.InkBrown, 0.75f) : Theme.FrameDim);
+            return t;
+        }
+
+        static Sprite? _rule;
+        /// <summary>A thin ornamental line with a small diamond at its middle; its ends fade out.</summary>
+        public static Image Rule(Transform parent, float x, float y, float w, Color color)
+        {
+            if (_rule == null)
+            {
+                var tex = new Texture2D(128, 1, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+                for (int i = 0; i < 128; i++) tex.SetPixel(i, 0, new Color(1, 1, 1, Mathf.Clamp01(Mathf.Min(i, 127 - i) / 40f)));
+                tex.Apply();
+                _rule = Sprite.Create(tex, new Rect(0, 0, 128, 1), new Vector2(0.5f, 0.5f));
+            }
+            var img = Rect("Rule", parent).Place(x, y, w, 2).gameObject.AddComponent<Image>();
+            img.sprite = _rule;
+            img.color = color;
+            img.raycastTarget = false;
+            var gem = Box(parent, "Gem", color);
+            gem.rectTransform.Place(x + w / 2 - 4, y - 3, 8, 8);
+            gem.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            gem.rectTransform.anchoredPosition += new Vector2(4, -4);
+            gem.rectTransform.localRotation = Quaternion.Euler(0, 0, 45);
+            gem.raycastTarget = false;
+            return img;
+        }
+
+        /// <summary>
+        /// Rich text written for dark panels, made readable on parchment: the light colours in its tags become inks.
+        /// </summary>
+        public static string OnPaper(string text) => text
+            .Replace("#c9a24a", "#7e1910").Replace("#e8d9a8", "#2c1c0e").Replace("#a8977a", "#4a3220")
+            .Replace("#a08080", "#5e3a34").Replace("#c9a0c0", "#5a2a5e").Replace("#c4553f", "#8e2a1c");
+
+        /// <summary>A sprite of a part of a Resources/UI texture (fractions of its size, from the bottom-left).</summary>
+        public static Sprite? Part(string name, float x0, float y0, float x1, float y1)
+        {
+            var key = $"{name}@{x0},{y0},{x1},{y1}";
+            if (Sprites.TryGetValue(key, out var s)) return s;
+            var tex = Resources.Load<Texture2D>("UI/" + name);
+            if (tex == null) return null;
+            s = Sprite.Create(tex, new Rect(tex.width * x0, tex.height * y0, tex.width * (x1 - x0), tex.height * (y1 - y0)), new Vector2(0.5f, 0.5f));
+            Sprites[key] = s;
+            return s;
         }
 
         // ---------------------------------------------------------------- interface pieces (Resources/UI)
@@ -197,6 +282,14 @@ namespace Tavern.Unity.Ui
             o.effectDistance = new Vector2(0.5f, 0.5f);
             return t;
         }
+        /// <summary>Wraps a long Japanese text by hand (Kinsoku), so Unity never breaks it at a half-width space mid-sentence.</summary>
+        public static Text Wrapped(this Text t, float width)
+        {
+            t.text = Kinsoku(t.text, t.font, t.fontSize, t.fontStyle, width);
+            t.horizontalOverflow = HorizontalWrapMode.Overflow;
+            return t;
+        }
+
         static Sprite? _fade;
         /// <summary>A dark fade rising from the bottom (names and bars over a portrait stay readable).</summary>
         public static Image Fade(Transform parent, float strength = 0.95f)

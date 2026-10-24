@@ -45,7 +45,7 @@ namespace Tavern.Unity.App
             var shade = UiKit.Box(layer, "Shade", new Color(0, 0, 0, 0.6f));
             shade.rectTransform.Fill();
             var panel = UiKit.Panel(layer, "Settings", 560, 300, 800, 400).transform;
-            UiKit.Label(panel, "設定（この PC だけ）", 28, Theme.Gold, 30, 20, 600, 40, serif: true);
+            UiKit.Heading(panel, "設定（この PC だけ）", 30, 18, 740, "ic_settings", size: 28);
 
             Row(panel, 90, "音", new[] { "なし", "小", "中", "大" }, () => AudioDirector.Level, v => AudioDirector.Level = v);
             Row(panel, 160, "文字の大きさ", Reading.SizeNames, () => Reading.Size, v => { Reading.Size = v; onTextSize?.Invoke(); });
@@ -56,9 +56,9 @@ namespace Tavern.Unity.App
 
         static void Row(Transform panel, float y, string label, string[] names, Func<int> get, Action<int> set)
         {
-            UiKit.Label(panel, label, 19, Theme.Dim, 30, y + 8, 170, 32);
+            UiKit.Label(panel, label, 19, Theme.Ink, 30, y + 8, 170, 32);
             var buttons = new List<Button>();
-            void Paint() { for (int i = 0; i < buttons.Count; i++) buttons[i].GetComponent<Image>().color = i == get() ? Theme.Hex("6b4f24") : Theme.Hex("2e241a"); }
+            void Paint() { for (int i = 0; i < buttons.Count; i++) buttons[i].GetComponent<Image>().color = i == get() ? Theme.Hex("6e1f14") : Theme.Hex("241a12"); }
             for (int i = 0; i < names.Length; i++)
             {
                 var v = i;

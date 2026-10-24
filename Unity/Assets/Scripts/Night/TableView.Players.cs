@@ -113,7 +113,8 @@ namespace Tavern.Unity.Night
             _rollPressed = new TaskCompletionSource<bool>();
             var layer = Overlay("Roll", 284, 78, 840, 560, 0.55f);
             var panel = UiKit.Panel(layer, "Panel", 300, 96, 808, 90 + rolls.Count * 58).transform;
-            UiKit.Label(panel, "サイコロを振る", 22, Theme.Gold, 18, 10, 300, 30, serif: true);
+            UiKit.Icon(panel, "ic_d20", 18, 10, 28);
+            UiKit.Title(panel, "サイコロを振る", 22, Theme.FrameGold, 54, 10, 300, 30);
             _rollTimer = UiKit.Label(panel, "", 15, Theme.Dim, 520, 16, 270, 24, align: TextAnchor.UpperRight);
             for (int i = 0; i < rolls.Count; i++)
             {
@@ -297,7 +298,7 @@ namespace Tavern.Unity.Night
         {
             var layer = Overlay("Dialog", 0, 0, 1920, 1080, 0.6f);
             var panel = UiKit.Panel(layer, "Panel", 560, 340, 800, 340).transform;
-            UiKit.Label(panel, title, 26, Theme.Gold, 30, 24, 740, 40, serif: true);
+            UiKit.Heading(panel, title, 30, 20, 740, size: 28);
             UiKit.Label(panel, body, 19, Theme.Ink, 30, 80, 740, 160);
             for (int i = 0; i < buttons.Length; i++)
             {
