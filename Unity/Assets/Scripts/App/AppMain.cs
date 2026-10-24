@@ -63,7 +63,8 @@ namespace Tavern.Unity.App
             Ai = AiSetup.Create(Flag("-demo"));
             SavePath = Arg("-savefile") ?? Path.Combine(Application.persistentDataPath, "evening.json");
             foreach (var g in LoadChronicle().Entries.GroupBy(e => e.Teller)) ScenarioPrompt.NightsByTeller[g.Key] = g.Count();
-            AudioListener.volume = Flag("-autoquit") || Flag("-mute") ? 0f : 1f;   // loudness is set by AudioDirector.Level
+            // automated runs are silent: -autoquit / -mute, and the browser build opened with ?mute (tests in the browser pane)
+            AudioListener.volume = Flag("-autoquit") || Flag("-mute") || WebPage.MutedByUrl ? 0f : 1f;   // loudness is set by AudioDirector.Level
         }
 
         static string Text(string path) => Resources.Load<TextAsset>(path)?.text ?? throw new Exception("missing " + path);

@@ -1,0 +1,171 @@
+{
+  "_note": "Docs/scenarios/castle_lights.md written as a story sheet (Docs/09_Spec.md 9). Spoilers: friends playing this should not read it. Personal goals (and the count's signet for one of them) were added when writing it out.",
+  "id": "castle_lights",
+  "title": "灯りのともる古城",
+  "kind": "呪いを解く",
+  "length": "short",
+  "region": "moln",
+  "darkness": "深い",
+  "start": "tavern",
+  "advance": 0,
+  "intro": "モルンの司祭見習いセラフィナが、雪を払いもせず眠る竜亭に駆け込んでくる。「村の娘たちが青ざめて眠ったまま目を覚まさないのです。妹のエマも。北の丘の古城に、近ごろ夜ごと灯りがともるのです」。報酬は教会の蓄え、銀貨 30 枚。",
+  "truth": "百年前、吸血の伯爵ヴォルクは太陽神の騎士団に霊廟へ封じられた。封印は棺を貫く銀の杭。半年前、墓守ガスパールのもとに夜ごと声がささやいた。「杭を抜けば、病の娘を治してやろう」。ガスパールは杭を抜いた。目覚めた伯爵は、夜ごと赤い霧になって村へ下り、眠る娘たちから血を吸って、霊廟の「血の杯」に溜めている。杯が満ちれば、伯爵は昼も歩けるようになる。ガスパールの娘の病は、約束どおり和らいだ。伯爵が血を分けて生かしているだけで、伯爵が滅べば娘の病は戻る。ガスパールはそれを知っていて口を閉ざしている。",
+  "goal": {
+    "text": "眠り続ける娘たちを目覚めさせる",
+    "when": [ [ { "person": "volk", "is": "down" } ], [ { "person": "volk", "is": "dead" } ], [ { "event": "volk_sealed" } ], [ { "event": "cup_broken" } ] ]
+  },
+  "losses": [
+    { "id": "loss_emma", "text": "エマの命", "heavy": true, "when": { "person": "emma", "is": "dead" } },
+    { "id": "loss_girls", "text": "眠る娘たちの命", "heavy": true, "when": { "clock": "sleep", "is": "full" } },
+    { "id": "loss_daughter", "text": "墓守ガスパールの娘の命", "heavy": false, "when": [ [ { "person": "volk", "is": "dead" } ], [ { "person": "volk", "is": "down" } ] ] },
+    { "id": "loss_honor", "text": "ガスパールの名誉", "heavy": false, "when": { "conviction": "c2" } }
+  ],
+  "clocks": [
+    {
+      "id": "sleep", "name": "娘たちの眠り", "secret": "血の杯", "segments": 6, "speed": "every", "every": 5,
+      "onFullKinds": [ "NpcDies" ], "fullText": "エマが息絶える（★）。伯爵の大技「血の霧」が強まる",
+      "onFull": [ { "person": "emma", "state": "Dead", "text": "霊廟の杯が赤く満ちた夜、エマの胸の上下が止まった。眠る娘たちの頬からも、最後の血の気が引いていく。" } ],
+      "rewinds": [ { "id": "bedside", "text": "眠る娘の枕元に聖水か聖印を置く", "amount": 2,
+        "when": [ [ { "item": "holy_water", "at": "village" } ], [ { "item": "holy_symbol", "at": "village" } ] ] } ]
+    },
+    {
+      "id": "waking", "name": "古城の目覚め", "secret": "伯爵の昼歩き", "segments": 4, "speed": "every", "every": 8, "acts": [ 2, 3 ],
+      "onFullKinds": [ "BossMoves" ], "fullText": "伯爵が城から村へ下りてくる（村で山場）",
+      "onFull": [ { "person": "volk", "moveTo": "village", "text": "日の高いうちに、黒衣の伯爵が丘を下りてきた。陽の光が、もはや彼を焼かない。" },
+                  { "climax": true } ],
+      "rewinds": [ { "id": "spill", "text": "血の杯をこぼす・砕く", "amount": 2, "when": { "event": "cup_broken" } } ],
+      "visible": [ [ { "event": "clue:c3_1" } ], [ { "event": "visited:crypt" } ] ]
+    }
+  ],
+  "conclusions": [
+    { "id": "c1", "text": "娘たちは吸血鬼に血を吸われている", "rewardClock": "sleep", "clues": [ "c1_1", "c1_2", "c1_3" ] },
+    { "id": "c2", "text": "伯爵を封じていた杭を、墓守ガスパールが抜いた", "rewardClock": "waking", "clues": [ "c2_1", "c2_2", "c2_3" ] },
+    { "id": "c3", "text": "伯爵は血の杯が満ちれば昼も歩けるようになる", "rewardClock": "waking", "clues": [ "c3_1", "c3_2", "c3_3" ] },
+    { "id": "c4", "text": "伯爵は太陽神の聖印を掲げられると身動きできない", "rewardClock": "sleep", "clues": [ "c4_1", "c4_2", "c4_3" ] }
+  ],
+  "clues": [
+    { "id": "c1_1", "conclusion": "c1", "text": "眠る娘たちの首筋に、小さな二つの傷", "place": "village",
+      "how": "眠る娘を診る", "get": { "type": "check", "ability": "MND", "tier": "易しい" } },
+    { "id": "c1_2", "conclusion": "c1", "text": "村の子ミア「夜、赤い霧が窓から入ってきて、お姉ちゃんの上で止まったの」", "place": "village", "person": "mia",
+      "how": "ミアに話を聞く", "get": { "type": "request", "size": "Small" } },
+    { "id": "c1_3", "conclusion": "c1", "text": "娘たちの部屋のにんにくだけが、きまって外されている", "place": "village",
+      "how": "家々を調べる", "get": { "type": "free" } },
+    { "id": "c2_1", "conclusion": "c2", "text": "墓地の霊廟の扉の前に、引き抜かれた銀の杭の跡と、墓守の木靴の足跡", "place": "graveyard",
+      "how": "霊廟の扉を調べる", "get": { "type": "free" } },
+    { "id": "c2_2", "conclusion": "c2", "text": "ミア「墓守のおじいさん、夜中に墓地でだれかと話してた。だれもいないのに」", "place": "village", "person": "mia",
+      "how": "ミアに夜のことを聞く", "get": { "type": "request", "size": "Small" } },
+    { "id": "c2_3", "conclusion": "c2", "text": "伯爵の書斎の手紙「約束どおり、娘の病は治そう。杭を抜いた礼だ」", "place": "study",
+      "how": "机を調べる", "get": { "type": "free" } },
+    { "id": "c3_1", "conclusion": "c3", "text": "伯爵の日記「杯が満ちるとき、我は陽の下をも歩む」", "place": "study",
+      "how": "日記を読む", "get": { "type": "check", "ability": "INT", "tier": "普通" } },
+    { "id": "c3_2", "conclusion": "c3", "text": "騎士団の記録「かの者の力の源は、霊廟の杯にあり」", "place": "chapel",
+      "how": "祭壇の下の箱を開ける", "get": { "type": "free" } },
+    { "id": "c3_3", "conclusion": "c3", "text": "大広間の燭台の蝋が、日ごとに長く燃えるようになっている（夜明けまで灯るようになった）", "place": "hall",
+      "how": "燭台を調べる", "get": { "type": "free" } },
+    { "id": "c4_1", "conclusion": "c4", "text": "礼拝堂のステンドグラスの絵: 光る聖印の前でひざまずく黒衣の男", "place": "chapel",
+      "how": "見回す", "get": { "type": "free" } },
+    { "id": "c4_2", "conclusion": "c4", "text": "騎士団の記録「聖印を掲げしとき、かの者は影のごとく縫い止められたり」", "place": "chapel",
+      "how": "祭壇の下の箱を開ける（毒針の罠がある）", "get": { "type": "check", "ability": "DEX", "tier": "普通" } },
+    { "id": "c4_3", "conclusion": "c4", "text": "古城の玉座の間だけ、窓の太陽の紋章が削り取られている", "place": "hall",
+      "how": "壁を調べる", "get": { "type": "free" } }
+  ],
+  "fragments": [
+    "太陽神の神殿の古い祈祷書の余白に、「北の丘の客人には、日の印を忘れるな」という書き込み。",
+    "半年前、モルンの墓守が王都の薬師を訪ね、「どんな病も治す方法はないか」と尋ねていたと聞いた。",
+    "吸血鬼は招かれなければ家に入れない、という言い伝え。どこまで本当かは分からない。",
+    "百年前に滅んだヴォルク家の紋章は、杯を抱いた蝙蝠だった。"
+  ],
+  "personalGoals": [
+    { "id": "pg_emma", "text": "セラフィナの妹エマを、生きて目覚めさせる", "when": { "person": "emma", "is": "alive" } },
+    { "id": "pg_mercy", "text": "墓守の娘が生きる道を残す（伯爵を滅ぼさず、封じ直す）", "when": { "event": "volk_sealed" } },
+    { "id": "pg_slayer", "text": "百年の吸血鬼を、この手で滅ぼす", "when": [ [ { "person": "volk", "is": "down" } ], [ { "person": "volk", "is": "dead" } ] ] },
+    { "id": "pg_signet", "text": "ヴォルク家の宝を持ち帰る", "when": { "item": "signet", "heldBy": "self" } },
+    { "id": "pg_order", "text": "太陽神の騎士団が残した封じの秘密を解く", "when": { "conviction": "c4" } }
+  ],
+  "places": [
+    { "id": "tavern", "name": "眠る竜亭", "art": "bg_tavern", "acts": [ 1 ], "shop": true,
+      "look": "拠点の酒場。炉端で老詩人が竪琴をつま弾く。", "links": [ "village" ] },
+    { "id": "village", "name": "寒村モルン", "art": "bg_village", "acts": [ 1 ],
+      "look": "戸口ごとに吊るされたにんにく。日暮れ前に戸を閉ざす村人たち。眠り続ける娘たちのいる家。", "links": [ "tavern", "graveyard", "chapel" ] },
+    { "id": "graveyard", "name": "村はずれの墓地", "art": "bg_graveyard", "acts": [ 1 ],
+      "look": "傾いた墓石と、掘り返された墓。霧の向こうに丘の上の古城が見える。", "secret": "霊廟の扉の前に、銀の杭が打ち捨てられている。",
+      "links": [ "village", "hall" ], "enemies": [ "ghoul", "ghoul" ] },
+    { "id": "chapel", "name": "森の礼拝堂", "art": "bg_chapel", "acts": [ 2 ],
+      "look": "割れたステンドグラスと、倒れた長椅子。祭壇には埃が積もっている。", "secret": "祭壇の下の箱に騎士団の記録。聖印と聖水が残っている。",
+      "links": [ "village", "hall" ],
+      "traps": [ { "text": "祭壇の下の箱の毒針", "ability": "DEX", "tier": "普通", "damage": 2, "status": "Poison" } ] },
+    { "id": "hall", "name": "古城の大広間", "art": "bg_castle_hall", "acts": [ 2 ], "tense": true,
+      "look": "色あせた赤い絨毯。誰かが燭台に火をともしている。壁際に並ぶ甲冑。", "secret": "玉座の裏に霊廟への隠し階段。燭台を倒すと開く。",
+      "links": [ "graveyard", "chapel", "study", { "to": "crypt", "open": { "event": "stair_open" }, "text": "玉座の裏の隠し階段" } ],
+      "enemies": [ "animated_armor", "animated_armor" ] },
+    { "id": "study", "name": "伯爵の書斎", "art": "bg_library", "acts": [ 2 ],
+      "look": "天井まで届く本棚。机の上に、真新しい手紙が一通。", "links": [ "hall" ] },
+    { "id": "crypt", "name": "伯爵の霊廟", "art": "bg_crypt", "acts": [ 3 ],
+      "look": "黒い石棺と、赤く満ちていく杯。", "links": [ "hall" ], "enemies": [ "ghoul" ] }
+  ],
+  "mechanisms": [
+    { "id": "stair", "name": "玉座の裏の燭台", "place": "hall", "noCheck": true, "event": "stair_open", "uses": 1 },
+    { "id": "reseal", "name": "銀の杭を打ち直す", "place": "crypt", "ability": "STR", "tier": "難しい", "event": "volk_sealed", "uses": 1 },
+    { "id": "break_cup", "name": "血の杯を砕く", "place": "crypt", "noCheck": true, "event": "cup_broken", "uses": 1 }
+  ],
+  "items": [
+    { "id": "holy_symbol", "name": "太陽神の聖印", "kind": "Trinket", "grade": "Fine", "ability": "MND", "at": "chapel", "note": "掲げれば伯爵を 1 手番止められる（1 戦闘 1 回）" },
+    { "id": "holy_water", "name": "聖水", "kind": "Consumable", "uses": 3, "at": "chapel", "note": "眠る娘の枕元に置けば、眠りの進みが遅れる" },
+    { "id": "stake", "name": "銀の杭", "kind": "Tool", "at": "graveyard", "note": "伯爵を封じていた杭。打ち直せば伯爵は眠る" },
+    { "id": "cup_item", "name": "血の杯", "kind": "Story", "at": "crypt", "note": "伯爵の力の源" },
+    { "id": "signet", "name": "ヴォルク家の指輪", "kind": "Treasure", "at": "study", "note": "杯を抱いた蝙蝠の紋章" }
+  ],
+  "people": [
+    { "id": "seraphina", "name": "司祭見習いセラフィナ", "portrait": "pt_priestess", "at": "village", "role": "依頼人", "attitude": "Friendly",
+      "voice": "丁寧だが張りつめた声。祈りの言葉を口癖のように挟む", "wants": "妹エマが目覚めること", "fears": "自分の祈りが届かないこと",
+      "joins": "Conditional", "joinWhen": { "person": "seraphina", "attitude": "Friendly" },
+      "joinNote": "礼拝堂まで同行する。古城には怖くて入れない", "build": "Weak", "combatRole": "Heal" },
+    { "id": "mia", "name": "村の子ミア", "portrait": "pt_child", "at": "village", "role": "眠る娘の妹", "attitude": "Friendly",
+      "voice": "小さな声で、見たままを話す", "wants": "姉が目覚めること", "fears": "赤い霧",
+      "clues": [ "c1_2", "c2_2" ], "joins": "Never", "build": "Weak" },
+    { "id": "emma", "name": "セラフィナの妹エマ", "portrait": "pt_youth_girl", "at": "village", "role": "眠り続ける娘", "attitude": "Friendly",
+      "voice": "眠ったまま、話せない", "wants": "目覚めること", "fears": "赤い霧", "joins": "Never", "build": "Weak" },
+    { "id": "gaspar", "name": "墓守ガスパール", "portrait": "pt_elder", "at": "graveyard", "role": "墓守", "attitude": "Wary",
+      "voice": "しわがれた声。目を合わせない", "wants": "娘の命", "fears": "自分の罪が知られること",
+      "secret": "伯爵を封じていた銀の杭を抜いた。伯爵が滅べば娘の病が戻ることも知っている",
+      "lie": "聞かれると「知らん」と嘘をつく。責めずに話を聞けば（友好以上）打ち明ける。信頼まで上がれば、伯爵の誘いを断る",
+      "joins": "Never", "build": "Weak" },
+    { "id": "gaspar_daughter", "name": "墓守の娘", "portrait": "pt_villager_woman", "at": "graveyard", "role": "病の娘", "attitude": "Friendly",
+      "voice": "か細いが、穏やか", "wants": "父と静かに暮らすこと", "fears": "病が戻ること", "joins": "Never", "build": "Weak" },
+    { "id": "volk", "name": "吸血の伯爵ヴォルク", "portrait": "", "at": "crypt", "role": "古城の主（ボス）", "attitude": "Hostile",
+      "voice": "古風で慇懃。冒険者を言葉で誘う（「血の杯を守れば、望みを一つ叶えよう」）", "wants": "昼の光を取り戻す", "fears": "太陽神の聖印",
+      "enemy": "vampire", "build": "Strong", "mastermind": true }
+  ],
+  "acts": [
+    { "n": 1, "title": "眠る娘たち", "goal": "村で娘たちを診て、眠りの原因を探る",
+      "advance": [ [ { "conviction": "c1" } ], [ { "conviction": "c2" } ], [ { "place": "chapel", "who": "any" } ], [ { "place": "hall", "who": "any" } ] ] },
+    { "n": 2, "title": "古城の大広間", "goal": "古城と礼拝堂を調べ、伯爵の秘密と霊廟への道を見つける",
+      "advance": [ [ { "place": "crypt", "who": "any" } ] ] },
+    { "n": 3, "title": "伯爵の霊廟", "goal": "伯爵と向き合い、娘たちを目覚めさせる" }
+  ],
+  "climax": {
+    "text": "霊廟の伯爵。黒い石棺の前で、伯爵ヴォルクが赤く満ちる杯を手に客人を迎える。",
+    "starts": [ [ { "place": "crypt", "who": "any" } ] ],
+    "onStart": [
+      { "person": "volk", "moveTo": "party", "text": "石棺の蓋がひとりでに滑り、黒衣の伯爵が音もなく立ち上がった。" },
+      { "enemies": [ "ghoul" ], "at": "party" }
+    ],
+    "solutions": [
+      { "id": "defeat", "text": "倒す: 伯爵と屍食鬼との戦いに勝つ（聖印を掲げれば伯爵を 1 手番止められる）",
+        "when": [ [ { "person": "volk", "is": "down" } ], [ { "person": "volk", "is": "dead" } ] ] },
+      { "id": "seal", "text": "封じ直す: 伯爵を棺に押し戻し、銀の杭を打ち直す",
+        "when": { "event": "volk_sealed" },
+        "then": [ { "person": "volk", "state": "Asleep", "text": "銀の杭が棺を貫き、伯爵は呪詛を吐きながら百年の眠りへ沈んでいった。" } ] },
+      { "id": "cup", "text": "杯を砕いて逃げる: 血の杯を砕けば娘たちは目覚める。伯爵は弱るが、残る",
+        "when": { "event": "cup_broken" },
+        "then": [ { "person": "volk", "state": "Retreated", "text": "砕けた杯から血が床へ流れ、伯爵は苦悶の声をあげて霧の中へ退いた。古城の灯りは、まだ消えない。" } ] }
+    ]
+  },
+  "choice": "伯爵を滅ぼせば、ガスパールの娘の病は戻り、そのうち命を落とす。封じ直すだけなら、娘はしばらく生きられる。ガスパールは泣いて「封じるだけにしてくれ」と頼む。",
+  "hooks": [ { "place": "hall", "role": "古城の客（前の晩に逃がした敵がいれば、伯爵に招かれた客として大広間にいる。いなければ置かない）" } ],
+  "endings": {
+    "success": "娘たちが目覚め、誰も失わなかった。滅ぼしたならガスパールの娘の行く末に影が落ち、封じたなら古城の灯りは消えるが、丘の上には眠る者が残る。",
+    "bitter": "娘たちは目覚めたが、エマか仲間を失った。",
+    "failure": "娘たちは目覚めなかった。"
+  }
+}

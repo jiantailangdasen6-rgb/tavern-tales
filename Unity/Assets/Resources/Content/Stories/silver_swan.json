@@ -1,0 +1,167 @@
+{
+  "_note": "Docs/scenarios/silver_swan.md written as a story sheet (Docs/09_Spec.md 9). Spoilers: friends playing this should not read it. Personal goals were added when writing it out.",
+  "id": "silver_swan",
+  "title": "銀の白鳥号の歌",
+  "kind": "難破船",
+  "length": "short",
+  "region": "wailing_shore",
+  "darkness": "中",
+  "start": "tavern",
+  "advance": 0,
+  "intro": "潮の匂いの染みた老水夫ハーランが、眠る竜亭の隅で杯を握りしめている。「嵐の夜、浜に古い帆船が打ち上げられた。船首には、五十年前に消えた銀の白鳥号の名だ。それから毎晩、沖から女の歌のような音がして、漁に出た船が戻らん」。報酬は銀貨 35 枚と、腕のいい船。",
+  "truth": "白鳥号の積み荷「海の真珠」は、深海の大蛇の心臓のかけら。五十年前、王家への献上品として真珠を奪った白鳥号は、大蛇に沈められた。嵐で船が打ち上げられると、網元ヴィクターが真珠を見つけ、海の洞窟に隠した。王都の商人に売るつもりでいる。大蛇は真珠を呼んで沖で歌い、嵐と波で村を脅かしている。戻らない漁師たちは、沖の岩場の洞に打ち上げられて、まだ生きている。真珠を海へ返せば、大蛇は鎮まる。",
+  "goal": {
+    "text": "沖の歌を止め、ソルトホロウの船が海へ出られるようにする",
+    "when": [ [ { "person": "serpent", "is": "down" } ], [ { "person": "serpent", "is": "dead" } ], [ { "event": "pearl_returned" } ] ]
+  },
+  "losses": [
+    { "id": "loss_fishers", "text": "戻らない漁師たちの命", "heavy": true, "when": { "person": "fishers", "is": "dead" } },
+    { "id": "loss_kyla", "text": "女傭兵カイラの命", "heavy": false, "when": { "person": "kyla", "is": "dead" } },
+    { "id": "loss_pearl", "text": "海の真珠", "heavy": false, "when": [ [ { "event": "pearl_returned" } ], [ { "event": "pearl_sold" } ] ] },
+    { "id": "loss_boat", "text": "老水夫ハーランの船", "heavy": false, "when": { "event": "boat_lost" } }
+  ],
+  "clocks": [
+    {
+      "id": "song", "name": "沖の歌", "secret": "大蛇の嵐", "segments": 6, "speed": "every", "every": 5,
+      "onFullKinds": [ "PlaceChanges", "NpcDies" ], "fullText": "大波が村を襲い、船が砕ける（ハーランの船を失う）。岩場の漁師たちが流される（★）",
+      "onFull": [ { "event": "boat_lost", "text": "沖の歌がひときわ高まり、大波が浜を呑んだ。ハーランの船は砕け、沖の岩場の漁師たちは波にさらわれた。" },
+                  { "person": "fishers", "state": "Dead" } ],
+      "rewinds": [ { "id": "light", "text": "灯台に火をともす", "amount": 2, "when": { "event": "lighthouse_lit" } } ]
+    },
+    {
+      "id": "buyer", "name": "真珠の買い手", "secret": "王都の船", "segments": 4, "speed": "every", "every": 8, "acts": [ 2, 3 ],
+      "onFullKinds": [ "NpcMoves" ], "fullText": "王都の商人の船が着き、ヴィクターが真珠を渡す（取り戻すには、沖で船を追うしかない）",
+      "onFull": [ { "event": "pearl_sold", "text": "王都の商人の船が入り江に錨を下ろし、ヴィクターが布にくるんだ何かを渡すのが見えた。" },
+                  { "item": "pearl", "moveTo": "village" } ],
+      "rewinds": [ { "id": "confront", "text": "ヴィクターを問い詰めて引き渡しを止める", "amount": 2, "when": { "event": "victor_stopped" } } ],
+      "visible": [ [ { "event": "clue:c2_1" } ], [ { "event": "clue:c2_2" } ], [ { "event": "clue:c2_3" } ] ]
+    }
+  ],
+  "conclusions": [
+    { "id": "c1", "text": "歌は、白鳥号の積み荷を呼んでいる", "rewardClock": "song", "clues": [ "c1_1", "c1_2", "c1_3" ] },
+    { "id": "c2", "text": "網元ヴィクターが、真珠を海の洞窟に隠している", "rewardClock": "buyer", "clues": [ "c2_1", "c2_2", "c2_3" ] },
+    { "id": "c3", "text": "真珠を海へ返せば、大蛇は鎮まる", "rewardClock": "song", "clues": [ "c3_1", "c3_2", "c3_3" ] },
+    { "id": "c4", "text": "大蛇は灯台の強い光を嫌う", "rewardClock": "song", "clues": [ "c4_1", "c4_2", "c4_3" ] }
+  ],
+  "clues": [
+    { "id": "c1_1", "conclusion": "c1", "text": "ハーラン「白鳥号は献上品の真珠を積んでいた。沈む前の晩も、あの歌が聞こえた」", "place": "village", "person": "harlan",
+      "how": "ハーランに昔を聞く", "get": { "type": "request", "size": "Small" } },
+    { "id": "c1_2", "conclusion": "c1", "text": "船長の航海日誌「真珠を積んで以来、海が鳴いている。あれは宝ではない」", "place": "hold",
+      "how": "船長室を調べる", "get": { "type": "free" } },
+    { "id": "c1_3", "conclusion": "c1", "text": "歌は、白鳥号が打ち上げられた夜から始まり、潮が満ちるほど強くなる", "place": "village",
+      "how": "漁師たちに話を聞く", "get": { "type": "free" } },
+    { "id": "c2_1", "conclusion": "c2", "text": "浜に、船から何かを引きずった跡が、海の洞窟の方へ続いている", "place": "beach",
+      "how": "浜を調べる", "get": { "type": "free" } },
+    { "id": "c2_2", "conclusion": "c2", "text": "船倉の献上品の箱は空で、こじ開けた跡は新しい", "place": "hold",
+      "how": "箱を調べる", "get": { "type": "free" } },
+    { "id": "c2_3", "conclusion": "c2", "text": "村の噂「網元の家に、夜中に重い箱を運び込んで、また運び出した」", "place": "village", "person": "wives",
+      "how": "噂を聞く（小さな頼み）", "get": { "type": "request", "size": "Small" } },
+    { "id": "c3_1", "conclusion": "c3", "text": "航海日誌の最後の頁「返すべきだ。海の底へ」", "place": "hold",
+      "how": "日誌を最後まで読む", "get": { "type": "check", "ability": "INT", "tier": "普通" } },
+    { "id": "c3_2", "conclusion": "c3", "text": "洞窟の真珠は、潮が満ちると脈打つように光る", "place": "cave",
+      "how": "真珠を見る", "get": { "type": "free" } },
+    { "id": "c3_3", "conclusion": "c3", "text": "灯台守の古い言い伝え「海から取ったものは、海へ」", "place": "lighthouse",
+      "how": "壁の刻みを読む", "get": { "type": "free" } },
+    { "id": "c4_1", "conclusion": "c4", "text": "灯台の上から、沖の岩場でとぐろを巻く巨大なものが、灯台のほうを避けているのが見える", "place": "lighthouse",
+      "how": "上から沖を見る", "get": { "type": "free" } },
+    { "id": "c4_2", "conclusion": "c4", "text": "ハーラン「灯台が灯っていたころは、こんなことはなかった」", "place": "village", "person": "harlan",
+      "how": "ハーランに灯台のことを聞く", "get": { "type": "request", "size": "Small" } },
+    { "id": "c4_3", "conclusion": "c4", "text": "船倉の溺れた屍は、ランタンを向けると後ずさる", "place": "hold",
+      "how": "戦いの中で気付く", "get": { "type": "check", "ability": "INT", "tier": "易しい" } }
+  ],
+  "fragments": [
+    "五十年前、王家に献上されるはずだった「青い宝」が届かなかった、という話を王都で聞いた。",
+    "ソルトホロウの網元は、近ごろ王都の商人と手紙をやりとりしているらしい。",
+    "船乗りの迷信: 歌う海には、光を向けよ。",
+    "白鳥号の見習い水夫で、ただ一人生き残った少年がいたという。"
+  ],
+  "personalGoals": [
+    { "id": "pg_pearl", "text": "城が買えるほどの真珠を手にする", "when": { "item": "pearl", "heldBy": "self" } },
+    { "id": "pg_fishers", "text": "戻らない漁師たちを、生きて浜へ連れ帰る", "when": { "person": "fishers", "is": "with_party" } },
+    { "id": "pg_harlan", "text": "白鳥号の船乗りたちを供養する（真珠を海へ返す）", "when": { "event": "pearl_returned" } },
+    { "id": "pg_kyla", "text": "腕の立つ傭兵カイラを味方につける", "when": { "person": "kyla", "attitude": "Friendly" } },
+    { "id": "pg_light", "text": "崖の灯台に、もう一度火をともす", "when": { "event": "lighthouse_lit" } }
+  ],
+  "places": [
+    { "id": "tavern", "name": "眠る竜亭", "art": "bg_tavern", "acts": [ 1 ], "shop": true,
+      "look": "拠点の酒場。炉端で老詩人が竪琴をつま弾く。", "links": [ "village" ] },
+    { "id": "village", "name": "漁村ソルトホロウ", "art": "bg_village", "acts": [ 1 ],
+      "look": "干されたままの網。浜に上げられたままの船。沖を見つめる女たち。", "links": [ "tavern", "beach", "lighthouse" ] },
+    { "id": "beach", "name": "嘆きの浜辺", "art": "bg_coast", "acts": [ 1 ],
+      "look": "傾いた古い帆船が砂に埋もれている。岩の上で怪鳥が羽を休めている。", "secret": "潮が引けば、沖の岩場まで岩伝いに渡れる。",
+      "links": [ "village", "hold", "cave", { "to": "reef", "text": "潮が引いた岩伝いに沖へ（ハーランの船でも行ける）" } ], "enemies": [ "harpy", "harpy" ] },
+    { "id": "hold", "name": "銀の白鳥号の船倉", "art": "bg_ship_hold", "acts": [ 2 ], "tense": true,
+      "look": "傾いた梁と、膝まで溜まった海水。壊れた木箱。", "secret": "船長室に航海日誌がある。",
+      "links": [ "beach" ], "enemies": [ "drowned", "drowned" ] },
+    { "id": "lighthouse", "name": "崖の灯台", "art": "bg_coast", "acts": [ 2 ],
+      "look": "火の消えた古い灯台。壁に古い刻みがある。", "secret": "油と火打ち石が残っていて、火をともせる。",
+      "links": [ "village" ] },
+    { "id": "cave", "name": "海の洞窟", "art": "bg_cave", "acts": [ 2 ],
+      "look": "潮で入口が隠れる洞窟。焚き火と、見張りの影。", "secret": "奥に、布にくるまれた青い真珠。",
+      "links": [ "beach" ], "enemies": [ "bandit" ] },
+    { "id": "reef", "name": "沖の岩場", "art": "bg_coast", "acts": [ 3 ],
+      "look": "潮が引いて現れた岩場。波間から鎌首をもたげる巨大な蛇。", "secret": "岩の洞に、戻らなかった漁師たちが身を寄せている。",
+      "links": [ "beach" ] }
+  ],
+  "mechanisms": [
+    { "id": "light", "name": "灯台の火", "place": "lighthouse", "ability": "DEX", "tier": "普通", "event": "lighthouse_lit", "uses": 1 },
+    { "id": "confront", "name": "ヴィクターを問い詰める", "place": "village", "ability": "MND", "tier": "普通", "event": "victor_stopped", "uses": 1 },
+    { "id": "return_pearl", "name": "真珠を海へ投げ返す", "place": "reef", "ability": "AGI", "tier": "普通", "event": "pearl_returned", "uses": 1 }
+  ],
+  "items": [
+    { "id": "pearl", "name": "海の真珠", "kind": "Treasure", "at": "cave", "note": "深海の大蛇の心臓のかけら。潮が満ちると脈打つように光る" },
+    { "id": "logbook", "name": "白鳥号の航海日誌", "kind": "Story", "at": "hold", "note": "最後の頁に「返すべきだ。海の底へ」" }
+  ],
+  "people": [
+    { "id": "harlan", "name": "老水夫ハーラン", "portrait": "pt_sailor", "at": "village", "role": "依頼人", "attitude": "Friendly",
+      "voice": "潮で嗄れた声。昔の船乗りの言い回し", "wants": "白鳥号の仲間の供養", "fears": "海",
+      "secret": "白鳥号のただ一人の生き残り", "lie": "聞かれるまで言わない",
+      "clues": [ "c1_1", "c4_2" ], "joins": "Conditional", "joinWhen": { "person": "harlan", "attitude": "Trusting" },
+      "joinNote": "船を出し、岩場まで運ぶ", "build": "Weak" },
+    { "id": "victor", "name": "網元ヴィクター", "portrait": "pt_noble", "at": "village", "role": "網元（真珠を隠した男）", "attitude": "Neutral",
+      "voice": "人当たりがよく、村の暮らしを語る", "wants": "村を豊かにする", "fears": "貧しさ",
+      "secret": "真珠を海の洞窟に隠し、王都の商人に売るつもり", "lie": "「歌は真珠と関係ない」と嘘をつく",
+      "joins": "Never", "build": "Weak", "mastermind": true },
+    { "id": "kyla", "name": "女傭兵カイラ", "portrait": "pt_mercenary", "at": "cave", "role": "洞窟の見張り", "attitude": "Wary",
+      "voice": "冷めた口ぶり。損得で話す", "wants": "割に合う仕事", "fears": "歌う海",
+      "secret": "手を引きたがっている", "joins": "Conditional", "joinWhen": { "person": "kyla", "attitude": "Friendly" },
+      "joinNote": "銀貨 10 枚で雇い直せる", "build": "Strong", "combatRole": "Attack" },
+    { "id": "wives", "name": "漁師の女房たち", "portrait": "pt_villager_woman", "at": "village", "role": "沖を見つめる村の女たち", "attitude": "Neutral",
+      "voice": "噂好きで、よそ者には少し口が重い", "wants": "夫が帰ること", "fears": "網元に睨まれること",
+      "clues": [ "c2_3" ], "joins": "Never", "build": "Weak" },
+    { "id": "fishers", "name": "戻らない漁師たち", "portrait": "pt_fisher", "at": "reef", "role": "沖の岩場に取り残された漁師", "attitude": "Friendly",
+      "voice": "疲れ果て、救いを求める", "wants": "浜へ帰る", "fears": "大蛇",
+      "joins": "Glad", "escort": true, "joinNote": "浜へ連れて帰る", "build": "Weak" },
+    { "id": "serpent", "name": "深海の大蛇", "portrait": "", "at": "reef", "role": "沖の主（ボス）", "attitude": "Hostile",
+      "voice": "言葉はない。海の底から響く歌", "wants": "心臓のかけらを取り戻す", "fears": "強い光",
+      "enemy": "sea_serpent", "build": "Strong" }
+  ],
+  "acts": [
+    { "n": 1, "title": "歌う海", "goal": "村と浜で話を聞き、歌の正体を探る",
+      "advance": [ [ { "conviction": "c1" } ], [ { "conviction": "c2" } ], [ { "place": "hold", "who": "any" } ] ] },
+    { "n": 2, "title": "白鳥号と洞窟", "goal": "白鳥号の秘密と真珠のありかを突き止める",
+      "advance": [ [ { "place": "reef", "who": "any" } ] ] },
+    { "n": 3, "title": "沖の岩場", "goal": "深海の大蛇と向き合い、歌を止める" }
+  ],
+  "climax": {
+    "text": "沖の岩場。潮の引いた岩場に、深海の大蛇が鎌首をもたげる。",
+    "starts": [ [ { "place": "reef", "who": "any" } ] ],
+    "onStart": [ { "person": "serpent", "moveTo": "party", "text": "波間が盛り上がり、深海の大蛇が鎌首をもたげて歌をやめた。" } ],
+    "solutions": [
+      { "id": "defeat", "text": "倒す: 大蛇との戦いに勝つ（灯台に火がともっていれば、大蛇の攻撃をかわしやすい）",
+        "when": [ [ { "person": "serpent", "is": "down" } ], [ { "person": "serpent", "is": "dead" } ] ] },
+      { "id": "return", "text": "真珠を返す: 大蛇の近くまで寄り、真珠を海へ投げ返す",
+        "when": { "event": "pearl_returned" },
+        "then": [ { "person": "serpent", "state": "Retreated", "text": "大蛇は真珠を飲み込み、歌をやめて深い海へ沈んでいった。" } ] },
+      { "id": "flee", "text": "漁師を連れて逃げる: 潮が満ちる前に浜へ戻る（歌は止まらない）",
+        "when": [ { "place": "beach" }, { "person": "fishers", "is": "with_party" } ] }
+    ]
+  },
+  "choice": "真珠は王都で城が買えるほどの値。ヴィクターは「三人で分けよう」と持ちかける。返せば海は鎮まるが、ソルトホロウは貧しいまま。",
+  "hooks": [ { "place": "cave", "role": "洞窟の見張り（前の晩に逃がした敵がいれば、カイラと並ぶ見張りとして置く。いなければ置かない）" } ],
+  "endings": {
+    "success": "歌が止み、漁師たちは戻り、誰も失わなかった。真珠を返したなら海は穏やかになり、倒したなら沖に大蛇の骨が残る。",
+    "bitter": "歌は止んだが、漁師か仲間を失った。",
+    "failure": "歌は今も続いている。"
+  }
+}

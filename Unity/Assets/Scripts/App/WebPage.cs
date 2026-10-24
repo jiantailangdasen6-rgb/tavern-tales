@@ -39,6 +39,9 @@ namespace Tavern.Unity.App
             return m.Success ? m.Groups[1].Value.ToUpperInvariant() : null;
         }
 
+        /// <summary>The page was opened with ?mute (automated checks in a browser): no sound at all.</summary>
+        public static bool MutedByUrl => IsBrowser && Regex.IsMatch(Application.absoluteURL ?? "", @"[?&]mute\b");
+
         /// <summary>Copies files written under persistentDataPath to the browser's storage, so they survive a reload.</summary>
         public static void Flush() { if (IsBrowser) TavernWeb_SyncFs(); }
 

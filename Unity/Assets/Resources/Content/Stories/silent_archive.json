@@ -1,0 +1,172 @@
+{
+  "_note": "Docs/scenarios/silent_archive.md written as a story sheet (Docs/09_Spec.md 9). Spoilers: friends playing this should not read it. Personal goals were added when writing it out.",
+  "id": "silent_archive",
+  "title": "沈黙の書庫",
+  "kind": "遺跡の探索",
+  "length": "short",
+  "region": "ruins",
+  "darkness": "中",
+  "start": "tavern",
+  "advance": 0,
+  "intro": "王都の学者マティアスが、地図と写本を抱えて眠る竜亭の卓に広げる。「古の都の神殿の床が崩れ、地下に書庫の入口が見つかった。魔導王国が最後に封じた『沈黙の書』があるはずだ。中を確かめたい。だが、銀枝会の連中も嗅ぎつけた。先を越されたくない」。報酬は銀貨 45 枚と、書庫で見つけた写本の写し。",
+  "truth": "沈黙の書は、読んだ者の言葉を吸い取り、その人が知っていることを書の中に移してしまう魔導書。魔導王国はこれで敵国の学者たちの知恵を奪い、最後には自分たちの言葉まで吸い尽くされて滅んだ。最後の司書オルテアは、書を封じるために書庫ごと眠りにつき、亡霊となって今も書を守っている。書庫の「静けさの掟」は、書が人の声を吸い寄せるのを防ぐためのもの。銀枝会の魔術師ヘルガは、書を使って王都の魔術師たちの知恵を奪い、学院の長になるつもりでいる。マティアスは純粋な学者だが、書を持ち帰れば名を上げられると、心が揺れている。",
+  "goal": {
+    "text": "銀枝会より先に書庫の奥へ着き、沈黙の書を確かめる（封じるか持ち帰るかは、着いてから決める）",
+    "when": [ [ { "event": "book_sealed" } ], [ { "item": "book", "heldBy": "party" } ], [ { "event": "helga_stopped" } ],
+              [ { "person": "orthea", "is": "down" } ], [ { "person": "orthea", "is": "dead" } ] ]
+  },
+  "losses": [
+    { "id": "loss_matthias", "text": "学者マティアスの命", "heavy": true, "when": { "person": "matthias", "is": "dead" } },
+    { "id": "loss_helga", "text": "銀枝会の魔術師ヘルガの命", "heavy": false, "when": { "person": "helga", "is": "dead" } },
+    { "id": "loss_book", "text": "沈黙の書", "heavy": false, "when": [ [ { "item": "book", "heldBy": "helga" } ], [ { "item": "book", "gone": true } ] ] }
+  ],
+  "clocks": [
+    {
+      "id": "waking", "name": "書庫の目覚め", "secret": "書が声を吸う", "segments": 6, "speed": "events", "acts": [ 2, 3 ],
+      "onFullKinds": [ "EnemiesAppear" ], "fullText": "司書の亡霊が目覚め、侵入者を「静かに」させに来る（山場が早まる）",
+      "onFull": [ { "climax": true, "text": "書架の奥で、無数の頁がいっせいにめくれる音がした。青白い司書の亡霊が、指を唇に当てて近づいてくる。" } ],
+      "rewinds": [ { "id": "bell", "text": "掟の鐘を鳴らさずに止める（1 回）", "amount": 2, "when": { "event": "bell_stopped" } } ],
+      "visible": { "event": "visited:archive_door" }
+    },
+    {
+      "id": "race", "name": "銀枝会の先回り", "secret": "ヘルガの到着", "segments": 6, "speed": "every", "every": 5,
+      "onFullKinds": [ "BossMoves" ], "fullText": "ヘルガが先に書の間に着き、書を開く（書が目覚め、ヘルガは言葉を失いかける）",
+      "onFull": [ { "person": "helga", "moveTo": "book_room", "text": "遠く地下の奥で、鎖のはじける音がした。誰かが先に、書の間へたどり着いたのだ。" },
+                  { "event": "helga_opened" } ],
+      "rewinds": [ { "id": "block", "text": "銀枝会の道を罠や崩れで塞ぐ（1 回）", "amount": 2, "when": { "event": "path_blocked" } } ]
+    }
+  ],
+  "conclusions": [
+    { "id": "c1", "text": "書庫の扉は、言葉ではなく「手振り」の合言葉で開く", "rewardClock": "waking", "clues": [ "c1_1", "c1_2", "c1_3" ] },
+    { "id": "c2", "text": "書庫で声を立てると、書が目覚める", "rewardClock": "waking", "clues": [ "c2_1", "c2_2", "c2_3" ] },
+    { "id": "c3", "text": "司書の亡霊は、書を封じるために書庫を守っている（敵ではない）", "rewardClock": "waking", "clues": [ "c3_1", "c3_2", "c3_3" ] },
+    { "id": "c4", "text": "沈黙の書は、読んだ者の言葉と知恵を吸い取る", "rewardClock": "race", "clues": [ "c4_1", "c4_2", "c4_3" ] }
+  ],
+  "clues": [
+    { "id": "c1_1", "conclusion": "c1", "text": "神殿の壁画: 口を閉じ、両手で本を開く仕草の司書たち", "place": "temple",
+      "how": "壁画を見る", "get": { "type": "free" } },
+    { "id": "c1_2", "conclusion": "c1", "text": "マティアスの写本「書庫の者は、声ではなく手で語った」", "place": "camp", "person": "matthias",
+      "how": "マティアスに写本を見せてもらう", "get": { "type": "request", "size": "Small" } },
+    { "id": "c1_3", "conclusion": "c1", "text": "扉の石に、手の形のくぼみが三つ（開く・閉じる・伏せる）", "place": "archive_door",
+      "how": "扉を調べる", "get": { "type": "check", "ability": "INT", "tier": "普通" } },
+    { "id": "c2_1", "conclusion": "c2", "text": "入口の碑「ここより先、言の葉を落とすなかれ」", "place": "archive_door",
+      "how": "碑を読む", "get": { "type": "free" } },
+    { "id": "c2_2", "conclusion": "c2", "text": "書架の間で、ひそひそ声が本に吸い込まれるように消える", "place": "shelves",
+      "how": "耳を澄ます", "get": { "type": "free" } },
+    { "id": "c2_3", "conclusion": "c2", "text": "先に入った盗掘者の亡骸。口を押さえたまま倒れている", "place": "shelves",
+      "how": "亡骸を調べる", "get": { "type": "free" } },
+    { "id": "c3_1", "conclusion": "c3", "text": "司書の机の日誌「書を閉ざすため、我はこの身を書庫に縛る」", "place": "librarian",
+      "how": "日誌を読む", "get": { "type": "check", "ability": "INT", "tier": "普通" } },
+    { "id": "c3_2", "conclusion": "c3", "text": "亡霊は、侵入者ではなく、声を立てた者だけを追う", "place": "shelves",
+      "how": "気付かれずに亡霊の動きを見る", "get": { "type": "check", "ability": "AGI", "tier": "普通" } },
+    { "id": "c3_3", "conclusion": "c3", "text": "司書の間の壁に刻まれた名「オルテア」と、手振りの祈り", "place": "librarian",
+      "how": "壁を調べる", "get": { "type": "free" } },
+    { "id": "c4_1", "conclusion": "c4", "text": "盗掘者の手帳。最後の頁に近づくほど、字がたどたどしくなり、最後は白紙", "place": "shelves",
+      "how": "亡骸の手帳を読む", "get": { "type": "free" } },
+    { "id": "c4_2", "conclusion": "c4", "text": "魔導王国の最後の碑文「我らは書に語り、書は我らを語らせなくなった」", "place": "temple",
+      "how": "碑文を読む", "get": { "type": "check", "ability": "INT", "tier": "難しい" } },
+    { "id": "c4_3", "conclusion": "c4", "text": "銀枝会の捕まった見習い「師匠は、あの本があれば学院の誰より賢くなれると」", "place": "hill", "person": "apprentice",
+      "how": "見習いを捕まえて問う", "get": { "type": "request", "size": "Normal" } }
+  ],
+  "fragments": [
+    "魔導王国は、戦ではなく「沈黙」によって滅んだ、という説がある。",
+    "銀枝会の魔術師ヘルガは、学院の長の座を狙っていると噂される。",
+    "古い司書たちは、口を使わない言葉を持っていたらしい。",
+    "遺跡の盗掘者の間で、「地下の本を読んだ男が、名前も言えなくなって帰ってきた」という話がある。"
+  ],
+  "personalGoals": [
+    { "id": "pg_fame", "text": "沈黙の書を持ち帰り、名を上げる", "when": { "item": "book", "heldBy": "self" } },
+    { "id": "pg_rest", "text": "最後の司書を、安らかに眠らせる", "when": { "event": "book_sealed" } },
+    { "id": "pg_matthias", "text": "学者マティアスを、生きて王都へ帰す", "when": { "person": "matthias", "is": "alive" } },
+    { "id": "pg_rival", "text": "銀枝会の企みを挫く", "when": [ [ { "event": "helga_stopped" } ], [ { "conviction": "c4" } ] ] }
+  ],
+  "places": [
+    { "id": "tavern", "name": "眠る竜亭", "art": "bg_tavern", "acts": [ 1 ], "shop": true,
+      "look": "拠点の酒場。炉端で老詩人が竪琴をつま弾く。", "links": [ "camp" ] },
+    { "id": "camp", "name": "遺跡の野営地", "art": "bg_camp", "acts": [ 1 ],
+      "look": "崩れた石壁の陰に張られた、マティアスの天幕。焚き火と写本の山。", "secret": "第 1 幕のうちに一度、ここで休める。",
+      "links": [ "tavern", "hill", "temple" ] },
+    { "id": "hill", "name": "遺跡の丘", "art": "bg_ruins", "acts": [ 1 ],
+      "look": "崩れた石の街並み。銀枝会の見習いがうろついている。", "links": [ "camp", "temple" ], "enemies": [ "animated_armor" ] },
+    { "id": "temple", "name": "崩れた神殿", "art": "bg_ruins_hall", "acts": [ 1 ],
+      "look": "傾いた柱と、色あせた壁画。床にぽっかりと大穴が開いている。", "secret": "大穴の下が書庫への道。崩れやすい梁がある。",
+      "links": [ "camp", "hill", "archive_door" ] },
+    { "id": "archive_door", "name": "書庫の扉", "art": "bg_ruins_hall", "acts": [ 2 ],
+      "look": "手の形のくぼみが三つ並ぶ石の扉。脇に古い碑。",
+      "rules": [ { "text": "書庫の中では、声を出す・呪文を唱えると書庫が目覚める", "clock": "waking", "amount": 1 } ],
+      "links": [ "temple", { "to": "shelves", "open": { "event": "door_open" }, "text": "手振りの合言葉で扉を開く" } ] },
+    { "id": "shelves", "name": "静寂の書架", "art": "bg_library", "acts": [ 2 ], "tense": true,
+      "look": "果てしなく続く書架。音のない暗がり。", "secret": "音を立てると大鼠の群れが集まる。奥に、掟の鐘。",
+      "rules": [ { "text": "声や物音を立てると、書庫が目覚める", "clock": "waking", "amount": 1 } ],
+      "links": [ "archive_door", "librarian", "book_room" ], "enemies": [ "giant_rat", "giant_rat", "giant_rat" ] },
+    { "id": "librarian", "name": "司書の間", "art": "bg_library", "acts": [ 2 ],
+      "look": "埃の積もった机と、壁に刻まれた名。",
+      "rules": [ { "text": "声を出すと、書庫が目覚める", "clock": "waking", "amount": 1 } ],
+      "links": [ "shelves" ] },
+    { "id": "book_room", "name": "書の間", "art": "bg_library", "acts": [ 3 ],
+      "look": "鎖で台に縛られた、黒い革の書。空気が音を吸い込むように静かだ。",
+      "rules": [ { "text": "書の間では声を出せない。宣言は動きと手振りだけ", "clock": "waking", "amount": 1 } ],
+      "links": [ "shelves" ] }
+  ],
+  "mechanisms": [
+    { "id": "gesture_door", "name": "手振りの合言葉", "place": "archive_door", "noCheck": true, "event": "door_open", "uses": 0 },
+    { "id": "silence_bell", "name": "掟の鐘を鳴らさずに止める", "place": "shelves", "ability": "DEX", "tier": "普通", "event": "bell_stopped", "uses": 1 },
+    { "id": "block_path", "name": "銀枝会の道を崩れで塞ぐ", "place": "temple", "ability": "STR", "tier": "普通", "event": "path_blocked", "uses": 1 },
+    { "id": "seal_book", "name": "司書の祈りをまね、書を鎖で閉じる", "place": "book_room", "ability": "MND", "tier": "普通", "event": "book_sealed", "uses": 1 },
+    { "id": "wrap_book", "name": "書を布で包んで持ち出す", "place": "book_room", "ability": "DEX", "tier": "難しい", "event": "book_taken", "uses": 1 },
+    { "id": "pull_helga", "name": "ヘルガを書から引き剥がす", "place": "book_room", "ability": "STR", "tier": "普通", "event": "helga_stopped", "uses": 1 }
+  ],
+  "items": [
+    { "id": "book", "name": "沈黙の書", "kind": "Story", "at": "book_room", "note": "読んだ者の言葉と知恵を吸い取る魔導書" },
+    { "id": "notebook", "name": "盗掘者の手帳", "kind": "Story", "at": "shelves", "note": "最後の頁に近づくほど字がたどたどしくなる" },
+    { "id": "manuscript", "name": "マティアスの写本", "kind": "Story", "at": "npc:matthias", "note": "書庫の者は声ではなく手で語った、とある" }
+  ],
+  "people": [
+    { "id": "matthias", "name": "学者マティアス", "portrait": "pt_scholar", "at": "camp", "role": "依頼人", "attitude": "Friendly",
+      "voice": "早口で熱っぽい。遺跡の話になると止まらない", "wants": "書を確かめる", "fears": "名もなく終わること",
+      "secret": "本心では書を持ち帰りたい", "lie": "聞かれると「確かめるだけだ」と言う",
+      "clues": [ "c1_2" ], "joins": "Glad", "joinNote": "書庫まで付いてくる", "build": "Weak" },
+    { "id": "helga", "name": "銀枝会の魔術師ヘルガ", "portrait": "pt_witch", "at": "hill", "role": "競い合う魔術師", "attitude": "Wary",
+      "voice": "冷ややかで高慢。凡庸な者を見下す", "wants": "学院の長の座", "fears": "凡庸",
+      "secret": "書で他人の知恵を奪うつもり", "joins": "Conditional", "joinWhen": { "person": "helga", "attitude": "Trusting" },
+      "joinNote": "信頼すれば手を組む。ただし書を見たら奪おうとする（信頼なら奪わない）",
+      "betrays": [ { "place": "book_room", "who": "any" }, { "person": "helga", "attitude": "Trusting", "not": true } ],
+      "build": "Strong", "combatRole": "Attack" },
+    { "id": "apprentice", "name": "銀枝会の見習い", "portrait": "pt_youth", "at": "hill", "role": "ヘルガの弟子", "attitude": "Wary",
+      "voice": "虚勢を張るが、すぐに怯える", "wants": "師匠に認められる", "fears": "師匠",
+      "clues": [ "c4_3" ], "joins": "Never", "build": "Weak" },
+    { "id": "orthea", "name": "司書の亡霊オルテア", "portrait": "", "at": "book_room", "role": "最後の司書（書の守り手）", "attitude": "Neutral",
+      "voice": "言葉はない。手振りと、頁をめくる音", "wants": "書を眠らせる", "fears": "声",
+      "enemy": "wraith", "joins": "Never", "build": "Strong" }
+  ],
+  "acts": [
+    { "n": 1, "title": "古の都", "goal": "遺跡で書庫の掟を調べ、入口を見つける",
+      "advance": [ [ { "conviction": "c1" } ], [ { "place": "archive_door", "who": "any" } ] ] },
+    { "n": 2, "title": "静寂の書架", "goal": "音を立てずに書庫を進み、書の間を目指す",
+      "advance": [ [ { "place": "book_room", "who": "any" } ] ] },
+    { "n": 3, "title": "書の間", "goal": "沈黙の書をどうするか決め、書庫を出る" }
+  ],
+  "climax": {
+    "text": "書の間。声の出せない部屋で、鎖に縛られた黒い書と、その守り手の亡霊が待つ。",
+    "starts": [ [ { "place": "book_room", "who": "any" } ] ],
+    "onStart": [ { "text": "書の間に入ると、音がすべて消えた。台の上の黒い書の前に、青白い司書の亡霊が静かに立っている。" } ],
+    "solutions": [
+      { "id": "reseal", "text": "封じ直す: 司書の手振りの祈りをまね、オルテアと共に書を鎖で閉じる",
+        "when": { "event": "book_sealed" },
+        "then": [ { "person": "orthea", "state": "Retreated", "text": "書の鎖が閉じると、オルテアは深く一礼し、安らかに光の中へ消えていった。" } ] },
+      { "id": "take", "text": "持ち帰る: 書を布で包んで持ち出す（失敗すると書が開き、触れた者が言葉を少し失う）",
+        "when": [ [ { "event": "book_taken" } ], [ { "item": "book", "heldBy": "party" } ] ] },
+      { "id": "fight", "text": "戦う: オルテアを倒す（声を出すと書が目覚めて、亡霊が強くなる）",
+        "when": [ [ { "person": "orthea", "is": "down" } ], [ { "person": "orthea", "is": "dead" } ] ] },
+      { "id": "stop_helga", "text": "ヘルガを止める: 先に書を開いたヘルガを、書から引き剥がす",
+        "when": { "event": "helga_stopped" } }
+    ]
+  },
+  "choice": "持ち帰れば、マティアスの研究は進み、王都の学院が書を管理する（はず）。封じれば、書のことは誰も知らないまま。マティアスは「せめて写しだけでも」と頼む。写しを取ると、写した者が言葉を一つ失う。",
+  "hooks": [ { "place": "hill", "role": "銀枝会の雇い人（前の晩に逃がした敵がいれば、ヘルガの護衛として遺跡にいる。いなければ置かない）" } ],
+  "endings": {
+    "success": "銀枝会より先に書を確かめ、誰も失わなかった。封じたならオルテアは眠り、持ち帰ったなら王都に新しい噂が立つ。",
+    "bitter": "書は確かめたが、マティアスか仲間を失った。",
+    "failure": "書は銀枝会の手に渡った。"
+  }
+}

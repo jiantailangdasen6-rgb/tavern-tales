@@ -65,7 +65,7 @@ namespace Tavern.Core.Story
             Range("結論", s.Conclusions.Count, 3, 6);
             Range("ハンドアウト用の断片", s.Fragments.Count, 2, 6);
             if (s.PersonalGoals.Count < 2) W($"個人の目的の候補が {s.PersonalGoals.Count}（2 つ以上あると配りやすい）");
-            Range("山場の解き方", s.Climax.Solutions.Count, 2, 3);
+            Range("山場の解き方", s.Climax.Solutions.Count, 2, 4);   // the archive and the fort were written with four
             void Range(string what, int n, int min, int max) { if (n < min || n > max) E($"{what}の数が {n}（{min}〜{max}）"); }
 
             // ---- conclusions and clues

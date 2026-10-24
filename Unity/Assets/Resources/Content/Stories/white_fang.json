@@ -1,0 +1,166 @@
+{
+  "_note": "Docs/scenarios/white_fang.md written as a story sheet (Docs/09_Spec.md 9). Spoilers: friends playing this should not read it. Personal goals were added when writing it out (the draft had none).",
+  "id": "white_fang",
+  "title": "白牙の峰の竜",
+  "kind": "魔物の討伐",
+  "length": "short",
+  "region": "whitefang",
+  "darkness": "中",
+  "start": "tavern",
+  "advance": 0,
+  "intro": "アイアンフォードの鍛冶屋ボルグが、煤けた手で眠る竜亭の扉を押し開ける。「峰の飛竜が村まで下りてくる。羊がさらわれ、炭焼きのペテルが戻らん。竜を討つか、追い払ってくれ」。報酬は銀貨 40 枚と、望む武器を一つ打つこと。",
+  "truth": "鉱山主ダリオは、廃坑の奥の割れ目から峰の巣へ抜けられることを知り、飛竜の巣から卵を一つ盗み出した。卵は王都の好事家に金貨 500 枚で売る約束。卵は廃坑の隠し部屋で、手下に見張らせている。飛竜は卵の匂いを追って麓へ下り、廃坑の上を回っては村を襲う。卵を巣へ返せば、飛竜は戦わずに峰へ戻る。卵は温めておかないと、あと一日ほどで死ぬ。",
+  "goal": {
+    "text": "この冬、飛竜が村を襲わないようにする",
+    "when": [ [ { "person": "wyvern", "is": "down" } ], [ { "person": "wyvern", "is": "dead" } ], [ { "person": "wyvern", "is": "retreated" } ] ]
+  },
+  "losses": [
+    { "id": "loss_peter", "text": "炭焼きペテルの命", "heavy": true, "when": { "person": "peter", "is": "dead" } },
+    { "id": "loss_village", "text": "村の誰かの命", "heavy": true, "when": { "event": "village_burned" } },
+    { "id": "loss_egg", "text": "飛竜の卵", "heavy": false, "when": [ [ { "event": "egg_dead" } ], [ { "item": "egg", "heldBy": "party" } ] ] },
+    { "id": "loss_wyvern", "text": "飛竜の命", "heavy": false, "when": { "person": "wyvern", "is": "dead" } }
+  ],
+  "clocks": [
+    {
+      "id": "wrath", "name": "竜の怒り", "secret": "竜が村を焼く", "segments": 6, "speed": "every", "every": 5,
+      "onFullKinds": [ "NpcDies" ], "fullText": "飛竜が村に下り、家が焼かれる（村の誰かが死ぬ ★）",
+      "onFull": [ { "event": "village_burned", "text": "飛竜が村へ舞い降り、廃坑に近い家々が炎に包まれた。逃げ遅れた村人が一人、帰らなかった。" } ],
+      "rewinds": [ { "id": "lure", "text": "竜に卵の匂いをかがせて村から引き離す（卵を持って村を離れる）", "amount": 2,
+        "when": [ { "item": "egg", "heldBy": "party" }, { "place": "village", "not": true } ] } ]
+    },
+    {
+      "id": "warmth", "name": "卵のぬくもり", "secret": "卵の死", "segments": 4, "speed": "every", "every": 8, "acts": [ 2, 3 ],
+      "onFullKinds": [ "NpcDies" ], "fullText": "卵が死ぬ（和解の道が閉じる）",
+      "onFull": [ { "event": "egg_dead", "text": "卵の中の小さな動きが、ふっと止まった。冷えきった殻は、もう二度と温まらない。" } ],
+      "rewinds": [ { "id": "warm", "text": "卵を毛皮でくるむ・火のそばで温める（1 回）", "amount": 1, "when": { "event": "egg_warmed" } } ],
+      "visible": [ [ { "event": "clue:c3_3" } ], [ { "event": "visited:hideout" } ] ]
+    }
+  ],
+  "conclusions": [
+    { "id": "c1", "text": "竜は何かを探して、廃坑の上を回っている", "rewardClock": "wrath", "clues": [ "c1_1", "c1_2", "c1_3" ] },
+    { "id": "c2", "text": "鉱山主ダリオが、竜の卵を盗んで廃坑に隠している", "rewardClock": "wrath", "clues": [ "c2_1", "c2_2", "c2_3" ] },
+    { "id": "c3", "text": "卵を巣へ返せば、竜は戦いをやめる", "rewardClock": "warmth", "clues": [ "c3_1", "c3_2", "c3_3" ] },
+    { "id": "c4", "text": "竜は翼の付け根が弱い", "rewardClock": "wrath", "clues": [ "c4_1", "c4_2", "c4_3" ] }
+  ],
+  "clues": [
+    { "id": "c1_1", "conclusion": "c1", "text": "羊飼いの娘アンナ「竜は羊を食べもしないで、廃坑の上をぐるぐる回ってた」", "place": "village", "person": "anna",
+      "how": "アンナに話を聞く", "get": { "type": "request", "size": "Small" } },
+    { "id": "c1_2", "conclusion": "c1", "text": "屋根の爪痕は、廃坑に近い家ほど多い", "place": "village",
+      "how": "家々を調べる", "get": { "type": "free" } },
+    { "id": "c1_3", "conclusion": "c1", "text": "雪の森の竜の足跡は、獲物を追わずに廃坑の方角へまっすぐ向かっている", "place": "snow_forest",
+      "how": "足跡をたどる", "get": { "type": "check", "ability": "INT", "tier": "普通" } },
+    { "id": "c2_1", "conclusion": "c2", "text": "炭焼きペテル「廃坑の入口で、ダリオの手下が藁を詰めた大箱を運び込むのを見た」", "place": "snow_forest", "person": "peter",
+      "how": "倒木の洞で凍えるペテルを助け、話を聞く", "get": { "type": "free" } },
+    { "id": "c2_2", "conclusion": "c2", "text": "ダリオは竜退治に妙に気前がいいが、廃坑には「崩れて危ない」と近づかせない", "place": "village", "person": "dario",
+      "how": "ダリオと話して、動揺に気付く", "get": { "type": "check", "ability": "MND", "tier": "普通" } },
+    { "id": "c2_3", "conclusion": "c2", "text": "ダリオの帳簿「王都の好事家へ、白き品一つ、金貨 500 枚」", "place": "hideout",
+      "how": "木箱を調べる", "get": { "type": "free" } },
+    { "id": "c3_1", "conclusion": "c3", "text": "ボルグの祖父の昔話「白牙の竜は子を奪われると山を下りる。子が戻れば峰へ帰る」", "place": "village", "person": "borg",
+      "how": "ボルグに昔話を聞く（友好以上）", "get": { "type": "request", "size": "Small" }, "requires": { "person": "borg", "attitude": "Friendly" } },
+    { "id": "c3_2", "conclusion": "c3", "text": "巣の近くの岩に、空の卵のくぼみが一つだけある", "place": "pass",
+      "how": "崖の上から巣を見る", "get": { "type": "free" } },
+    { "id": "c3_3", "conclusion": "c3", "text": "隠し部屋の卵は、まだ温かく、中で何かが動いている", "place": "hideout",
+      "how": "卵を見る", "get": { "type": "free" } },
+    { "id": "c4_1", "conclusion": "c4", "text": "ボルグの特製の銛（一本だけ）。「翼の付け根を射抜けば、二度と飛べん」", "place": "village", "person": "borg",
+      "how": "ボルグの鍛冶場で話す（友好以上で銛を貸す）", "get": { "type": "request", "size": "Normal" }, "requires": { "person": "borg", "attitude": "Friendly" } },
+    { "id": "c4_2", "conclusion": "c4", "text": "雪の森で見つかる、竜の古い鱗。付け根の部分だけが薄い", "place": "snow_forest",
+      "how": "周りを調べる", "get": { "type": "free" } },
+    { "id": "c4_3", "conclusion": "c4", "text": "峠の吊り橋の綱に、昔の竜狩りの刻み「翼の根を狙え」", "place": "pass",
+      "how": "吊り橋を調べる", "get": { "type": "free" } }
+  ],
+  "fragments": [
+    "王都の市場で、「白い大きな石」を高値で探している好事家がいると聞いた。",
+    "白牙の峰の竜は、生涯に一つしか卵を産まないという。",
+    "アイアンフォードの廃坑は、二十年前に「奥が峰の上に抜けている」と噂されて閉じられた。",
+    "竜の怒りは、子の匂いでしか鎮まらない、という古い歌がある。"
+  ],
+  "personalGoals": [
+    { "id": "pg_fortune", "text": "金貨 500 枚の品を手にする（卵を持ち帰る）", "when": { "item": "egg", "heldBy": "self" } },
+    { "id": "pg_peter", "text": "炭焼きペテルを生きて村へ帰す", "when": { "person": "peter", "is": "alive" } },
+    { "id": "pg_mother", "text": "竜の親子を、もう一度会わせる", "when": { "event": "egg_returned" } },
+    { "id": "pg_truth", "text": "竜が山を下りた本当の理由を突き止める", "when": { "conviction": "c2" } },
+    { "id": "pg_hunt", "text": "白牙の竜を、自分たちの手で討ち取る", "when": [ [ { "person": "wyvern", "is": "down" } ], [ { "person": "wyvern", "is": "dead" } ] ] }
+  ],
+  "places": [
+    { "id": "tavern", "name": "眠る竜亭", "art": "bg_tavern", "acts": [ 1 ], "shop": true,
+      "look": "拠点の酒場。炉端で老詩人が竪琴をつま弾く。", "links": [ "village" ] },
+    { "id": "village", "name": "鍛冶の村アイアンフォード", "art": "bg_village", "acts": [ 1 ], "shop": true,
+      "look": "鉄を打つ音が響く山あいの村。屋根には生々しい爪痕。暗い顔の村人たち。", "links": [ "tavern", "snow_forest" ] },
+    { "id": "snow_forest", "name": "白牙の雪の森", "art": "bg_snow_forest", "acts": [ 1 ],
+      "look": "膝まで埋まる深い雪。巨大な足跡が森を横切っている。", "secret": "倒木の洞で、炭焼きのペテルが凍えかけている。",
+      "links": [ "village", "mine" ], "enemies": [ "dire_bear" ] },
+    { "id": "mine", "name": "廃坑の坑道", "art": "bg_mine", "acts": [ 2 ], "tense": true,
+      "look": "閉じたはずの坑道に、新しいランタンと見張りの影。", "secret": "奥の板壁の向こうに隠し部屋がある。",
+      "links": [ "snow_forest", { "to": "hideout", "open": { "event": "hideout_open" }, "text": "奥の板壁を破るか、外す" }, "pass" ],
+      "enemies": [ "bandit", "bandit" ] },
+    { "id": "hideout", "name": "廃坑の隠し部屋", "art": "bg_cave", "acts": [ 2 ],
+      "look": "木箱と藁。その真ん中に、白く大きな卵。", "secret": "卵は重い。抱えて運ぶ者は身のこなしの判定が 1 段難しい。奥の割れ目は峰の巣へ抜けている。",
+      "links": [ "mine", { "to": "nest", "text": "奥の割れ目を這い上がる" } ] },
+    { "id": "pass", "name": "風の峠", "art": "bg_mountain", "acts": [ 2 ],
+      "look": "谷に渡された吊り橋。崖の上で嵐の怪鳥が鳴いている。", "links": [ "mine", "nest" ], "enemies": [ "harpy", "harpy" ] },
+    { "id": "nest", "name": "白牙の峰の巣", "art": "bg_mountain", "acts": [ 3 ],
+      "look": "雪の峰の上の巨大な巣。翼を広げる白い飛竜。", "secret": "巣の岩に、空の卵のくぼみが一つ。",
+      "links": [ "pass", "hideout" ] }
+  ],
+  "mechanisms": [
+    { "id": "wall_break", "name": "隠し部屋の板壁（打ち破る）", "place": "mine", "ability": "STR", "tier": "普通", "event": "hideout_open", "uses": 1 },
+    { "id": "wall_pick", "name": "隠し部屋の板壁（そっと外す）", "place": "mine", "ability": "DEX", "tier": "普通", "event": "hideout_open", "uses": 1 },
+    { "id": "warm_egg", "name": "卵をくるんで温める", "place": "hideout", "noCheck": true, "event": "egg_warmed", "uses": 1 },
+    { "id": "lure", "name": "卵を見せながら竜を遠ざける", "place": "nest", "ability": "AGI", "tier": "難しい", "event": "dragon_lured", "uses": 1 }
+  ],
+  "items": [
+    { "id": "egg", "name": "白い竜の卵", "kind": "Treasure", "at": "hideout", "note": "王都の好事家に金貨 500 枚で売る約束の品。温めないと死ぬ" },
+    { "id": "harpoon", "name": "ボルグの特製の銛", "kind": "Weapon", "weapon": "Spear", "grade": "Masterwork", "trait": "Thrown", "uses": 1,
+      "at": "npc:borg", "note": "一本だけ。翼の付け根を射抜けば、飛竜の急降下を封じられる" },
+    { "id": "ledger", "name": "ダリオの帳簿", "kind": "Story", "at": "hideout", "note": "王都の好事家との取り引きが書かれている" }
+  ],
+  "people": [
+    { "id": "borg", "name": "鍛冶屋ボルグ", "portrait": "pt_blacksmith", "at": "village", "role": "依頼人", "attitude": "Friendly",
+      "voice": "無骨で短い言葉。火と鉄の話になると饒舌", "wants": "村を守る", "fears": "炉の火が消えること",
+      "clues": [ "c3_1", "c4_1" ], "joins": "Conditional", "joinWhen": { "person": "borg", "attitude": "Trusting" },
+      "joinNote": "信頼すれば峠まで同行する", "build": "Strong", "combatRole": "Attack" },
+    { "id": "dario", "name": "鉱山主ダリオ", "portrait": "pt_merchant", "at": "village", "role": "鉱山主（黒幕）", "attitude": "Neutral",
+      "voice": "愛想がよく、金の話には気前がいい", "wants": "金", "fears": "卵のことが知られること",
+      "secret": "竜の卵を盗み、廃坑の隠し部屋に隠している", "lie": "「廃坑は崩れて危ない」と近づかせない。脅されると手下をけしかける",
+      "clues": [ "c2_2" ], "joins": "Never", "build": "Weak", "mastermind": true },
+    { "id": "anna", "name": "羊飼いの娘アンナ", "portrait": "pt_youth_girl", "at": "village", "role": "羊を失った娘", "attitude": "Friendly",
+      "voice": "おずおずと、でもはっきり見たことを話す", "wants": "さらわれた子羊", "fears": "竜",
+      "clues": [ "c1_1" ], "joins": "Never", "build": "Weak" },
+    { "id": "peter", "name": "炭焼きペテル", "portrait": "pt_fisher", "at": "snow_forest", "role": "行方知れずの炭焼き", "attitude": "Friendly",
+      "voice": "歯の根も合わないほど震えている。助けられると涙ぐむ", "wants": "家に帰る", "fears": "寒さ",
+      "clues": [ "c2_1" ], "joins": "Glad", "joinNote": "村まで一緒に帰る", "escort": true, "build": "Weak" },
+    { "id": "wyvern", "name": "白牙の飛竜", "portrait": "", "at": "nest", "role": "峰の主（ボス）", "attitude": "Hostile",
+      "voice": "言葉はない。地を揺らす咆哮", "wants": "子を取り戻す", "fears": "子を失うこと",
+      "enemy": "wyvern", "build": "Strong" }
+  ],
+  "acts": [
+    { "n": 1, "title": "爪痕の村", "goal": "村で話を聞き、竜が下りてくるわけを探る",
+      "advance": [ [ { "conviction": "c1" } ], [ { "conviction": "c2" } ], [ { "place": "mine", "who": "any" } ] ] },
+    { "n": 2, "title": "廃坑と峠", "goal": "廃坑の秘密を暴き、峰の巣への道を見つける",
+      "advance": [ [ { "place": "nest", "who": "any" } ] ] },
+    { "n": 3, "title": "峰の巣", "goal": "白牙の飛竜と向き合い、村を守る" }
+  ],
+  "climax": {
+    "text": "峰の巣。翼を広げた白牙の飛竜が、侵入者に向かって咆哮する。",
+    "starts": [ [ { "place": "nest", "who": "any" } ] ],
+    "onStart": [ { "person": "wyvern", "moveTo": "party", "text": "白牙の飛竜が翼を広げ、雪煙を巻き上げて一行の前に降り立った。" } ],
+    "solutions": [
+      { "id": "defeat", "text": "倒す: 飛竜との戦いに勝つ（銛で翼の付け根を射抜けば、急降下を封じられる）",
+        "when": [ [ { "person": "wyvern", "is": "down" } ], [ { "person": "wyvern", "is": "dead" } ] ] },
+      { "id": "return", "text": "卵を返す: 生きている卵を巣に置く",
+        "when": [ { "item": "egg", "at": "nest" }, { "event": "egg_dead", "not": true } ],
+        "then": [ { "event": "egg_returned" },
+                  { "person": "wyvern", "state": "Retreated", "text": "飛竜は一声鳴いて卵を抱き、翼を広げて峰の向こうへ去っていった。" } ] },
+      { "id": "drive", "text": "追い払う: 卵を見せながら少しずつ下がり、竜を村から遠ざける",
+        "when": { "event": "dragon_lured" },
+        "then": [ { "person": "wyvern", "state": "Retreated", "text": "飛竜は卵の匂いを追って峰の奥へ引き下がった。この冬はもう来ないだろう。だが子が戻らなければ、来年また山を下りる。" } ] }
+    ]
+  },
+  "choice": "卵は金貨 500 枚。ダリオは「山分けしよう、半分やる」と持ちかける。売れば村の借金も消えるが、竜は戻らない子を探して、来年も山を下りる。",
+  "hooks": [ { "place": "mine", "role": "ダリオの雇った用心棒（前の晩に逃がした敵がいれば、坑道の見張り頭として置く。いなければ置かない）" } ],
+  "endings": {
+    "success": "竜は村を襲わなくなり、誰も失わなかった。卵を返したなら峰から子竜の声が聞こえ、倒したなら村には竜の牙が飾られる。",
+    "bitter": "竜は去ったが、ペテルか村人か仲間を失った。",
+    "failure": "竜は今も村を襲う。"
+  }
+}

@@ -1,0 +1,166 @@
+{
+  "_note": "Docs/scenarios/witch_bargain.md written as a story sheet (Docs/09_Spec.md 9). Spoilers: friends playing this should not read it. Personal goals, the steward's servant and the sick child were added when writing it out.",
+  "id": "witch_bargain",
+  "title": "黒沼の魔女との取引",
+  "kind": "取引・呪い",
+  "length": "short",
+  "region": "blackmire",
+  "darkness": "深い",
+  "start": "tavern",
+  "advance": 0,
+  "intro": "黒沼の縁の村ブラックウォーターから、村長の妻アグネスが眠る竜亭を訪ねてくる。「春が来ないのです。村だけ霜が解けず、作物も芽を出さない。子どもたちが咳をしはじめました。代官さまは取り合ってくださらない」。報酬は銀貨 30 枚と、村の蜂蜜酒。",
+  "truth": "辺境伯の甥レオポルドは、半年前に黒沼の魔女イゼルダと取引をした。望みは「伯父より長く生き、辺境伯の座に就くこと」。代価として差し出したのは、ブラックウォーターの「春」。レオポルドは、自分の領地の小さな村の季節など、取るに足りないと思っていた。取引は魔女の帳面の一頁に、二人の血で書かれている。頁を焼けば取引は破れ、代価は差し出した者に返る。つまり、奪われた春の重さが、レオポルドの体に返る（急に老いる）。魔女は悪ではない。沼の掟に従って取引をするだけで、新しい取引にはいつでも応じる。ただし、代価は必ず取る。",
+  "goal": {
+    "text": "ブラックウォーターに春を取り戻す",
+    "when": [ [ { "event": "page_burned" } ], [ { "event": "new_bargain" } ], [ { "event": "paid_mark" } ],
+              [ { "person": "izelda", "is": "down" } ], [ { "person": "izelda", "is": "dead" } ] ]
+  },
+  "losses": [
+    { "id": "loss_child", "text": "村の子どもの命", "heavy": true, "when": { "person": "child", "is": "dead" } },
+    { "id": "loss_mark", "text": "歴戦の印（新しい取引の代価にしたとき）", "heavy": true, "when": { "event": "paid_mark" } },
+    { "id": "loss_leopold", "text": "辺境伯の甥レオポルドの命", "heavy": false, "when": { "event": "page_burned" } },
+    { "id": "loss_izelda", "text": "魔女イゼルダの命", "heavy": false, "when": [ [ { "person": "izelda", "is": "down" } ], [ { "person": "izelda", "is": "dead" } ] ] }
+  ],
+  "clocks": [
+    {
+      "id": "winter", "name": "終わらない冬", "secret": "子どもの命", "segments": 6, "speed": "every", "every": 5,
+      "onFullKinds": [ "NpcDies" ], "fullText": "村の子どもが一人、冬を越せない（★）",
+      "onFull": [ { "person": "child", "state": "Dead", "text": "霜の朝、咳の止まらなかった小さな子が、二度と目を覚まさなかった。" } ],
+      "rewinds": [ { "id": "supplies", "text": "村に薪と薬草を運ぶ（2 回まで）", "amount": 1, "when": { "event": "supplies_delivered" } } ]
+    },
+    {
+      "id": "whim", "name": "魔女の気まぐれ", "secret": "魔女の関心", "segments": 4, "speed": "events", "acts": [ 2, 3 ],
+      "onFullKinds": [ "PlaceChanges" ], "fullText": "魔女が話をやめ、取引の道が閉じる（倒すか、頁を焼くしかない）",
+      "onFull": [ { "event": "witch_silent", "text": "魔女は退屈そうに欠伸をして、もう誰とも口をきかなくなった。" } ],
+      "rewinds": [ { "id": "gift", "text": "魔女の望む贈り物をする（1 回）", "amount": 1, "when": { "event": "witch_gift" } } ],
+      "visible": { "event": "visited:hut" }
+    }
+  ],
+  "conclusions": [
+    { "id": "c1", "text": "村の冬は、誰かが魔女と結んだ取引の代価だ", "rewardClock": "winter", "clues": [ "c1_1", "c1_2", "c1_3" ] },
+    { "id": "c2", "text": "取引をしたのは、辺境伯の甥レオポルドだ", "rewardClock": "whim", "clues": [ "c2_1", "c2_2", "c2_3" ] },
+    { "id": "c3", "text": "帳面の頁を焼けば、取引は破れ、代価は差し出した者に返る", "rewardClock": "winter", "clues": [ "c3_1", "c3_2", "c3_3" ] },
+    { "id": "c4", "text": "魔女は、望むものを差し出せば、新しい取引に応じる", "rewardClock": "whim", "clues": [ "c4_1", "c4_2", "c4_3" ] }
+  ],
+  "clues": [
+    { "id": "c1_1", "conclusion": "c1", "text": "村の境の杭に、魔女の印（蛙の骨を結んだ紐）が巻かれている", "place": "village",
+      "how": "村の境を調べる", "get": { "type": "free" } },
+    { "id": "c1_2", "conclusion": "c1", "text": "渡し守の老人「半年前、身なりのいい若い騎士を、沼の奥まで渡した」", "place": "ferry", "person": "ferryman",
+      "how": "渡し守と話す（普通の頼み）", "get": { "type": "request", "size": "Normal" } },
+    { "id": "c1_3", "conclusion": "c1", "text": "霜は村の境でぴたりと止まり、一歩外では草が芽吹いている", "place": "village",
+      "how": "境の外を見る", "get": { "type": "free" } },
+    { "id": "c2_1", "conclusion": "c2", "text": "代官屋敷の使用人「若さまは半年前から、急にお元気になられて。前は咳ばかりだったのに」", "place": "manor_back", "person": "servant",
+      "how": "使用人と話す", "get": { "type": "request", "size": "Small" } },
+    { "id": "c2_2", "conclusion": "c2", "text": "沼の小屋の帳面の頁の端に、ヴァルデン家の紋章の蝋", "place": "hut",
+      "how": "帳面を盗み見る（魔女が信頼すれば見せてくれる）", "get": { "type": "check", "ability": "DEX", "tier": "難しい" } },
+    { "id": "c2_3", "conclusion": "c2", "text": "渡し守が預かった、身なりのいい騎士の落とし物: ヴァルデン家の紋の入った手袋", "place": "ferry", "person": "ferryman",
+      "how": "渡し守を説得する（友好以上）", "get": { "type": "request", "size": "Normal" }, "requires": { "person": "ferryman", "attitude": "Friendly" } },
+    { "id": "c3_1", "conclusion": "c3", "text": "賢者の塔の古い書物「沼の契りは火に弱し。焼かれし契りは、差し出した者に重さを返す」", "place": "tower",
+      "how": "書物を読む", "get": { "type": "check", "ability": "INT", "tier": "普通" } },
+    { "id": "c3_2", "conclusion": "c3", "text": "魔女自身「わたしの帳面は大事にしておくれよ。燃えたら、皆が困る」", "place": "hut", "person": "izelda",
+      "how": "魔女と話す（中立以上）", "get": { "type": "request", "size": "Small" }, "requires": { "person": "izelda", "attitude": "Neutral" } },
+    { "id": "c3_3", "conclusion": "c3", "text": "塔の老いた魔術師の霊「あの女の帳面は、生きた契りの束だ」", "place": "tower", "person": "ghost",
+      "how": "霊に話しかける", "get": { "type": "check", "ability": "MND", "tier": "普通" } },
+    { "id": "c4_1", "conclusion": "c4", "text": "渡し守「あの魔女は、欲しいものさえやれば何でも聞いてくれる。高くつくがな」", "place": "ferry", "person": "ferryman",
+      "how": "渡し守と話す", "get": { "type": "request", "size": "Small" } },
+    { "id": "c4_2", "conclusion": "c4", "text": "小屋の棚に並ぶ、他人の「思い出の品」の数々（指輪、手紙、子どもの靴）", "place": "hut",
+      "how": "見回す", "get": { "type": "free" } },
+    { "id": "c4_3", "conclusion": "c4", "text": "塔の魔術師の霊「わしも昔、あの女と取引した。若さの代わりに、妻の顔の思い出をやった」", "place": "tower", "person": "ghost",
+      "how": "霊と話す", "get": { "type": "request", "size": "Small" } }
+  ],
+  "fragments": [
+    "辺境伯の甥は病弱だったが、去年の秋から見違えるように元気になったと噂されている。",
+    "黒沼の魔女は、物ではなく「その人にとって大事なもの」を代価に取るという。",
+    "沼の契りは、紙に書かれるという言い伝えがある。",
+    "ブラックウォーターでは、春に最初に咲く花を、沼の神に供える習わしがあった。"
+  ],
+  "personalGoals": [
+    { "id": "pg_children", "text": "咳をする村の子どもたちを、冬から守り抜く", "when": { "person": "child", "is": "alive" } },
+    { "id": "pg_noble", "text": "取引をした貴族の名を突き止める", "when": { "conviction": "c2" } },
+    { "id": "pg_justice", "text": "取引をした者に、その重さを払わせる（頁を焼く）", "when": { "event": "page_burned" } },
+    { "id": "pg_witch", "text": "黒沼の魔女を討ち、沼の契りをすべて破る", "when": [ [ { "person": "izelda", "is": "down" } ], [ { "person": "izelda", "is": "dead" } ] ] }
+  ],
+  "places": [
+    { "id": "tavern", "name": "眠る竜亭", "art": "bg_tavern", "acts": [ 1 ], "shop": true,
+      "look": "拠点の酒場。炉端で老詩人が竪琴をつま弾く。", "links": [ "village", "manor_back" ] },
+    { "id": "village", "name": "ブラックウォーター", "art": "bg_village", "acts": [ 1 ],
+      "look": "霜の降りたままの畑。戸口で咳をする子どもたち。", "links": [ "tavern", "ferry" ] },
+    { "id": "manor_back", "name": "ロウフォードの代官屋敷の裏口", "art": "bg_manor", "acts": [ 1 ],
+      "look": "宿場町の代官屋敷。裏口を使用人が出入りしている。", "links": [ "tavern" ] },
+    { "id": "ferry", "name": "沼の渡し場", "art": "bg_marsh", "acts": [ 1 ],
+      "look": "霧の中に小舟が一艘。舟べりに腰かけた渡し守の老人。", "links": [ "village", "reeds" ] },
+    { "id": "reeds", "name": "黒沼の葦原", "art": "bg_marsh", "acts": [ 2 ], "tense": true,
+      "look": "腰まで沈む泥と、白い霧。葦の向こうで何かが動く。",
+      "rules": [ { "text": "沼で大声や大きな音を立てると、魔女の機嫌を損ねる", "clock": "whim", "amount": 1 } ],
+      "links": [ "ferry", "tower", "hut" ], "enemies": [ "lizardman", "lizardman", "goblin" ] },
+    { "id": "tower", "name": "沈んだ賢者の塔", "art": "bg_ruins_hall", "acts": [ 2 ],
+      "look": "半分沼に沈んだ石の塔。水に浸かった書架と、青白い人影。", "links": [ "reeds" ], "enemies": [ "animated_armor" ] },
+    { "id": "hut", "name": "魔女の小屋", "art": "bg_witch_hut", "acts": [ 2 ],
+      "look": "骨の飾りと、湯気の立つ鍋。棚にはさまざまな品が並ぶ。", "secret": "奥に、契りの頁が浮かぶ帳面の間がある。",
+      "rules": [ { "text": "魔女に無礼を働くか、嘘がばれると、魔女の機嫌を損ねる", "clock": "whim", "amount": 1 } ],
+      "links": [ "reeds", "ledger_room" ] },
+    { "id": "ledger_room", "name": "魔女の帳面の間", "art": "bg_witch_hut", "acts": [ 3 ],
+      "look": "小屋の奥。宙に契りの頁が何枚も浮かび、血の文字が淡く光っている。", "secret": "ヴァルデン家の紋章の蝋が押された頁が一枚ある。",
+      "links": [ "hut" ] }
+  ],
+  "mechanisms": [
+    { "id": "supplies", "name": "村に薪と薬草を運ぶ", "place": "village", "noCheck": true, "event": "supplies_delivered", "uses": 2 },
+    { "id": "gift", "name": "魔女への贈り物", "place": "hut", "noCheck": true, "event": "witch_gift", "uses": 1 },
+    { "id": "burn_page", "name": "レオポルドの頁を焼く", "place": "ledger_room", "noCheck": true, "event": "page_burned", "uses": 1 },
+    { "id": "bargain", "name": "新しい取引（技か、この晩の記憶を差し出す）", "place": "ledger_room", "noCheck": true, "event": "new_bargain", "uses": 1 },
+    { "id": "bargain_mark", "name": "新しい取引（歴戦の印を差し出す）", "place": "ledger_room", "noCheck": true, "event": "paid_mark", "uses": 1 }
+  ],
+  "items": [
+    { "id": "glove", "name": "ヴァルデン家の紋の手袋", "kind": "Story", "at": "npc:ferryman", "note": "身なりのいい騎士の落とし物" },
+    { "id": "ledger", "name": "魔女の帳面", "kind": "Story", "at": "ledger_room", "note": "沼の契りの束。燃えれば契りが破れる" },
+    { "id": "mead", "name": "村の蜂蜜酒", "kind": "Consumable", "uses": 1, "at": "npc:agnes", "note": "報酬の一部" }
+  ],
+  "people": [
+    { "id": "agnes", "name": "村長の妻アグネス", "portrait": "pt_villager_woman", "at": "village", "role": "依頼人", "attitude": "Friendly",
+      "voice": "しっかり者で、言葉の端々に疲れがにじむ", "wants": "子どもたち", "fears": "冬", "joins": "Never", "build": "Weak" },
+    { "id": "child", "name": "咳をする村の子", "portrait": "pt_child", "at": "village", "role": "冬に弱った子ども", "attitude": "Friendly",
+      "voice": "咳まじりの小さな声", "wants": "外で遊ぶこと", "fears": "寒さ", "joins": "Never", "build": "Weak" },
+    { "id": "servant", "name": "代官屋敷の使用人", "portrait": "pt_youth", "at": "manor_back", "role": "代官屋敷の下働き", "attitude": "Neutral",
+      "voice": "噂話が好きだが、主人の耳を気にしている", "wants": "楽な仕事", "fears": "叱られること",
+      "clues": [ "c2_1" ], "joins": "Never", "build": "Weak" },
+    { "id": "ferryman", "name": "渡し守の老人", "portrait": "pt_fisher", "at": "ferry", "role": "沼の渡し守", "attitude": "Wary",
+      "voice": "口数が少なく、霧の向こうばかり見ている", "wants": "静かに暮らす", "fears": "魔女の怒り",
+      "secret": "甥を渡したことを口止めされている", "clues": [ "c1_2", "c2_3", "c4_1" ],
+      "joins": "Conditional", "joinWhen": { "person": "ferryman", "attitude": "Friendly" }, "joinNote": "沼の奥まで舟を出す", "build": "Weak" },
+    { "id": "izelda", "name": "黒沼の魔女イゼルダ", "portrait": "pt_witch", "at": "hut", "role": "沼の魔女（取引の相手）", "attitude": "Neutral",
+      "voice": "楽しげで気まぐれ。嘘はつかないが、全部は言わない", "wants": "珍しい代価", "fears": "沼の掟が破られること",
+      "lie": "嘘はつかない。ただ、全部は言わない", "clues": [ "c3_2" ], "enemy": "witch", "joins": "Never", "build": "Strong" },
+    { "id": "ghost", "name": "塔の魔術師の霊", "portrait": "pt_scholar", "at": "tower", "role": "沈んだ塔の老魔術師の霊", "attitude": "Neutral",
+      "voice": "かすれた、遠い声。ときどき言葉が途切れる", "wants": "妻の顔を思い出す", "fears": "忘れ去られること",
+      "clues": [ "c3_3", "c4_3" ], "joins": "Never", "build": "Weak" }
+  ],
+  "acts": [
+    { "n": 1, "title": "春の来ない村", "goal": "村と渡し場で話を聞き、冬の理由を探る",
+      "advance": [ [ { "conviction": "c1" } ], [ { "place": "reeds", "who": "any" } ] ] },
+    { "n": 2, "title": "黒沼の奥", "goal": "沼の奥で魔女と取引のことを知る",
+      "advance": [ [ { "place": "hut", "who": "any" }, { "person": "izelda", "attitude": "Neutral" } ], [ { "place": "ledger_room", "who": "any" } ] ] },
+    { "n": 3, "title": "帳面の間", "goal": "取引を破るか、結び直して、村に春を取り戻す" }
+  ],
+  "climax": {
+    "text": "帳面の間。宙に浮かぶ契りの頁の中から、レオポルドの頁を見つけ出し、どうするかを決める。",
+    "starts": [ [ { "place": "ledger_room", "who": "any" } ] ],
+    "onStart": [ { "text": "帳面の間に足を踏み入れると、背後で魔女の笑い声がした。「さあ、何を差し出すのかね」" } ],
+    "solutions": [
+      { "id": "burn_it", "text": "頁を焼く: レオポルドの頁を焼く（魔女が見ていれば止めに来る）",
+        "when": { "event": "page_burned" },
+        "then": [ { "text": "頁が燃え上がり、村の方角から暖かい風が吹いた。遠い屋敷で、若い貴族が急に老いて崩れ落ちる。" } ] },
+      { "id": "new_deal", "text": "新しい取引を結ぶ: 魔女に代価を差し出し、村の春を返してもらう",
+        "when": [ [ { "event": "new_bargain" } ], [ { "event": "paid_mark" } ] ],
+        "then": [ { "text": "魔女は満足げに頷き、帳面の頁に新しい血の文字を書き加えた。村の霜が、音もなく解けはじめる。" } ] },
+      { "id": "defeat", "text": "倒す: 魔女との戦いに勝つ（帳面の頁はすべて燃え、沼じゅうの契りが一度に破れる）",
+        "when": [ [ { "person": "izelda", "is": "down" } ], [ { "person": "izelda", "is": "dead" } ] ] }
+    ]
+  },
+  "choice": "頁を焼けば、レオポルドは死にかける。辺境伯の跡継ぎがいなくなり、ヴァルデン家は揺らぐ。新しい取引なら誰も傷つかないが、冒険者の誰かが大事なものを失う。",
+  "hooks": [ { "place": "hut", "role": "魔女の客（前の晩に逃がした敵がいれば、魔女と取引に来た客として小屋にいる。いなければ置かない）" } ],
+  "endings": {
+    "success": "村に春が戻り、重いものを失わなかった。頁を焼いたならヴァルデン家に影が落ち、取引なら誰かの大事なものが沼に沈んだ。",
+    "bitter": "春は戻ったが、子どもか仲間か歴戦の印を失った。",
+    "failure": "村の冬は続いている。"
+  }
+}

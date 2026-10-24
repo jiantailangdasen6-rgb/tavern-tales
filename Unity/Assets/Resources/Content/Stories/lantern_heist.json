@@ -1,0 +1,177 @@
+{
+  "_note": "Docs/scenarios/lantern_heist.md written as a story sheet (Docs/09_Spec.md 9). Spoilers: friends playing this should not read it. Personal goals and the minor people who hold clues (maid, locksmith, drunk guard, priest) were added when writing it out.",
+  "id": "lantern_heist",
+  "title": "灯籠祭りの夜の盗み",
+  "kind": "潜入・盗み",
+  "length": "short",
+  "region": "lowford",
+  "darkness": "浅い",
+  "start": "tavern",
+  "advance": 0,
+  "intro": "灯籠祭りの前日、にぎわう眠る竜亭の隅の席に、盗賊ギルド「夜鴉」の連絡役ネラが腰を下ろす。「祭りの夜、代官屋敷の金庫から帳簿を一冊盗んでほしい。報酬は銀貨 60 枚。殺しはなし、騒ぎもなしだ」。",
+  "truth": "代官ゴドウィンは、辺境伯へ納める税の一部を抜き、王都の商人を通して金に替えている。その裏帳簿が金庫にある。夜鴉が帳簿を欲しがるのは、代官をゆすって、宿場町の裏の商売を見逃させるため。一方、代官の書記ルーカスは横領に気付いて良心を痛めており、太陽神の神殿に告発しようとしている。ルーカスは、自分が告発しようとしていることを代官に気付かれかけている。帳簿の最後の頁には、夜鴉の頭目の名も「買収先」として書かれている。夜鴉も無傷ではない。",
+  "goal": {
+    "text": "代官ゴドウィンの帳簿を、誰にも気付かれずに屋敷から持ち出す",
+    "when": [ [ { "item": "ledger", "heldBy": "party" }, { "event": "escaped" } ],
+              [ { "item": "ledger", "heldBy": "party" }, { "event": "talked_down" } ],
+              [ { "item": "ledger", "heldBy": "party" }, { "person": "harto", "is": "down" } ] ]
+  },
+  "losses": [
+    { "id": "loss_lucas", "text": "書記ルーカスの命", "heavy": true, "when": { "person": "lucas", "is": "dead" } },
+    { "id": "loss_nera", "text": "ネラの信頼", "heavy": false, "when": [ [ { "item": "ledger", "at": "chapel" } ], [ { "item": "ledger", "heldBy": "priest" } ] ] },
+    { "id": "loss_manor", "text": "屋敷の誰かの命", "heavy": false, "when": [ [ { "person": "godwin", "is": "dead" } ], [ { "person": "harto", "is": "dead" } ] ] },
+    { "id": "loss_ledger", "text": "帳簿", "heavy": false, "when": { "item": "ledger", "gone": true } }
+  ],
+  "clocks": [
+    {
+      "id": "alert", "name": "屋敷の警戒", "secret": "衛兵の総出", "segments": 6, "speed": "events", "acts": [ 2, 3 ],
+      "onFullKinds": [ "EnemiesAppear" ], "fullText": "屋敷の門が閉じられ、衛兵隊長が出てくる（逃げ切るのが難しくなる）",
+      "onFull": [ { "event": "gates_closed", "text": "呼子の音が屋敷じゅうに響き、門が閉ざされた。衛兵隊長ハルトが剣を抜いて広間に現れる。" } ],
+      "rewinds": [ { "id": "bribe", "text": "見張りを買収する（1 回）", "amount": 1, "when": { "event": "guard_bribed" } },
+                   { "id": "lure", "text": "見張りを持ち場から遠ざける（1 回）", "amount": 1, "when": { "event": "guard_lured" } } ]
+    },
+    {
+      "id": "festival", "name": "祭りの終わり", "secret": "灯籠が消える", "segments": 6, "speed": "every", "every": 5,
+      "onFullKinds": [ "PlaceChanges" ], "fullText": "祭りの人込みが消え、紛れて逃げられなくなる",
+      "onFull": [ { "event": "festival_over", "text": "川の灯籠がひとつ、またひとつと消え、通りから人の波が引いていった。" } ]
+    },
+    {
+      "id": "clerk", "name": "書記の危機", "secret": "ルーカスの口封じ", "segments": 4, "speed": "every", "every": 8, "acts": [ 2, 3 ],
+      "onFullKinds": [ "NpcDies" ], "fullText": "代官の手の者がルーカスを始末する（★）",
+      "onFull": [ { "person": "lucas", "state": "Dead", "text": "書記の小部屋から短い悲鳴が聞こえ、それきり静かになった。" } ],
+      "rewinds": [ { "id": "escort_out", "text": "ルーカスを屋敷の外へ逃がす（止まる）", "amount": 4, "when": { "person": "lucas", "is": "with_party" } } ],
+      "visible": [ [ { "event": "clue:c4_1" } ], [ { "event": "clue:c4_2" } ], [ { "event": "clue:c4_3" } ] ]
+    }
+  ],
+  "conclusions": [
+    { "id": "c1", "text": "帳簿は代官の寝室の、肖像画の裏の金庫にある", "rewardClock": "alert", "clues": [ "c1_1", "c1_2", "c1_3" ] },
+    { "id": "c2", "text": "祭りの夜は、裏庭の見張りが灯籠流しに出て手薄になる", "rewardClock": "alert", "clues": [ "c2_1", "c2_2", "c2_3" ] },
+    { "id": "c3", "text": "金庫は、代官の娘の名を合言葉に開く", "rewardClock": "festival", "clues": [ "c3_1", "c3_2", "c3_3" ] },
+    { "id": "c4", "text": "書記ルーカスは、横領を神殿に告発しようとしている", "rewardClock": "clerk", "clues": [ "c4_1", "c4_2", "c4_3" ] }
+  ],
+  "clues": [
+    { "id": "c1_1", "conclusion": "c1", "text": "屋敷の元女中「旦那さまは夜、ご自分の肖像画の前で長いこと立っておられた」", "place": "square", "person": "maid",
+      "how": "元女中を見つけて話を聞く", "get": { "type": "request", "size": "Small" } },
+    { "id": "c1_2", "conclusion": "c1", "text": "鍵屋の親方「代官屋敷に、絵の裏に隠せる薄い金庫を納めた」", "place": "lock_shop", "person": "locksmith",
+      "how": "親方と話す（普通の頼み）", "get": { "type": "request", "size": "Normal" } },
+    { "id": "c1_3", "conclusion": "c1", "text": "寝室の肖像画の額だけ、壁から少し浮いている", "place": "bedroom",
+      "how": "見回す", "get": { "type": "check", "ability": "INT", "tier": "易しい" } },
+    { "id": "c2_1", "conclusion": "c2", "text": "衛兵の当番表「祭りの夜、裏庭の二人は川の灯籠流しの警護へ」", "place": "guardhouse",
+      "how": "当番表を盗み見る", "get": { "type": "check", "ability": "DEX", "tier": "普通" } },
+    { "id": "c2_2", "conclusion": "c2", "text": "酒場で酔った衛兵「今年も灯籠流しの警護だ。屋敷より楽でいい」", "place": "tavern", "person": "drunk_guard",
+      "how": "衛兵に酒をおごる", "get": { "type": "request", "size": "Small" } },
+    { "id": "c2_3", "conclusion": "c2", "text": "裏庭の塀の上の、見張り台の灯りが、祭りの始まりと一緒に消える", "place": "backyard",
+      "how": "外から見張る", "get": { "type": "free" } },
+    { "id": "c3_1", "conclusion": "c3", "text": "鍵屋の親方「合言葉で開く錠を頼まれた。旦那が一番大事なものの名だそうだ」", "place": "lock_shop", "person": "locksmith",
+      "how": "親方を説得する（友好以上）", "get": { "type": "request", "size": "Normal" }, "requires": { "person": "locksmith", "attitude": "Friendly" } },
+    { "id": "c3_2", "conclusion": "c3", "text": "代官の書斎に、亡くなった娘「エリシア」の小さな肖像と、毎日替えられる花", "place": "study",
+      "how": "机を調べる", "get": { "type": "free" } },
+    { "id": "c3_3", "conclusion": "c3", "text": "書記ルーカス「旦那さまが大事なのは、亡くなったお嬢さまだけです」", "place": "clerk_room", "person": "lucas",
+      "how": "ルーカスと話す", "get": { "type": "request", "size": "Small" } },
+    { "id": "c4_1", "conclusion": "c4", "text": "ルーカスの机の下書き「太陽神の神殿 司祭さまへ。代官の税について」", "place": "clerk_room",
+      "how": "机を調べる", "get": { "type": "free" } },
+    { "id": "c4_2", "conclusion": "c4", "text": "神殿の司祭「近いうちに、代官屋敷から大事な手紙が届くはずだったのだが」", "place": "chapel", "person": "priest",
+      "how": "司祭と話す", "get": { "type": "request", "size": "Small" } },
+    { "id": "c4_3", "conclusion": "c4", "text": "代官が衛兵隊長に耳打ちする「書記から目を離すな」", "place": "hall",
+      "how": "物陰で立ち聞きする", "get": { "type": "check", "ability": "AGI", "tier": "普通" } }
+  ],
+  "fragments": [
+    "代官は数年前に一人娘を病で亡くしてから、人が変わったという。",
+    "夜鴉の仕事は、終わったあとに「口の固さ」を試されることがある。",
+    "ロウフォードの鍵屋は、代官屋敷の仕事を断れなかったと愚痴をこぼしていた。",
+    "灯籠祭りの夜は、川沿いに人が集まり、屋敷町はがらんとする。"
+  ],
+  "personalGoals": [
+    { "id": "pg_pay", "text": "夜鴉から報酬をきっちり受け取る（帳簿をネラに渡す）", "when": { "item": "ledger", "heldBy": "nera" } },
+    { "id": "pg_lucas", "text": "良心ある書記ルーカスを、屋敷の外へ逃がす", "when": { "person": "lucas", "is": "with_party" } },
+    { "id": "pg_temple", "text": "代官の横領を、神殿の手で暴かせる", "when": [ [ { "item": "ledger", "at": "chapel" } ], [ { "item": "ledger", "heldBy": "priest" } ] ] },
+    { "id": "pg_leverage", "text": "帳簿を自分の手元に残し、代官も夜鴉も黙らせる切り札にする", "when": { "item": "ledger", "heldBy": "self" } },
+    { "id": "pg_quiet", "text": "一度も衛兵と刃を交えずに仕事を終える", "when": { "clock": "alert", "is": "not_full" } }
+  ],
+  "places": [
+    { "id": "tavern", "name": "眠る竜亭", "art": "bg_tavern", "acts": [ 1 ], "shop": true,
+      "look": "祭りの前日でにぎわう酒場。非番の衛兵が赤い顔で飲んでいる。", "links": [ "square" ] },
+    { "id": "square", "name": "ロウフォードの広場", "art": "bg_town", "acts": [ 1 ], "shop": true,
+      "look": "灯籠を吊るす人々。川沿いには祭りの屋台。", "links": [ "tavern", "lock_shop", "guardhouse", "chapel", "backyard" ] },
+    { "id": "lock_shop", "name": "町の鍵屋", "art": "bg_town", "acts": [ 1 ],
+      "look": "鍵と錠前が壁一面に並ぶ小さな店。", "links": [ "square" ] },
+    { "id": "guardhouse", "name": "衛兵の詰所", "art": "bg_town", "acts": [ 1 ],
+      "look": "祭りの警護の準備で慌ただしい詰所。壁に当番表。", "links": [ "square" ] },
+    { "id": "chapel", "name": "太陽神の礼拝堂", "art": "bg_chapel", "acts": [ 1 ],
+      "look": "小さな礼拝堂。祭りの祈りの支度が進んでいる。", "links": [ "square" ] },
+    { "id": "backyard", "name": "代官屋敷の裏庭", "art": "bg_manor", "acts": [ 2 ],
+      "look": "高い塀と見張り台。番犬の唸り声。", "secret": "塀を越えれば屋敷の中へ入れる。",
+      "links": [ "square", { "to": "hall", "open": { "event": "wall_climbed" }, "text": "塀を越えて屋敷へ" } ], "enemies": [ "wolf", "guard" ] },
+    { "id": "hall", "name": "代官屋敷の広間", "art": "bg_castle_hall", "acts": [ 2 ], "tense": true,
+      "look": "磨かれた床と、壁の灯り。行き交う使用人。",
+      "rules": [ { "text": "使用人に姿を見られると、屋敷の警戒が高まる", "clock": "alert", "amount": 1 } ],
+      "links": [ "backyard", "clerk_room", "study", "bedroom" ], "enemies": [ "guard", "guard" ] },
+    { "id": "clerk_room", "name": "書記の小部屋", "art": "bg_library", "acts": [ 2 ],
+      "look": "帳面の積まれた小部屋。青い顔の若い書記がペンを握っている。", "links": [ "hall" ] },
+    { "id": "study", "name": "代官の書斎", "art": "bg_library", "acts": [ 2 ],
+      "look": "重い机と、少女の小さな肖像。肖像の前に、今朝替えられた花。", "links": [ "hall" ] },
+    { "id": "bedroom", "name": "代官の寝室", "art": "bg_manor", "acts": [ 3 ],
+      "look": "大きな寝台と、壁にかかった代官の肖像画。", "secret": "肖像画の裏に金庫。合言葉「エリシア」で開く。鍵開けはごく難しい。",
+      "links": [ "hall" ] }
+  ],
+  "mechanisms": [
+    { "id": "wall", "name": "裏庭の塀を越える", "place": "backyard", "ability": "AGI", "tier": "普通", "event": "wall_climbed", "uses": 0 },
+    { "id": "bribe_guard", "name": "見張りを買収する", "place": "backyard", "noCheck": true, "event": "guard_bribed", "uses": 1 },
+    { "id": "lure_guard", "name": "見張りを持ち場から遠ざける", "place": "hall", "ability": "AGI", "tier": "普通", "event": "guard_lured", "uses": 1 },
+    { "id": "safe_word", "name": "金庫の合言葉（エリシア）", "place": "bedroom", "noCheck": true, "event": "safe_open", "uses": 1 },
+    { "id": "safe_pick", "name": "金庫の錠を開ける", "place": "bedroom", "ability": "DEX", "tier": "至難", "event": "safe_open", "uses": 1 },
+    { "id": "rooftops", "name": "窓から屋根へ、祭りの人込みへ", "place": "bedroom", "ability": "AGI", "tier": "難しい", "event": "escaped", "uses": 1 },
+    { "id": "bluff", "name": "代官に娘の名を突きつけて黙らせる", "place": "bedroom", "ability": "MND", "tier": "難しい", "event": "talked_down", "uses": 1 }
+  ],
+  "items": [
+    { "id": "ledger", "name": "代官の裏帳簿", "kind": "Story", "at": "bedroom", "note": "肖像画の裏の金庫の中。最後の頁に夜鴉の頭目の名がある" },
+    { "id": "letter", "name": "ルーカスの告発状の下書き", "kind": "Story", "at": "clerk_room", "note": "太陽神の神殿の司祭あて" }
+  ],
+  "people": [
+    { "id": "nera", "name": "夜鴉の連絡役ネラ", "portrait": "pt_mercenary", "at": "tavern", "role": "依頼人（盗賊ギルド）", "attitude": "Neutral",
+      "voice": "低く早口。目は常に出口を見ている", "wants": "帳簿", "fears": "夜鴉の名が出ること",
+      "secret": "帳簿に夜鴉の名があると知っている", "lie": "聞かれても言わない", "joins": "Never", "build": "Normal" },
+    { "id": "drunk_guard", "name": "非番の衛兵", "portrait": "pt_guard", "at": "tavern", "role": "酔った衛兵", "attitude": "Neutral",
+      "voice": "上機嫌で声が大きい", "wants": "ただ酒", "fears": "隊長", "clues": [ "c2_2" ], "joins": "Never", "build": "Weak" },
+    { "id": "maid", "name": "屋敷の元女中", "portrait": "pt_villager_woman", "at": "square", "role": "代官屋敷を辞めた女中", "attitude": "Neutral",
+      "voice": "灯籠を吊るしながら、ため息まじりに話す", "wants": "静かな暮らし", "fears": "代官", "clues": [ "c1_1" ], "joins": "Never", "build": "Weak" },
+    { "id": "locksmith", "name": "鍵屋の親方", "portrait": "pt_blacksmith", "at": "lock_shop", "role": "町の鍵屋", "attitude": "Neutral",
+      "voice": "職人気質で口が重い", "wants": "静かに商売", "fears": "代官", "clues": [ "c1_2", "c3_1" ], "joins": "Never", "build": "Weak" },
+    { "id": "priest", "name": "礼拝堂の司祭", "portrait": "pt_priestess", "at": "chapel", "role": "太陽神の司祭", "attitude": "Friendly",
+      "voice": "穏やかだが、不正には厳しい", "wants": "正しい裁き", "fears": "罪が闇に葬られること", "clues": [ "c4_2" ], "joins": "Never", "build": "Weak" },
+    { "id": "godwin", "name": "代官ゴドウィン", "portrait": "pt_noble", "at": "hall", "role": "代官（横領の主）", "attitude": "Wary",
+      "voice": "疲れきった声。娘の話になると震える", "wants": "金を貯めて王都へ移る", "fears": "亡き娘の思い出が汚されること",
+      "secret": "税を横領している。娘の死後、何もかもどうでもよくなった", "joins": "Never", "build": "Weak", "mastermind": true },
+    { "id": "lucas", "name": "書記ルーカス", "portrait": "pt_scholar", "at": "clerk_room", "role": "代官の書記", "attitude": "Wary",
+      "voice": "怯えて小声。正しいことを言うときだけ声が震えながら強くなる", "wants": "正しいことをする", "fears": "口封じ",
+      "secret": "告発の手紙を書いている", "clues": [ "c3_3" ], "joins": "Glad", "joinNote": "屋敷の外へ逃がすなら喜んで付いてくる", "escort": true, "build": "Weak" },
+    { "id": "harto", "name": "衛兵隊長ハルト", "portrait": "pt_guard", "at": "hall", "role": "代官屋敷の衛兵隊長", "attitude": "Wary",
+      "voice": "規律正しく、言葉は短い", "wants": "職務", "fears": "祭りの夜の失態",
+      "secret": "代官に命じられてルーカスを見張っている", "enemy": "guard_captain", "joins": "Never", "build": "Strong" }
+  ],
+  "acts": [
+    { "n": 1, "title": "祭りの前日", "goal": "町で屋敷と金庫のことを調べ、忍び込む手を考える",
+      "advance": [ [ { "conviction": "c1" } ], [ { "conviction": "c2" } ], [ { "place": "backyard", "who": "any" } ] ] },
+    { "n": 2, "title": "灯籠の夜の屋敷", "goal": "屋敷に忍び込み、寝室への道と金庫の開け方を探る",
+      "advance": [ [ { "place": "bedroom", "who": "any" } ] ] },
+    { "n": 3, "title": "代官の寝室", "goal": "帳簿を手に入れ、屋敷から抜け出す" }
+  ],
+  "climax": {
+    "text": "屋敷からの脱出。帳簿を手にした瞬間、代官が寝室に戻ってくる。",
+    "starts": [ [ { "item": "ledger", "heldBy": "party" } ] ],
+    "onStart": [ { "person": "godwin", "moveTo": "bedroom", "text": "扉の取っ手が回り、燭台を手にした代官ゴドウィンが寝室に入ってきた。" } ],
+    "solutions": [
+      { "id": "run", "text": "逃げ切る: 窓から屋根、祭りの人込みへ（祭りが終わっていると難しい）", "when": { "event": "escaped" } },
+      { "id": "talk", "text": "言いくるめる: 娘の名で金庫を開けたと突きつけ、黙って通させる", "when": { "event": "talked_down" } },
+      { "id": "fight", "text": "戦う: 衛兵と衛兵隊長との戦いに勝つ（町で顔を覚えられる）",
+        "when": [ [ { "person": "harto", "is": "down" } ], [ { "person": "harto", "is": "dead" } ] ] }
+    ]
+  },
+  "choice": "帳簿を誰に渡すか。夜鴉のネラに渡せば報酬はもらえるが、代官は夜鴉の言いなりになり、横領は続く。神殿に渡せば横領は暴かれ、ルーカスは救われるが、最後の頁の夜鴉の名も明るみに出て、夜鴉に恨まれる。自分で持てば代官も夜鴉もゆすれるが、危ない橋だ。",
+  "hooks": [ { "place": "hall", "role": "屋敷の客（前の晩に逃がした敵がいれば、祭りの夜に代官を訪ねた客として広間にいる。いなければ置かない）" } ],
+  "endings": {
+    "success": "気付かれずに帳簿を持ち出し、誰も失わなかった。誰に渡したかで、町の明日が変わる。",
+    "bitter": "帳簿は持ち出したが、ルーカスか仲間を失った。",
+    "failure": "帳簿を持ち出せなかった。"
+  }
+}

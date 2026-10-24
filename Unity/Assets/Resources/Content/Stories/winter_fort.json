@@ -1,0 +1,198 @@
+{
+  "_note": "Docs/scenarios/winter_fort.md written as a story sheet (Docs/09_Spec.md 9). Spoilers: friends playing this should not read it. Personal goals, the captured scout, the villagers and the troll's cub as people were added when writing it out. The dawn clock counts turns (in the fight too); the draft's '+1 per combat round in act 3' is left to the clock's speed.",
+  "id": "winter_fort",
+  "title": "冬の砦",
+  "kind": "防衛",
+  "length": "short",
+  "region": "ironfang",
+  "darkness": "中",
+  "start": "tavern",
+  "advance": 0,
+  "intro": "雪まみれの伝令が、眠る竜亭の扉を押し開けて倒れ込む。「鷲の巣砦に、山賊の頭目ゴルムの一味と、山のトロルが迫っている。砦には若い騎士と、逃げ込んだ村人しかいない。援軍は明日の夜明けに着く。それまで持ちこたえる腕が要る」。報酬は辺境伯からの銀貨 50 枚。",
+  "truth": "頭目ゴルムの狙いは村人ではなく、砦の地下に眠る、昔の山の王の宝（金の冠）。古い言い伝えで知った。砦の傭兵ラースは、借金のかたにゴルムと通じていて、襲撃の夜に裏門の閂を外す手はずになっている。山のトロルは、ゴルムが子トロルを人質に取って従わせている。子トロルは山賊の野営地の檻の中。子を取り戻せば、トロルは山へ帰る。",
+  "goal": {
+    "text": "夜明けまで砦を守り、村人を守り抜く",
+    "when": [ [ { "clock": "dawn", "is": "full" }, { "person": "villagers", "is": "alive" } ],
+              [ { "person": "gorm", "is": "down" }, { "person": "villagers", "is": "alive" } ],
+              [ { "person": "gorm", "is": "dead" }, { "person": "villagers", "is": "alive" } ],
+              [ { "event": "villagers_escaped" }, { "person": "villagers", "is": "alive" } ] ]
+  },
+  "losses": [
+    { "id": "loss_villagers", "text": "村人の命", "heavy": true, "when": { "person": "villagers", "is": "dead" } },
+    { "id": "loss_edgar", "text": "若い騎士エドガーの命", "heavy": true, "when": { "person": "edgar", "is": "dead" } },
+    { "id": "loss_gate", "text": "砦の門", "heavy": false, "when": [ [ { "event": "villagers_escaped" } ], [ { "event": "back_gate_open" } ] ] },
+    { "id": "loss_crown", "text": "砦の地下の古い宝", "heavy": false, "when": [ [ { "item": "crown", "heldBy": "party" } ], [ { "item": "crown", "heldBy": "gorm" } ] ] }
+  ],
+  "clocks": [
+    {
+      "id": "dawn", "name": "夜明け", "secret": "援軍", "segments": 8, "speed": "every", "every": 5, "good": true,
+      "fullText": "援軍が着き、山賊は退く（満ちれば山場が解ける）",
+      "onFull": [ { "event": "dawn", "text": "東の峰が白み、角笛の音が谷に響いた。辺境伯の援軍だ。山賊たちは算を乱して逃げていく。" } ]
+    },
+    {
+      "id": "raid", "name": "襲撃", "secret": "ゴルムの攻め時", "segments": 6, "speed": "every", "every": 5, "acts": [ 1, 2 ],
+      "onFullKinds": [ "EnemiesAppear" ], "fullText": "第 3 幕が始まる（備えの途中でも攻めてくる）",
+      "onFull": [ { "climax": true, "text": "雪原の向こうで松明がいっせいに灯った。山賊たちが雄叫びをあげて砦へ押し寄せてくる。" } ],
+      "rewinds": [ { "id": "decoy", "text": "偽の灯りで山賊を惑わす（1 回）", "amount": 2, "when": { "event": "decoy_lights" } } ]
+    },
+    {
+      "id": "betrayal", "name": "裏切り", "secret": "裏門の閂", "segments": 4, "speed": "every", "every": 8, "acts": [ 2, 3 ],
+      "onFullKinds": [ "EnemiesAppear" ], "fullText": "裏門が開き、山賊が中庭に入る（守りの戦いが一つ増える）",
+      "onFull": [ { "event": "back_gate_open", "text": "裏門の閂が音もなく外され、山賊たちが中庭へなだれ込んできた。" },
+                  { "enemies": [ "bandit", "bandit" ], "at": "courtyard" } ],
+      "rewinds": [ { "id": "guard_bar", "text": "裏切り者を見つけて閂を守る（止まる）", "amount": 4,
+        "when": [ [ { "conviction": "c2" } ], [ { "person": "lars", "attitude": "Trusting" } ] ] } ],
+      "visible": [ [ { "event": "clue:c2_1" } ], [ { "event": "clue:c2_2" } ], [ { "event": "clue:c2_3" } ] ]
+    }
+  ],
+  "conclusions": [
+    { "id": "c1", "text": "頭目の狙いは、砦の地下の宝だ", "rewardClock": "raid", "clues": [ "c1_1", "c1_2", "c1_3" ] },
+    { "id": "c2", "text": "傭兵ラースが山賊と通じている", "rewardClock": "betrayal", "clues": [ "c2_1", "c2_2", "c2_3" ] },
+    { "id": "c3", "text": "トロルは子を人質に取られて従っている", "rewardClock": "dawn", "clues": [ "c3_1", "c3_2", "c3_3" ] },
+    { "id": "c4", "text": "地下には、古い抜け道がある", "rewardClock": "dawn", "clues": [ "c4_1", "c4_2", "c4_3" ] }
+  ],
+  "clues": [
+    { "id": "c1_1", "conclusion": "c1", "text": "捕まった山賊の斥候「頭は、村人なんかどうでもいいって言ってた。欲しいのは地下のもんだと」", "place": "snowfield", "person": "scout",
+      "how": "斥候を捕まえて問う", "get": { "type": "request", "size": "Normal" } },
+    { "id": "c1_2", "conclusion": "c1", "text": "砦の古い礎石に刻まれた、冠をかぶった山の王の姿", "place": "cellar",
+      "how": "壁を調べる", "get": { "type": "free" } },
+    { "id": "c1_3", "conclusion": "c1", "text": "エドガー「祖父が言っていた。この砦は、山の王の墓の上に建っていると」", "place": "courtyard", "person": "edgar",
+      "how": "エドガーと話す（友好以上）", "get": { "type": "request", "size": "Small" }, "requires": { "person": "edgar", "attitude": "Friendly" } },
+    { "id": "c2_1", "conclusion": "c2", "text": "ラースの寝床の下に、山賊の頭目の印（狼の牙の首飾り）", "place": "barracks",
+      "how": "ラースの寝床を調べる（内緒の行動に向く）", "get": { "type": "check", "ability": "DEX", "tier": "普通" } },
+    { "id": "c2_2", "conclusion": "c2", "text": "鍛冶屋グンナ「ラースが夜中に、裏門の閂に油を差してた」", "place": "forge", "person": "gunna",
+      "how": "グンナと話す", "get": { "type": "request", "size": "Small" } },
+    { "id": "c2_3", "conclusion": "c2", "text": "雪の上の足跡が、裏門から外へ出て、また戻っている", "place": "back_gate",
+      "how": "雪を調べる", "get": { "type": "check", "ability": "INT", "tier": "普通" } },
+    { "id": "c3_1", "conclusion": "c3", "text": "山賊の野営地の檻の中で、小さなトロルが鳴いている", "place": "camp",
+      "how": "野営地を偵察する", "get": { "type": "check", "ability": "AGI", "tier": "普通" } },
+    { "id": "c3_2", "conclusion": "c3", "text": "斥候「頭はトロルの子を檻に入れてる。だから親は言うことを聞く」", "place": "snowfield", "person": "scout",
+      "how": "斥候をもう一度問う", "get": { "type": "request", "size": "Normal" } },
+    { "id": "c3_3", "conclusion": "c3", "text": "トロルは砦に向かうたびに、野営地の方を振り返る", "place": "watchtower",
+      "how": "トロルを見張る", "get": { "type": "free" } },
+    { "id": "c4_1", "conclusion": "c4", "text": "地下倉の奥の壁から、冷たい風が吹いてくる", "place": "cellar",
+      "how": "壁を調べる", "get": { "type": "free" } },
+    { "id": "c4_2", "conclusion": "c4", "text": "エドガーの祖父の日記「王の墓には、山の外へ出る道がある」", "place": "cellar",
+      "how": "礼拝室で日記を読む", "get": { "type": "check", "ability": "INT", "tier": "普通" } },
+    { "id": "c4_3", "conclusion": "c4", "text": "村の老婆「昔、子どもらは地下から山の向こうへ遊びに行ったもんじゃ」", "place": "courtyard", "person": "granny",
+      "how": "村人と話す", "get": { "type": "request", "size": "Small" } }
+  ],
+  "fragments": [
+    "鉄牙山脈には、山の王の金の冠が眠っているという古い歌がある。",
+    "山賊の頭目ゴルムは、借金で首が回らない者を手下に引き入れるのがうまいと聞く。",
+    "トロルは子をとても大事にする。子を奪われたトロルは、山を下りてでも取り返そうとする。",
+    "鷲の巣砦は、もとは砦ではなく墓守の館だったらしい。"
+  ],
+  "personalGoals": [
+    { "id": "pg_crown", "text": "山の王の金の冠を手にする", "when": { "item": "crown", "heldBy": "self" } },
+    { "id": "pg_lars", "text": "借金に追われる傭兵ラースを、裏切らせずに救う", "when": { "person": "lars", "attitude": "Trusting" } },
+    { "id": "pg_cub", "text": "囚われた子トロルを、親のもとへ返す", "when": { "event": "cub_returned" } },
+    { "id": "pg_edgar", "text": "若い騎士エドガーを、夜明けまで生き延びさせる", "when": { "person": "edgar", "is": "alive" } },
+    { "id": "pg_gorm", "text": "山賊の頭目ゴルムを討ち取る", "when": [ [ { "person": "gorm", "is": "down" } ], [ { "person": "gorm", "is": "dead" } ] ] }
+  ],
+  "places": [
+    { "id": "tavern", "name": "眠る竜亭", "art": "bg_tavern", "acts": [ 1 ], "shop": true,
+      "look": "拠点の酒場。息を切らした伝令が水をあおっている。", "links": [ "pass" ] },
+    { "id": "pass", "name": "雪の峠道", "art": "bg_mountain", "acts": [ 1 ],
+      "look": "吹雪の山道。先に鷲の巣砦の影が見える。", "links": [ "tavern", "courtyard" ], "enemies": [ "wolf", "wolf" ] },
+    { "id": "courtyard", "name": "砦の中庭", "art": "bg_ruins", "acts": [ 1 ], "tense": true, "shop": true,
+      "look": "逃げ込んだ村人たちが焚き火を囲む。崩れかけた城壁と、正面の門。", "secret": "備えの多くはここでできる。夜の戦いの場所。",
+      "links": [ "pass", "barracks", "forge", "watchtower", "cellar", "back_gate", "snowfield" ] },
+    { "id": "barracks", "name": "兵舎", "art": "bg_castle_hall", "acts": [ 1 ],
+      "look": "若い騎士と傭兵たちの寝床が並ぶ。", "links": [ "courtyard" ] },
+    { "id": "forge", "name": "鍛冶場", "art": "bg_village", "acts": [ 1 ],
+      "look": "火の落ちかけた炉と、腕の太い女鍛冶。", "secret": "武器を直してもらえる（この晩だけ良い品になる）。", "links": [ "courtyard" ] },
+    { "id": "back_gate", "name": "裏門", "art": "bg_ruins", "acts": [ 1 ],
+      "look": "雪に半ば埋もれた小さな裏門。重い閂がかかっている。", "links": [ "courtyard" ] },
+    { "id": "snowfield", "name": "砦の外の雪原", "art": "bg_snow_forest", "acts": [ 2 ],
+      "look": "見渡す限りの雪。山賊の斥候がうろついている。", "links": [ "courtyard", "camp" ], "enemies": [ "bandit", "bandit" ] },
+    { "id": "camp", "name": "山賊の野営地", "art": "bg_camp", "acts": [ 2 ],
+      "look": "焚き火と天幕。隅に頑丈な檻。", "secret": "檻の中に子トロル。見つかれば戦い。", "links": [ "snowfield" ], "enemies": [ "bandit", "bandit", "bandit" ] },
+    { "id": "watchtower", "name": "見張り塔", "art": "bg_mountain", "acts": [ 2 ],
+      "look": "砦でいちばん高い塔。遠くに野営地の火が見える。", "links": [ "courtyard" ] },
+    { "id": "cellar", "name": "砦の地下倉と礼拝室", "art": "bg_crypt", "acts": [ 2 ],
+      "look": "古い礎石と、どこからか吹く冷たい風。小さな礼拝室。", "secret": "奥に山の王の墓と、山の外へ出る古い抜け道。墓には金の冠。",
+      "links": [ "courtyard" ] }
+  ],
+  "mechanisms": [
+    { "id": "brace_gate", "name": "門を補強する（材木）", "place": "courtyard", "ability": "STR", "tier": "普通", "event": "gate_braced", "uses": 1 },
+    { "id": "set_trap", "name": "罠を仕掛ける（縄か油）", "place": "courtyard", "ability": "DEX", "tier": "普通", "event": "trap_set",
+      "combatEffect": "hold_one", "uses": 1 },
+    { "id": "archers", "name": "村人を弓兵に仕立てる", "place": "courtyard", "ability": "MND", "tier": "普通", "event": "archers_ready",
+      "combatEffect": "damage_each_round", "combatAmount": 1, "uses": 1 },
+    { "id": "decoy", "name": "偽の灯りを灯す", "place": "watchtower", "ability": "INT", "tier": "普通", "event": "decoy_lights", "uses": 1 },
+    { "id": "stand", "name": "迎え撃つと決める", "place": "courtyard", "noCheck": true, "event": "stand_and_fight", "uses": 1 },
+    { "id": "free_cub", "name": "檻から子トロルを出す", "place": "camp", "ability": "DEX", "tier": "普通", "event": "cub_freed", "uses": 1 },
+    { "id": "return_cub", "name": "子トロルを親に返す", "place": "courtyard", "noCheck": true, "event": "cub_returned", "uses": 1 },
+    { "id": "tunnel", "name": "抜け道から村人を逃がす", "place": "cellar", "noCheck": true, "event": "villagers_escaped", "uses": 1 }
+  ],
+  "items": [
+    { "id": "crown", "name": "山の王の金の冠", "kind": "Treasure", "at": "cellar", "note": "地下の墓に眠る。持ち出せば、山の王の眠りが……" },
+    { "id": "fang", "name": "狼の牙の首飾り", "kind": "Story", "at": "barracks", "note": "山賊の頭目の印。ラースの寝床の下" }
+  ],
+  "people": [
+    { "id": "edgar", "name": "若い騎士エドガー", "portrait": "pt_knight", "at": "courtyard", "role": "砦の守り手", "attitude": "Friendly",
+      "voice": "まっすぐで、少し気負った言葉", "wants": "村人を守る", "fears": "祖父の名を汚すこと",
+      "clues": [ "c1_3" ], "joins": "Glad", "joinNote": "砦の中で共に戦う", "build": "Normal", "combatRole": "Defend" },
+    { "id": "gunna", "name": "鍛冶屋グンナ", "portrait": "pt_blacksmith", "at": "forge", "role": "女鍛冶", "attitude": "Friendly",
+      "voice": "豪快で口が悪い", "wants": "炉を絶やさない", "fears": "寒さ",
+      "clues": [ "c2_2" ], "joins": "Conditional", "joinWhen": { "place": "courtyard" }, "joinNote": "中庭で戦う", "build": "Normal", "combatRole": "Attack" },
+    { "id": "lars", "name": "傭兵ラース", "portrait": "pt_mercenary", "at": "barracks", "role": "砦の傭兵", "attitude": "Friendly",
+      "voice": "人懐こく、冗談が多い。借金の話になると黙る", "wants": "借金を返す", "fears": "家族への取り立て",
+      "secret": "山賊に通じていて、襲撃の夜に裏門の閂を外す手はず", "lie": "問われると「知らない」と嘘。信頼まで上げれば打ち明けて寝返る",
+      "joins": "Glad", "joinNote": "喜んで加わる（ただし第 3 幕で裏門を開ける。信頼なら開けない）",
+      "betrays": [ { "event": "climax" }, { "person": "lars", "attitude": "Trusting", "not": true } ],
+      "build": "Strong", "combatRole": "Attack" },
+    { "id": "granny", "name": "村の老婆", "portrait": "pt_villager_woman", "at": "courtyard", "role": "逃げ込んだ村人", "attitude": "Friendly",
+      "voice": "昔話が好きで、話が長い", "wants": "孫たち", "fears": "夜", "clues": [ "c4_3" ], "joins": "Never", "build": "Weak" },
+    { "id": "villagers", "name": "逃げ込んだ村人たち", "portrait": "pt_child", "at": "courtyard", "role": "守るべき人々", "attitude": "Friendly",
+      "voice": "怯えて身を寄せ合っている", "wants": "朝を迎えること", "fears": "山賊", "joins": "Never", "escort": true, "build": "Weak" },
+    { "id": "scout", "name": "山賊の斥候", "portrait": "pt_youth", "at": "snowfield", "role": "捕まえれば口を割る斥候", "attitude": "Hostile",
+      "voice": "怯えると早口になる", "wants": "命だけは助かること", "fears": "頭目",
+      "clues": [ "c1_1", "c3_2" ], "joins": "Never", "build": "Weak" },
+    { "id": "gorm", "name": "山賊の頭目ゴルム", "portrait": "", "at": "camp", "role": "山賊の頭目（ボス）", "attitude": "Hostile",
+      "voice": "野太い声で笑う。金の話には目がない", "wants": "山の王の冠", "fears": "手下が逃げること",
+      "secret": "子トロルを人質にしている", "enemy": "bandit_chief", "build": "Strong", "mastermind": true },
+    { "id": "troll", "name": "山のトロル", "portrait": "", "at": "camp", "role": "脅されて従う山のトロル", "attitude": "Hostile",
+      "voice": "地鳴りのような唸り", "wants": "子を取り戻す", "fears": "火", "enemy": "troll", "build": "Strong" },
+    { "id": "cub", "name": "子トロル", "portrait": "", "at": "camp", "role": "檻の中の人質", "attitude": "Wary",
+      "voice": "か細く鳴く", "wants": "親のもとへ帰る", "fears": "檻",
+      "joins": "Conditional", "joinWhen": { "event": "cub_freed" }, "joinNote": "檻を出れば、おとなしく付いてくる", "escort": true, "build": "Weak" }
+  ],
+  "acts": [
+    { "n": 1, "title": "鷲の巣砦", "goal": "砦に着き、守りの備えを始める",
+      "advance": [ [ { "place": "courtyard", "who": "any" }, { "event": "gate_braced" } ],
+                   [ { "place": "courtyard", "who": "any" }, { "event": "trap_set" } ],
+                   [ { "place": "courtyard", "who": "any" }, { "event": "archers_ready" } ],
+                   [ { "place": "courtyard", "who": "any" }, { "event": "decoy_lights" } ] ] },
+    { "n": 2, "title": "備えの夕べ", "goal": "襲撃の前に、山賊の狙いと砦の秘密を探り、備えを固める",
+      "advance": [ [ { "clock": "raid", "is": "full" }, { "place": "courtyard", "who": "any" } ], [ { "event": "stand_and_fight" }, { "place": "courtyard", "who": "any" } ] ] },
+    { "n": 3, "title": "夜の戦い", "goal": "夜明けまで砦と村人を守り抜く" }
+  ],
+  "climax": {
+    "text": "夜の戦い。山賊の第一波、裏門、そしてトロルと頭目が、波のように砦へ押し寄せる。",
+    "starts": [ [ { "clock": "raid", "is": "full" } ], [ { "event": "stand_and_fight" } ] ],
+    "onStart": [
+      { "enemies": [ "bandit", "bandit", "bandit" ], "at": "courtyard", "text": "山賊の第一波が、雄叫びとともに正面の門へ殺到した。" },
+      { "person": "gorm", "moveTo": "courtyard" },
+      { "person": "troll", "moveTo": "courtyard" }
+    ],
+    "solutions": [
+      { "id": "hold", "text": "夜明けまで持ちこたえる: 援軍が着けば勝ち", "when": { "clock": "dawn", "is": "full" } },
+      { "id": "slay", "text": "頭目を討つ: 頭目ゴルムを倒せば、山賊は散る",
+        "when": [ [ { "person": "gorm", "is": "down" } ], [ { "person": "gorm", "is": "dead" } ] ],
+        "then": [ { "text": "頭目が倒れると、山賊たちは武器を捨てて雪の中へ逃げ散った。" } ] },
+      { "id": "cub_home", "text": "子トロルを返す: 子を親に返せば、トロルは山へ帰る",
+        "when": { "event": "cub_returned" },
+        "then": [ { "person": "troll", "state": "Retreated", "text": "トロルは子を大きな腕に抱え上げ、一度だけ砦を振り返って、山の闇へ帰っていった。" } ] },
+      { "id": "tunnel_out", "text": "抜け道から村人を逃がす: 守るものは砦だけになる（砦の門は失う）", "when": { "event": "villagers_escaped" } }
+    ]
+  },
+  "choice": "頭目の狙いの金の冠。地下の墓から持ち出せば、村人を逃がす時間も、借金に苦しむラースを救う金も手に入る。だが、墓を荒らせば、山の王の眠りが……（荒らしたら、次の晩の因縁にする）。",
+  "hooks": [ { "place": "camp", "role": "頭目の客分（前の晩に逃がした敵がいれば、ゴルムに雇われた客分として第 3 幕に現れる。いなければ置かない）" } ],
+  "endings": {
+    "success": "夜明けを迎え、誰も失わなかった。子トロルを返したなら山に親子の声が響き、頭目を討ったなら山道は静かになる。",
+    "bitter": "砦は守ったが、村人かエドガーか仲間を失った。",
+    "failure": "砦は落ちた。"
+  }
+}
