@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no">
+  <title>酒場の語り部</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #140f0d; color: #e8d9b5;
+      font-family: "Yu Mincho", "Hiragino Mincho ProN", serif; }
+    #unity-canvas { width: 100%; height: 100%; display: block; background: #140f0d; }
+    #loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; }
+    #loading h1 { font-weight: normal; letter-spacing: 0.3em; color: #d8b56a; margin: 0; font-size: 32px; }
+    #bar { width: min(420px, 80vw); height: 6px; background: #3a2e26; }
+    #fill { width: 0; height: 100%; background: #d8b56a; transition: width 0.2s; }
+    #note { font-size: 14px; color: #a8957a; text-align: center; padding: 0 16px; }
+  </style>
+</head>
+<body>
+  <canvas id="unity-canvas" tabindex="-1"></canvas>
+  <div id="loading">
+    <h1>酒場の語り部</h1>
+    <div id="bar"><div id="fill"></div></div>
+    <div id="note">読み込み中…（初回は少し時間がかかります。2 回目からは速くなります）</div>
+  </div>
+  <script>
+    // The page may carry a room code (#CODE or ?join=CODE); the game reads it with Application.absoluteURL.
+    var canvas = document.querySelector("#unity-canvas");
+    var config = {
+      dataUrl: "Build/web.data.unityweb",
+      frameworkUrl: "Build/web.framework.js.unityweb",
+      codeUrl: "Build/web.wasm.unityweb",
+      streamingAssetsUrl: "StreamingAssets",
+      companyName: "tavern-tales",
+      productName: "酒場の語り部",
+      productVersion: "1.0",
+    };
+    var script = document.createElement("script");
+    script.src = "Build/web.loader.js";
+    script.onload = function () {
+      createUnityInstance(canvas, config, function (p) {
+        document.querySelector("#fill").style.width = (100 * p) + "%";
+      }).then(function (instance) {
+        window.unityInstance = instance;
+        document.querySelector("#loading").remove();
+      }).catch(function (message) {
+        document.querySelector("#note").textContent = "読み込めませんでした: " + message;
+      });
+    };
+    document.body.appendChild(script);
+  </script>
+</body>
+</html>

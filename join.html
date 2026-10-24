@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>酒場の語り部 — 冒険への招待</title>
+<meta name="robots" content="noindex">
+<style>
+  :root {
+    --bg: #120e0b; --panel: #1d1712; --edge: #5a4630; --gold: #c9a24a; --gold-light: #f3e2b5;
+    --ink: #e9dcc0; --dim: #a8977a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at 50% 30%, #2a1d12 0%, var(--bg) 70%); color: var(--ink);
+    font-family: "Yu Mincho", "YuMincho", "Hiragino Mincho ProN", "Noto Serif JP", serif; padding: 16px;
+  }
+  main {
+    width: 100%; max-width: 560px; background: var(--panel); border: 1px solid var(--edge);
+    padding: 32px 28px; text-align: center; box-shadow: 0 0 60px rgba(201, 162, 74, 0.08);
+  }
+  h1 { color: var(--gold); font-size: 40px; letter-spacing: 0.15em; margin: 0 0 6px; font-weight: 600; }
+  .lead { color: var(--dim); margin: 0 0 28px; }
+  .code {
+    font-size: 48px; letter-spacing: 0.2em; color: var(--gold-light); margin: 8px 0 4px;
+    font-family: "Consolas", "Menlo", monospace;
+  }
+  .label { color: var(--dim); font-size: 14px; }
+  a.button, button {
+    display: block; width: 100%; margin: 14px 0 0; padding: 16px; font-size: 20px; font-family: inherit;
+    color: var(--gold-light); background: #3d2f1c; border: 1px solid var(--gold); text-decoration: none; cursor: pointer;
+  }
+  a.button.sub, button.sub { background: #2e241a; border-color: var(--edge); color: var(--ink); font-size: 16px; padding: 12px; }
+  a.button:hover, button:hover { filter: brightness(1.2); }
+  .help { text-align: left; color: var(--dim); font-size: 15px; line-height: 1.8; margin-top: 26px; border-top: 1px solid var(--edge); padding-top: 18px; }
+  .help b { color: var(--ink); }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>酒場の語り部</h1>
+  <p class="lead" id="lead">友人の冒険に招かれました</p>
+
+  <div id="invite">
+    <div class="label">ルームコード</div>
+    <div class="code" id="code">------</div>
+    <a class="button" id="web" href="play/">ブラウザで部屋に入る（インストール不要）</a>
+    <a class="button sub" id="open" href="#">Windows 版のゲームで開く</a>
+    <button class="sub" id="copy" type="button">コードをコピー</button>
+    <div class="help">
+      <b>ブラウザで入るとき</b><br>
+      パソコンの Chrome・Edge・Firefox で開いてください（初回の読み込みは 1〜2 分。2 回目からは速くなります）。部屋を作れるのは Windows 版だけです。<br>
+      <b>Windows 版が開かないとき</b><br>
+      ゲームを起動して「友人の部屋に入る」を押し、上のコードを入れてください。<br>
+      一度ゲームを起動した PC なら、次からはこのページからそのまま開けます。<br>
+      <b>Windows 版を持っていないとき</b><br>
+      いまの版（0.2.0）の Windows 版はまだ配っていません。上の「ブラウザで部屋に入る」から入ってください。
+      ダウンロードのページにある古い版（0.1.x）では、今の部屋に入れません。
+    </div>
+  </div>
+
+  <div id="nocode" class="hidden">
+    <p>このリンクにはルームコードが入っていません。<br>部屋を作った人に、招待リンクをもう一度送ってもらってください。</p>
+  </div>
+</main>
+<script>
+  // The room code comes after "#" (join.html#ABC123) and never reaches the server.
+  var code = (location.hash || "").replace(/^#/, "").trim().toUpperCase();
+  if (!/^[A-Z0-9]{4,12}$/.test(code)) {
+    document.getElementById("invite").classList.add("hidden");
+    document.getElementById("nocode").classList.remove("hidden");
+    document.getElementById("lead").textContent = "招待リンクが読めませんでした";
+  } else {
+    var link = "tavern-tales://join/" + code;
+    document.getElementById("code").textContent = code;
+    document.getElementById("open").href = link;
+    document.getElementById("copy").addEventListener("click", function () {
+      var done = function () { document.getElementById("copy").textContent = "コピーしました"; };
+      if (navigator.clipboard) navigator.clipboard.writeText(code).then(done, function () {});
+    });
+    document.getElementById("web").href = "play/#" + code;
+  }
+</script>
+</body>
+</html>
