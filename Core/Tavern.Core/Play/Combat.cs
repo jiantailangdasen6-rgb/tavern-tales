@@ -106,6 +106,7 @@ namespace Tavern.Core.Play
             IReadOnlyDictionary<string, int> initiative, bool surprise, Difficulty difficulty, IRandom rng)
         {
             var c = new Combat(difficulty, rng) { SurpriseRound = surprise };
+            c.SoloEase = party.Count(a => a.Life != Life.Dead && !a.Withdrawn) <= 1 && !companions.Any() ? 1 : 0;
             foreach (var a in party.Where(a => a.Life != Life.Dead && !a.Withdrawn))
                 c.Order.Add(new Fighter(a) { Initiative = (initiative.TryGetValue(a.Id, out var n) ? n : 10) + a.Modifier(Ability.Agi) });
             foreach (var m in companions) { m.Side = Side.Party; c.Order.Add(new Fighter(m) { Initiative = m.Speed }); }
@@ -139,6 +140,9 @@ namespace Tavern.Core.Play
         }
 
         public int Summoned => _summoned;
+
+        /// <summary>A lone adventurer without companions takes 1 less from each enemy blow (minimum 1): nobody to share the hits 〔仮〕.</summary>
+        public int SoloEase { get; set; }
 
         /// <summary>Spear and bow holders strike once before anyone else at the start of a fight.</summary>
         public List<Adventurer> FirstStrikers() => Party.Where(a => a.IsUp && a.Attack().FirstStrike).ToList();
@@ -482,14 +486,14 @@ namespace Tavern.Core.Play
                 var targets = Targets().ToList();
                 if (big.Single && targets.Count > 0) targets = new List<Fighter> { Pick(targets, Targeting.Weakest) };
                 foreach (var t in targets)
-                    plan.Blows.Add(new Blow { Attacker = e, TargetId = t.Id, Attack = big.Name, Dc = big.Dc + Difficulty.EnemyAttack(), Damage = big.Damage, BigMove = true });
+                    plan.Blows.Add(new Blow { Attacker = e, TargetId = t.Id, Attack = big.Name, Dc = big.Dc + Difficulty.EnemyAttack(), Damage = Math.Max(1, big.Damage - SoloEase), BigMove = true });
             }
             else if (e.Attacks.Count > 0)
             {
                 var atk = e.Attacks.Count == 1 ? e.Attacks[0] : e.Attacks[_rng.Next(0, e.Attacks.Count)];
                 var target = Taunted(e) ?? (Targets().ToList() is var ts && ts.Count > 0 ? Pick(ts, e.Pattern) : null);
                 if (target != null)
-                    plan.Blows.Add(new Blow { Attacker = e, TargetId = target.Id, Attack = atk.Name, Dc = atk.Dc + Difficulty.EnemyAttack(), Damage = atk.Damage, Poison = atk.Poison });
+                    plan.Blows.Add(new Blow { Attacker = e, TargetId = target.Id, Attack = atk.Name, Dc = atk.Dc + Difficulty.EnemyAttack(), Damage = Math.Max(1, atk.Damage - SoloEase), Poison = atk.Poison });
             }
             if (big != null && big.Every > 0 && (Round + 1) % big.Every == 0)
             {
