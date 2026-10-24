@@ -106,13 +106,12 @@
   "mechanisms": [
     { "id": "supplies", "name": "村に薪と薬草を運ぶ", "place": "village", "noCheck": true, "event": "supplies_delivered", "uses": 2 },
     { "id": "gift", "name": "魔女への贈り物", "place": "hut", "noCheck": true, "event": "witch_gift", "uses": 1 },
-    { "id": "burn_page", "name": "レオポルドの頁を焼く", "place": "ledger_room", "noCheck": true, "event": "page_burned", "uses": 1 },
+    { "id": "burn_page", "name": "宙に浮かぶレオポルドの頁に火を放つ", "place": "ledger_room", "noCheck": true, "event": "page_burned", "uses": 1 },
     { "id": "bargain", "name": "新しい取引（技か、この晩の記憶を差し出す）", "place": "ledger_room", "noCheck": true, "event": "new_bargain", "uses": 1 },
     { "id": "bargain_mark", "name": "新しい取引（歴戦の印を差し出す）", "place": "ledger_room", "noCheck": true, "event": "paid_mark", "uses": 1 }
   ],
   "items": [
     { "id": "glove", "name": "ヴァルデン家の紋の手袋", "kind": "Story", "at": "npc:ferryman", "note": "身なりのいい騎士の落とし物" },
-    { "id": "ledger", "name": "魔女の帳面", "kind": "Story", "at": "ledger_room", "note": "沼の契りの束。燃えれば契りが破れる" },
     { "id": "mead", "name": "村の蜂蜜酒", "kind": "Consumable", "uses": 1, "at": "npc:agnes", "note": "報酬の一部" }
   ],
   "people": [

@@ -136,7 +136,7 @@
       "look": "遠くに海と入り江が見える。", "secret": "山越えの抜け道の入口がある。", "links": [ "old_road", "shortcut" ] },
     { "id": "ruin_camp", "name": "遺跡の野営", "art": "bg_ruins", "acts": [ 3 ],
       "look": "崩れた神殿の陰の野営。夜になると、霧の中を何かが歩く。", "secret": "夜、亡霊が死者を連れて現れる。夜明けには霧が晴れ、海が見える（中休みの場所）。",
-      "links": [ "old_road", "crossroads" ], "enemies": [ "skeleton", "skeleton" ] },
+      "links": [ "old_road", "crossroads" ], "enemies": [ "wraith", "skeleton", "skeleton" ] },
     { "id": "shortcut", "name": "丘の抜け道", "art": "bg_mountain", "acts": [ 4 ],
       "look": "崖沿いの細い道。荷車は通れない（荷を背負う）。", "links": [ "lookout", "cove" ] },
     { "id": "crossroads", "name": "街道の分かれ道", "art": "bg_road", "acts": [ 4 ],
@@ -190,8 +190,6 @@
       "voice": "礼儀正しく、どこか迷っている", "wants": "クララの幸せ", "fears": "命令に背くこと",
       "secret": "クララを連れ戻したくない", "clues": [ "c5_3" ],
       "joins": "Conditional", "joinWhen": { "person": "dietrich", "attitude": "Trusting" }, "joinNote": "信頼すれば味方になる", "build": "Strong", "combatRole": "Defend" },
-    { "id": "ruin_ghost", "name": "遺跡の亡霊", "portrait": "", "at": "ruin_camp", "role": "死者を連れて現れる亡霊（中ボス）", "attitude": "Hostile",
-      "voice": "冷たい呻き", "wants": "生者を連れていく", "fears": "聖灯の光", "enemy": "wraith", "build": "Strong" },
     { "id": "berndt", "name": "頭目ベルント", "portrait": "", "at": "cove", "role": "黒沼の賊の頭目（ボス）", "attitude": "Hostile",
       "voice": "酒焼けした声で嘲笑う", "wants": "聖灯と身代金", "fears": "霧が晴れること",
       "secret": "ブルーノを始末するつもり", "enemy": "bandit_chief", "build": "Strong", "mastermind": true }
@@ -202,9 +200,7 @@
     { "n": 2, "title": "黒沼の霧", "goal": "霧の土手道を越え、黒沼の渡しを渡る",
       "advance": [ [ { "place": "old_road", "who": "any" } ] ] },
     { "n": 3, "title": "丘の旧街道", "goal": "丘の旧街道を進み、遺跡の夜を越える",
-      "advance": [ [ { "place": "ruin_camp", "who": "any" }, { "person": "ruin_ghost", "is": "down" } ],
-                   [ { "place": "ruin_camp", "who": "any" }, { "person": "ruin_ghost", "is": "dead" } ],
-                   [ { "place": "ruin_camp", "who": "any" }, { "person": "ruin_ghost", "is": "retreated" } ] ] },
+      "advance": [ [ { "place": "ruin_camp", "who": "any" }, { "event": "cleared:ruin_camp" } ] ] },
     { "n": 4, "title": "下り道", "goal": "追っ手と向き合い、入り江へ下る道を選ぶ",
       "advance": [ [ { "place": "bridge", "who": "any" } ], [ { "place": "cove", "who": "any" } ] ] },
     { "n": 5, "title": "石橋と入り江", "goal": "待ち伏せを越え、聖灯を船に届ける" }

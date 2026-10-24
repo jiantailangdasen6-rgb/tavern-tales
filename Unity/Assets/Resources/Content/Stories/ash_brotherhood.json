@@ -125,7 +125,8 @@
       "look": "沼に半ば沈んだ古い粉ひき小屋。灰の匂い。", "secret": "奥の部屋に大司祭の祈祷書、壁に古の都の地図、祭壇に儀式の手順書。",
       "links": [ "mire_bank", "hideout_cellar" ], "enemies": [ "cultist", "cultist" ] },
     { "id": "hideout_cellar", "name": "隠れ家の地下", "art": "bg_cave", "acts": [ 3 ],
-      "look": "積み上げられた灰の山と、天井いっぱいの蜘蛛の巣。", "secret": "ニナの髪飾りが落ちている。ニナはもう古の都へ運ばれた。",
+      "look": "積み上げられた灰の山と、天井いっぱいの蜘蛛の巣。", "secret": "兄弟団の飼う大蜘蛛が番をしている。ニナの髪飾りが落ちている。ニナはもう古の都へ運ばれた。",
+      "enemies": [ "spider" ],
       "links": [ "hideout", "camp_break" ] },
     { "id": "camp_break", "name": "土手の野営", "art": "bg_camp", "acts": [ 3 ],
       "look": "焚き火。夜明け前に古の都へ発つ。", "secret": "中休みの場所。ここで一晩明かせる。", "links": [ "hideout_cellar", "ruins_hill" ] },
@@ -141,7 +142,7 @@
     { "id": "scatter_ash", "name": "集めた灰を撒き散らす", "place": "hideout_cellar", "noCheck": true, "event": "ash_scattered", "uses": 1 },
     { "id": "ring_bells", "name": "鐘の舌で、刻みと逆の順に鐘を鳴らす", "place": "gate", "ability": "INT", "tier": "難しい", "event": "gate_closed", "uses": 0 },
     { "id": "free_nina", "name": "縛られたニナを解き放つ", "place": "gate", "ability": "AGI", "tier": "普通", "event": "nina_freed", "uses": 1 },
-    { "id": "break_urn", "name": "灰の壺を割る", "place": "gate", "noCheck": true, "event": "urn_broken", "uses": 1 }
+    { "id": "break_urn", "name": "灰の壺を割る", "place": "gate", "noCheck": true, "event": "urn_broken", "combatEffect": "damage_each_round", "combatAmount": 1, "uses": 1 }
   ],
   "items": [
     { "id": "clapper", "name": "礼拝堂の鐘の舌", "kind": "Story", "at": "npc:joseph", "note": "大司祭が持っている。門を閉じるのに要る" },
@@ -176,8 +177,6 @@
     { "id": "captive", "name": "捕まえた信徒", "portrait": "pt_youth", "at": "mire_bank", "role": "灰の兄弟団の信徒", "attitude": "Hostile",
       "voice": "熱に浮かされたように祈りを唱える", "wants": "王の帰還", "fears": "大司祭の怒り",
       "clues": [ "c3_2", "c6_2" ], "joins": "Never", "build": "Weak" },
-    { "id": "brood", "name": "兄弟団の飼う大蜘蛛", "portrait": "", "at": "hideout_cellar", "role": "隠れ家の地下の番（中ボス）", "attitude": "Hostile",
-      "voice": "言葉はない。脚の擦れる音", "wants": "獲物", "fears": "火", "enemy": "spider", "build": "Strong" },
     { "id": "envoy", "name": "冥府の使い", "portrait": "", "at": "gate", "role": "門の向こうの影（ボス）", "attitude": "Hostile",
       "voice": "灰の舞う音と、遠い呻き", "wants": "世に出る", "fears": "灰の鎖", "enemy": "wraith", "build": "Strong" }
   ],
@@ -189,8 +188,7 @@
     { "n": 3, "title": "土手の隠れ家", "goal": "さらわれたニナを追い、兄弟団の隠れ家に踏み込む",
       "onStart": [ { "event": "nina_taken", "text": "その夜、孤児院からニナが消えた。窓の下に、灰の輪が一つ残されていた。" },
                    { "person": "nina", "moveTo": "gate" }, { "person": "joseph", "moveTo": "gate" } ],
-      "advance": [ [ { "place": "hideout_cellar", "who": "any" }, { "person": "brood", "is": "down" } ],
-                   [ { "place": "hideout_cellar", "who": "any" }, { "person": "brood", "is": "dead" } ] ] },
+      "advance": [ [ { "place": "hideout_cellar", "who": "any" }, { "event": "cleared:hideout_cellar" } ] ] },
     { "n": 4, "title": "古の都への道", "goal": "灰の降る遺跡を越え、神殿の奥を目指す",
       "advance": [ [ { "place": "temple_hall", "who": "any" } ] ] },
     { "n": 5, "title": "冥府の門", "goal": "儀式を止め、ニナを救う" }

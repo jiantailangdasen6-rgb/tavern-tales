@@ -128,7 +128,7 @@
     { "id": "corridor", "name": "客室の廊下", "art": "bg_manor", "acts": [ 3 ],
       "look": "ヨナス、オットー、フィン、ベアトリスの部屋が並ぶ。床板がきしむ。", "links": [ "hall" ] },
     { "id": "stable", "name": "厩", "art": "bg_camp", "acts": [ 3 ], "tense": true,
-      "look": "吹雪の音。怯える馬と、鳥籠。", "secret": "夜、吹雪に追われた傷だらけの大熊が押し入ってくる。", "links": [ "hall" ] },
+      "look": "吹雪の音。怯える馬と、鳥籠。", "secret": "夜、吹雪に追われた傷だらけの大熊が押し入ってくる。", "links": [ "hall" ], "enemies": [ "dire_bear" ] },
     { "id": "owners_room", "name": "主人夫婦の部屋", "art": "bg_manor", "acts": [ 4 ],
       "look": "古い衣装箱と、色あせた館の女中服。", "links": [ "hall" ] },
     { "id": "lake_tower", "name": "凍った湖と古い見張り塔", "art": "bg_ruins", "acts": [ 5 ], "tense": true,
@@ -180,9 +180,7 @@
       "secret": "辺境伯の森で密猟している（クラウスに見抜かれて口論した）", "clues": [ "c3_3" ], "joins": "Never", "build": "Normal" },
     { "id": "beatrice", "name": "修道女ベアトリス", "portrait": "pt_priestess", "at": "corridor", "role": "旅の修道女", "attitude": "Friendly",
       "voice": "静かで、薬草に詳しい", "wants": "祈り", "fears": "宿の争い",
-      "clues": [ "c1_1", "c6_3" ], "joins": "Glad", "build": "Weak", "combatRole": "Heal" },
-    { "id": "bear", "name": "吹雪に追われた大熊", "portrait": "", "at": "stable", "role": "厩に押し入る大熊（中ボス）", "attitude": "Hostile",
-      "voice": "唸り声", "wants": "吹雪をしのぐ", "fears": "火", "enemy": "dire_bear", "build": "Strong" }
+      "clues": [ "c1_1", "c6_3" ], "joins": "Glad", "build": "Weak", "combatRole": "Heal" }
   ],
   "acts": [
     { "n": 1, "title": "吹雪の宿", "goal": "吹雪を抜けて宿に着き、大旦那に薬を届ける",
@@ -191,9 +189,7 @@
       "onStart": [ { "person": "klaus", "state": "Dead", "text": "翌朝、騎士クラウスの部屋からは返事がなかった。閂を壊して開けると、騎士は寝台の上で冷たくなっていた。" } ],
       "advance": [ [ { "conviction": "c1" } ], [ { "conviction": "c2" } ], [ { "place": "corridor", "who": "any" } ] ] },
     { "n": 3, "title": "疑いの夜", "goal": "客たちの秘密を探り、吹雪の夜を越える",
-      "advance": [ [ { "place": "stable", "who": "any" }, { "person": "bear", "is": "down" } ],
-                   [ { "place": "stable", "who": "any" }, { "person": "bear", "is": "dead" } ],
-                   [ { "place": "stable", "who": "any" }, { "person": "bear", "is": "retreated" } ] ] },
+      "advance": [ [ { "place": "stable", "who": "any" }, { "event": "cleared:stable" } ] ] },
     { "n": 4, "title": "秘密", "goal": "手紙の意味と、狙われている者の正体を突き止める",
       "advance": [ [ { "conviction": "c4" }, { "place": "hall", "who": "any" } ], [ { "conviction": "c5" }, { "place": "hall", "who": "any" } ],
                    [ { "clock": "storm_end", "is": "full" }, { "place": "hall", "who": "any" } ] ] },

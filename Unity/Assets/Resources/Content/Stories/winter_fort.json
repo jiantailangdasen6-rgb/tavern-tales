@@ -174,7 +174,7 @@
     "starts": [ [ { "clock": "raid", "is": "full" } ], [ { "event": "stand_and_fight" } ] ],
     "onStart": [
       { "enemies": [ "bandit", "bandit", "bandit" ], "at": "courtyard", "text": "山賊の第一波が、雄叫びとともに正面の門へ殺到した。" },
-      { "person": "gorm", "moveTo": "courtyard" },
+      { "person": "gorm", "moveTo": "party", "text": "松明の列の中から、戦斧を担いだ頭目ゴルムが門へ歩み出た。" },
       { "person": "troll", "moveTo": "courtyard" }
     ],
     "solutions": [

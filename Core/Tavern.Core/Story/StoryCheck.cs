@@ -20,7 +20,7 @@ namespace Tavern.Core.Story
     /// </summary>
     public static class StoryCheck
     {
-        /// <summary>Events the game raises by itself (besides "clue:{id}" and "visited:{place}").</summary>
+        /// <summary>Events the game raises by itself (besides "clue:{id}", "visited:{place}" and "cleared:{place}" once a fight there is won).</summary>
         public static readonly string[] GameEvents = { "climax", "boss_defeated", "climax_solved" };
 
         public static List<Problem> Run(StoryDef s, Bestiary? enemies = null, ISet<string>? art = null, ISet<string>? regions = null)
@@ -164,7 +164,7 @@ namespace Tavern.Core.Story
             // ---- every condition and action points at something real; events are raised somewhere
             var raised = new HashSet<string>(GameEvents);
             foreach (var c in s.Clues) raised.Add("clue:" + c.Id);
-            foreach (var pl in s.Places) raised.Add("visited:" + pl.Id);
+            foreach (var pl in s.Places) { raised.Add("visited:" + pl.Id); if (pl.Enemies.Count > 0) raised.Add("cleared:" + pl.Id); }   // cleared: a fight won there
             foreach (var m in s.Mechanisms) if (m.Event.Length > 0) raised.Add(m.Event);
             foreach (var a in AllActions(s)) if (a.Kind == "event") raised.Add(a.Id);
 
