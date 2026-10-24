@@ -1,0 +1,6 @@
+[
+  { "id": "bg_map_valden", "kind": "map", "aspect": "16:9",
+    "prompt": "A purely pictorial regional map of a wild northern borderland filling the whole frame, shown only with little drawings and with no writing of any kind (no title, no place names, no cartouche, no scale bar): a rugged coastline along the far left edge with a stormy sea drawn with curling wave lines and one small sea serpent, a misty grey forest of tiny trees in the left middle, a small walled road town in the centre with roads spreading out from it, a range of snowy mountains drawn as rows of small inked peaks across the top, a dark reedy marsh at the bottom, crumbling ancient ruins on low hills at the right, a decorative compass rose made only of points and a star in one corner of the sea." },
+  { "id": "pc_warrior_m", "kind": "portrait", "aspect": "2:3",
+    "prompt": "An adult male warrior in his thirties with a short beard and a determined expression, wearing battered steel plate armour over chainmail; he holds one longsword upright at his right side, his right hand closed around its short leather-bound handle just below the crossguard, a small round pommel showing under his hand, the single blade pointing up past his shoulder; one round shield is strapped on his left forearm, so the sword and the shield are in opposite hands." }
+]

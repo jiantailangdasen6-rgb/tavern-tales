@@ -102,8 +102,10 @@ static class Style
                 "aged gold, bronze, dark leather and parchment, fine engraving, soft painted highlights, rich but restrained. Flat front view, perfectly symmetrical, " +
                 $"centred, isolated on a plain pure black background, nothing else in the picture. {NoText}",
         // the region map came out as a tilted relief with tall cliffs (owner 2026-10-25: more like a fantasy map): flat, inked, from above
-        "map" => $"Subject: {subject} Style: a hand-drawn fantasy map in the tradition of the maps printed at the front of classic fantasy novels: " +
-                 "drawn completely flat from directly above like a page in a book, fine pen-and-ink linework with soft muted watercolour washes on aged parchment; " +
+        // the first flat map came out pale cream (owner 2026-10-25: more parchment, a little brown, like the world maps of fantasy RPGs)
+        "map" => $"Subject: {subject} Style: a hand-drawn world map in the tradition of classic fantasy role-playing games and the maps printed at the front of fantasy novels: " +
+                 "drawn completely flat from directly above on old, deeply aged, tea-stained brown parchment with darker mottled stains and softly burnt, darkened edges, " +
+                 "warm sepia and dark brown ink linework with soft hand-coloured washes of muted green, ochre and slate blue; " +
                  "mountains, hills, forests and towns drawn as small inked pictograms, the sea shown with gentle wave lines and hatching along the coastline, " +
                  $"land and sea lying on the same flat page with no relief, no cliffs, no perspective and no three-dimensional terrain. {NoText}",
         "creature" => $"Subject: {subject} Style: {Bible} The creature is fully visible and centred, nothing important touches the edges. {Anatomy} {NoText}",
