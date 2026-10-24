@@ -276,6 +276,7 @@ namespace Tavern.Unity.Night
             Persist();
             BroadcastState();
             RefreshAll();
+            ShowGrowth();
         }
 
         // ================================================================ a friend's side

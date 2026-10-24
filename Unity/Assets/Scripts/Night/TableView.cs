@@ -110,6 +110,7 @@ namespace Tavern.Unity.Night
                 if (!Auto) ShowHandouts();
             }
             else if (_t.Untold.Count > 0 && !Guest) _ = RunAsync(() => _t.TellUntoldAsync());
+            else if (_t.Phase == Phase.Break && !Guest) { if (_t.GrowthDue.Count > 0) ShowGrowth(); else ShowNextNight(); }
             if (AppMain.Flag("-showsheet")) ShowSheet(E.Party[0].Id);   // screenshots
             if (AppMain.Flag("-showclues")) ShowClues();
             RefreshAll();
@@ -582,7 +583,7 @@ namespace Tavern.Unity.Night
         void BotDeclare()
         {
             if (_t.GrowthDue.Count > 0) return;
-            if (E.Combat != null)
+            if (E.Combat != null && !(_walk.Count > 0 && _walk[0].StartsWith("戦闘中:")))   // "戦闘中: …" lines are played in a fight
             {
                 var foe = E.Combat.Foes.Where(f => f.InFight).OrderBy(f => f.Hp).FirstOrDefault();
                 foreach (var a in MyLiving.Where(a => a.IsUp)) _drafts[a.Id] = a.Class.Id == "mage" ? $"魔力の矢を{foe?.Name}に放つ" : $"{foe?.Name}に攻撃する";
@@ -591,7 +592,7 @@ namespace Tavern.Unity.Night
             {
                 var line = _walk[0];
                 _walk.RemoveAt(0);
-                if (line.StartsWith("その後:")) line = line.Substring(4);
+                if (line.StartsWith("その後:") || line.StartsWith("戦闘中:")) line = line.Substring(4);
                 foreach (var part in line.Split(new[] { " / " }, StringSplitOptions.RemoveEmptyEntries))
                 {
                     var i = part.IndexOf(':');

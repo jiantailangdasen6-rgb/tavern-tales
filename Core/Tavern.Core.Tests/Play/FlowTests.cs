@@ -189,6 +189,36 @@ namespace Tavern.Core.Tests.Play
         }
 
         [Test]
+        public async Task Fight_ASpellMarkedAsAnItem_IsCastAnyway()
+        {
+            var (t, llm, e) = New("dungeon", 2, 19);
+            llm.Tool(Classifier.ToolName, Cls(@"{""who"": ""rocco"", ""steps"": [{""text"": ""錠前を開ける"", ""sort"": ""check"", ""ability"": ""DEX"", ""tier"": ""normal"", ""mechanism"": ""cell_lock""}]}"))
+               .Tool(Narrator.ToolName, Ok);
+            await t.ExploreAsync(D(("rocco", "錠前を開ける")));
+            var foe = e.Combat!.Foes.First(f => f.InFight).Id;
+            llm.Tool(Classifier.ToolName, Cls($@"{{""who"": ""gareth"", ""steps"": [{{""text"": ""眠りの霧で動きを止める"", ""sort"": ""check"", ""ability"": ""INT"", ""tier"": ""hard"",
+                ""combat_act"": ""item"", ""effect"": ""hold"", ""effect_ability"": ""INT"", ""target"": ""{foe}""}}]}}"))
+               .Tool(Narrator.ToolName, Ok);
+            var r = await t.ExploreAsync(D(("gareth", "眠りの霧で動きを止める")));
+            Assert.That(r.Lines, Has.None.Contains("使える物を持っていない"));
+        }
+
+        [Test]
+        public async Task Fight_AnItemCanBePutDown()
+        {
+            var (t, llm, e) = New("dungeon", 2, 19);
+            llm.Tool(Classifier.ToolName, Cls(@"{""who"": ""rocco"", ""steps"": [{""text"": ""錠前を開ける"", ""sort"": ""check"", ""ability"": ""DEX"", ""tier"": ""normal"", ""mechanism"": ""cell_lock""}]}"))
+               .Tool(Narrator.ToolName, Ok);
+            await t.ExploreAsync(D(("rocco", "錠前を開ける")));
+            e.World.PutItem("candle_b", World.Pc("gareth"));
+            llm.Tool(Classifier.ToolName, Cls(@"{""who"": ""gareth"", ""steps"": [{""text"": ""燭台を床に置く"", ""sort"": ""auto"", ""combat_act"": ""other"", ""item"": ""candle_b"", ""place_at"": ""dungeon""}]}"))
+               .Tool(Narrator.ToolName, Ok);
+            var r = await t.ExploreAsync(D(("gareth", "燭台を床に置く")));
+            Assert.That(e.World.WhereIs("candle_b"), Is.EqualTo("dungeon"));
+            Assert.That(r.Lines, Has.Some.Contains("金の燭台を置いた"));
+        }
+
+        [Test]
         public async Task SaveAndLoad_InTheMiddleOfAFight()
         {
             var (t, llm, e) = New("dungeon", 2, 19);
@@ -296,13 +326,19 @@ namespace Tavern.Core.Tests.Play
             Assert.That(e.World.Clocks.All.All(c => c.Paused), Is.True);
             var coins = e.Find("gareth")!.FateCoins;
             var newcomer = new Adventurer(PlayContent.Classes["priest"], "ミーナ", "mina");
-            t.ResumeAfterBreak(new[] { newcomer }, new[] { "rocco" });
+            var next = t.ResumeAfterBreak(new[] { newcomer }, new[] { "rocco" });
             Assert.That(t.Phase, Is.EqualTo(Phase.Explore));
             Assert.That(e.Find("gareth")!.FateCoins, Is.EqualTo(coins + 1));
             Assert.That(e.Find("gareth")!.Marks.Count, Is.EqualTo(1));
             Assert.That(e.PlaceOf(newcomer), Is.EqualTo("dungeon"));
             Assert.That(e.Find("rocco")!.Withdrawn, Is.True);
             Assert.That(e.World.Clocks.All.Any(c => c.Paused), Is.False);
+            Assert.That(next.Lines, Has.Some.Contains("四"), "the next act is announced");
+            Assert.That(t.Untold, Is.Not.Empty, "the next night opens with a telling");
+            llm.Tool(Narrator.ToolName, Ok);
+            var told = await t.TellUntoldAsync();
+            Assert.That(told.Narration, Is.Not.Empty);
+            Assert.That(t.Untold, Is.Empty);
         }
 
         [Test]

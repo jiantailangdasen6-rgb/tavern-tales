@@ -142,7 +142,7 @@
   "climax": {
     "text": "峰の巣。翼を広げた白牙の飛竜が、侵入者に向かって咆哮する。",
     "starts": [ [ { "place": "nest", "who": "any" } ] ],
-    "onStart": [ { "person": "wyvern", "moveTo": "party", "text": "白牙の飛竜が翼を広げ、雪煙を巻き上げて一行の前に降り立った。" } ],
+    "onStart": [ { "text": "白牙の飛竜が翼を広げ、雪煙を巻き上げて一行の前に降り立った。卵の匂いに気づいたのか、まだ襲いかからずに低く唸っている。" } ],
     "solutions": [
       { "id": "defeat", "text": "倒す: 飛竜との戦いに勝つ（銛で翼の付け根を射抜けば、急降下を封じられる）",
         "when": [ [ { "person": "wyvern", "is": "down" } ], [ { "person": "wyvern", "is": "dead" } ] ] },

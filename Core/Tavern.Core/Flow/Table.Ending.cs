@@ -50,11 +50,12 @@ namespace Tavern.Core.Flow
 
         /// <summary>
         /// The next evening of a long story (09_Spec 10): the clocks run again, every survivor gets a fate coin back and a veteran mark
-        /// for the first half, the fallen may be replaced by new adventurers (they join where the party stands).
+        /// for the first half, the fallen may be replaced by new adventurers (they join where the party stands). The report holds the new act's lines.
         /// </summary>
-        public void ResumeAfterBreak(IEnumerable<Adventurer> newcomers, IEnumerable<string>? leaving = null)
+        public TurnReport ResumeAfterBreak(IEnumerable<Adventurer> newcomers, IEnumerable<string>? leaving = null)
         {
-            if (Phase != Phase.Break) return;
+            var report = new TurnReport();
+            if (Phase != Phase.Break) return report;
             foreach (var id in leaving ?? Enumerable.Empty<string>()) if (E.Find(id) is Adventurer gone) gone.Withdrawn = true;
             foreach (var a in E.Party.Where(a => a.Life != Life.Dead && !a.Withdrawn))
             {
@@ -72,7 +73,13 @@ namespace Tavern.Core.Flow
             E.Tension.NewNight();
             Phase = Phase.Explore;
             var act = Story.Acts.FirstOrDefault(a => a.N == W.Act);
-            if (act != null) RunActions(act.OnStart, new TurnReport(), new List<string>());
+            report.Lines.Add($"次の晩: 物語は次の幕へ: {act?.Title}（目標: {act?.Goal}）");
+            if (act != null) RunActions(act.OnStart, report, new List<string>());
+            // the night opens with a telling (TellUntoldAsync): a short look back, then the new act
+            Untold.Clear();
+            Untold.AddRange(report.Lines);
+            Save?.Invoke(this);
+            return report;
         }
 
         /// <summary>The host gives up the request (地図の外へ出た).</summary>

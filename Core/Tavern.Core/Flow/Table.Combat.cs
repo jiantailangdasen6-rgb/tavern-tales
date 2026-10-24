@@ -294,7 +294,32 @@ namespace Tavern.Core.Flow
                     break;
                 case "talk": r = new ActionResult(); r.Lines.Add($"{a.Name} は敵に呼びかけた。"); break;
                 default:
-                    if (s.Mechanism.Length > 0 && E.Mechanisms.TryGetValue(s.Mechanism, out var m) && m.Trigger(W))
+                    // an item put down or handed over mid-fight (the egg back in the nest): a solution may hang on it
+                    if (s.Item.Length > 0 && (s.PlaceAt.Length > 0 || s.GiveTo.Length > 0) && (W.Holds(a.Id, s.Item) || a.Gear.Has(s.Item)))
+                    {
+                        var name = a.Gear.Find(s.Item)?.Name ?? Story.ItemOf(s.Item)?.Item.Name ?? s.Item;
+                        var it = a.Gear.Remove(s.Item);
+                        r = new ActionResult();
+                        if (s.GiveTo.Length > 0 && E.Find(s.GiveTo) is Adventurer to)
+                        {
+                            if (it != null) to.Gear.Add(it);
+                            if (Story.ItemOf(s.Item) != null) W.PutItem(s.Item, World.Pc(to.Id));
+                            r.Lines.Add($"{a.Name} は{name}を{to.Name}に渡した。");
+                        }
+                        else if (s.GiveTo.Length > 0)
+                        {
+                            if (Story.ItemOf(s.Item) != null) W.PutItem(s.Item, World.NpcHolder(s.GiveTo));
+                            r.Lines.Add($"{a.Name} は{name}を{W.Cast.Find(s.GiveTo)?.Name}に渡した。");
+                        }
+                        else
+                        {
+                            var place = s.PlaceAt == E.PlaceOf(a) ? s.PlaceAt : E.PlaceOf(a);
+                            if (Story.ItemOf(s.Item) != null) W.PutItem(s.Item, place);
+                            r.Lines.Add($"{a.Name} は{name}を置いた。");
+                        }
+                        changes.Add(r.Lines[0]);
+                    }
+                    else if (s.Mechanism.Length > 0 && E.Mechanisms.TryGetValue(s.Mechanism, out var m) && m.Trigger(W))
                     {
                         r = new ActionResult(); r.Lines.Add($"{a.Name} が{m.Def.Name}を動かした。");
                         if (m.Def.CombatEffect == "hold_one" && combat.Foes.FirstOrDefault(x => x.InFight && !x.Boss) is Creature held) { held.Statuses.Add(StatusKind.Stunned); r.Lines.Add($"{held.Name} は動きを止めた。"); }

@@ -131,6 +131,7 @@ namespace Tavern.Unity.Night
         void ShowGrowth()
         {
             if (Guest) return;   // the host asks
+            if (_t.GrowthDue.Count == 0) { if (_t.Phase == Phase.Break) ShowBreak(); return; }   // a long story's break waits for the growth
             foreach (var friend in _t.GrowthDue.Where(i => !IsMine(i) && _growthAsked.Add(i)).ToList()) _ = AskGrowthAsync(friend);
             var id = _t.GrowthDue.FirstOrDefault(IsMine);
             if (id == null || _growing) return;
@@ -174,11 +175,26 @@ namespace Tavern.Unity.Night
             return pick;
         }
 
-        /// <summary>A long story's break: saved here; the next evening resumes (the party may change).</summary>
+        /// <summary>A long story's break: saved here; the next evening resumes from "続きから" (or right away).</summary>
         void ShowBreak()
         {
             Persist();
-            Dialog("中休み", "物語は一晩明かします。続きは次の晩に「続きから」で（顔ぶれを選び直せます）。", ("保存して酒場へ", () => _n.BackToTitle()));
+            Dialog("中休み", "物語は一晩明かします。続きは次の晩に、タイトルの「続きから」で。\n今夜このまま続けることもできます。",
+                ("保存して酒場へ", () => _n.BackToTitle()), ("このまま次の晩へ", ResumeNight));
+        }
+
+        /// <summary>After the break (opened again from "続きから"): the host starts the next evening.</summary>
+        void ShowNextNight()
+        {
+            var act = Story.Acts.FirstOrDefault(a => a.N == E.World.Act);
+            Dialog("中休みの明け", $"{Story.Title}の続き、{act?.Title}から。\n顔ぶれがそろったら始めます。", ("次の晩を始める", ResumeNight));
+        }
+
+        void ResumeNight()
+        {
+            _t.ResumeAfterBreak(System.Array.Empty<Adventurer>());
+            Persist();
+            _ = RunAsync(() => _t.TellUntoldAsync());
         }
     }
 }

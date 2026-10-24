@@ -602,6 +602,8 @@ namespace Tavern.Core.Ai
                 step.Effect = new Effect(k, Effects.Exists(k, size) ? size : EffectSize.Medium);
                 if (AbilityNames.TryParse((string?)s["effect_ability"], out var ea)) step.EffectAbility = ea;
             }
+            // a spell or technique with an effect but no item named is not "use an item" (the model mixes them up)
+            if (step.CombatAct == "item" && step.Effect != null && step.Item.Length == 0) step.CombatAct = "other";
             switch (step.Sort)
             {
                 case Sort.Check:

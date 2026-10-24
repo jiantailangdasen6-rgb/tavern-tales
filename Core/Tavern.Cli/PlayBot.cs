@@ -69,7 +69,25 @@ static class PlayBot
         {
             List<Declaration> decls;
             string label;
-            if (table.Phase == Phase.Combat) { decls = FightDeclarations(e); label = $"戦闘 {e.Combat!.Round}"; }
+            if (table.Phase == Phase.Break)
+            {
+                if (a.Contains("--stop-at-break")) { Console.WriteLine("\n== 中休み（ここで止める）"); break; }
+                // a long story's break: the next evening goes on with the same party
+                Console.WriteLine("\n== 中休み（次の晩へ）");
+                table.ResumeAfterBreak(Array.Empty<Adventurer>());
+                var told = await table.TellUntoldAsync();
+                foreach (var l in told.Lines) Console.WriteLine("  ・" + l);
+                Console.WriteLine("  語り: " + told.Narration);
+                turns--;
+                continue;
+            }
+            if (table.Phase == Phase.Combat)
+            {
+                // "戦闘中: …" lines of the walkthrough are played in a fight (a solution tried mid-fight); otherwise the bot fights
+                var inFight = line < walk.Count && walk[line].StartsWith("戦闘中:") ? walk[line++].Substring(4) : null;
+                decls = inFight != null ? Parse(inFight, e) : FightDeclarations(e);
+                label = $"戦闘 {e.Combat!.Round}";
+            }
             else if (table.Phase == Phase.Afterword)
             {
                 var after = walk.Skip(line).FirstOrDefault(l => l.StartsWith("その後:"));
@@ -80,7 +98,8 @@ static class PlayBot
             {
                 while (line < walk.Count && walk[line].StartsWith("その後:")) line++;
                 if (line >= walk.Count) { Console.WriteLine("  (the walkthrough ran out)"); break; }
-                decls = Parse(walk[line++], e);
+                var next = walk[line++];
+                decls = Parse(next.StartsWith("戦闘中:") ? next.Substring(4) : next, e);
                 label = $"手 {e.Turn + 1}（第 {e.World.Act} 幕）";
             }
             var t0 = sw.Elapsed.TotalSeconds;
