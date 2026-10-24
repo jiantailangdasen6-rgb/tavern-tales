@@ -64,6 +64,8 @@ namespace Tavern.Unity.Night
 
         // bots and screenshots
         int _autoTurns, _autoDone;
+        /// <summary>The width of the writing on the storyteller's page (inside its light middle).</summary>
+        const float LogW = 620;
         float _autoWait;
         readonly List<string> _walk = new List<string>();
 
@@ -242,12 +244,13 @@ namespace Tavern.Unity.Night
             var page = UiKit.Rect("Page", panel).Fill(12);
             page.SetAsFirstSibling();
             UiKit.Ground(page, "parchment", 90);
-            // a pale wash over the writing area keeps the mottled paper from fighting the small text
-            UiKit.Soft(page, new Color(0.95f, 0.89f, 0.75f, 0.55f), 40);
-            PersonCard(page, ArtLibrary.Get("pt_olwen"), 40, 14, 52, 52, Theme.FrameDim);   // the storyteller Olwen, by the book
-            UiKit.Title(page, "語り部の書", 26, Theme.InkRed, 104, 22, 260, 36).Inked();
-            _quotaText = UiKit.Label(page, "", 14, Theme.InkBrown, 280, 30, 430, 24, align: TextAnchor.UpperRight).Inked();
-            _log = UiKit.Scroll(page, 40, 72, 680, 870, out _logScroll, spacing: 12);
+            // a pale wash over the writing area keeps the mottled paper from fighting the small text; all writing stays on its
+            // flat light middle (from 60 px in), off the darker burnt edges (owner 2026-10-25)
+            UiKit.Soft(page, new Color(0.95f, 0.89f, 0.75f, 0.55f), 26, fade: 34);
+            PersonCard(page, ArtLibrary.Get("pt_olwen"), 64, 62, 48, 48, Theme.FrameDim);   // the storyteller Olwen, by the book
+            UiKit.Title(page, "語り部の書", 26, Theme.InkRed, 124, 68, 240, 36).Inked();
+            _quotaText = UiKit.Label(page, "", 14, Theme.InkBrown, 330, 78, 354, 24, align: TextAnchor.UpperRight).Inked();
+            _log = UiKit.Scroll(page, 64, 122, LogW, 776, out _logScroll, spacing: 12);
             var click = panel.gameObject.AddComponent<Button>();
             click.transition = Selectable.Transition.None;
             click.onClick.AddListener(FinishTyping);
@@ -640,7 +643,7 @@ namespace Tavern.Unity.Night
                 UiKit.Label(_log, who, Reading.Font(14), Theme.InkRed, serif: true).Inked();
                 _typing = UiKit.Label(_log, "", Reading.Font(21), Theme.InkDark, serif: true).Inked();
                 _typing.lineSpacing = 1.25f;
-                _typingFull = UiKit.Kinsoku(text, Theme.Serif, Reading.Font(21), FontStyle.Normal, 676);
+                _typingFull = UiKit.Kinsoku(text, Theme.Serif, Reading.Font(21), FontStyle.Normal, LogW - 4);
                 _typing.horizontalOverflow = HorizontalWrapMode.Overflow;
                 _typingPos = 0;
                 if (narration) AudioDirector.Play("page", 0.5f);

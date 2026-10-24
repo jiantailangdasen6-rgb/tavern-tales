@@ -1,0 +1,8 @@
+[
+  { "id": "bg_map_valden", "kind": "map", "aspect": "16:9",
+    "prompt": "A purely pictorial old regional map of a wild northern land filling the whole frame, shown only with little drawings and with no writing of any kind (no title, no place names, no cartouche, no compass letters, no scale bar): a rugged coastline along the far left edge with the sea beyond it, a misty grey forest in the left middle, a small walled road town in the centre with roads spreading out from it, a range of snowy mountains across the top, a dark reedy marsh at the bottom, crumbling ancient ruins on low hills at the right." },
+  { "id": "en_harpy", "kind": "creature", "aspect": "2:3",
+    "prompt": "A monstrous harpy perched on a bare rocky sea cliff in the cold grey light of a storm: it has the human head and face of a gaunt, fierce old woman with long wild grey hair (a human face, not a bird's head), and the body of a great bird covered in dark ragged feathers from the neck down, huge tattered wings spread wide, clawed bird feet gripping the rock, storm clouds and a grey sea behind. Only rock, sea and sky around it." },
+  { "id": "pc_warrior_f", "kind": "portrait", "aspect": "2:3",
+    "prompt": "An adult female warrior in her thirties with braided red hair and a fierce expression, wearing steel plate armour over chainmail; she holds one longsword upright at her right side, her right hand gripping its leather-bound handle just below the crossguard, the blade pointing up past her shoulder; one kite shield is strapped on her left forearm, so the sword and the shield are in opposite hands." }
+]

@@ -113,7 +113,7 @@
       "look": "荒らされた祭壇。鐘楼の鐘には、鐘の舌がない。", "links": [ "tavern", "archive", "albert_room" ] },
     { "id": "archive", "name": "礼拝堂の書庫", "art": "bg_library", "acts": [ 1 ],
       "look": "古い記録の棚が並ぶ、埃っぽい小部屋。", "links": [ "chapel" ] },
-    { "id": "crow_bar", "name": "夜鴉の隠れ酒場", "art": "bg_sewer", "acts": [ 1 ],
+    { "id": "crow_bar", "name": "夜鴉の隠れ酒場", "art": "bg_den", "acts": [ 1 ],
       "look": "地下の薄暗い酒場。目つきの悪い客ばかり。", "links": [ "tavern" ] },
     { "id": "orphanage", "name": "孤児院", "art": "bg_town", "acts": [ 1 ],
       "look": "古い石の建物と、子どもたちの声。窓辺に、人見知りの少女。", "links": [ "tavern" ] },

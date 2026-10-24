@@ -247,7 +247,7 @@ namespace Tavern.Unity.Ui
 
         static Sprite? _soft;
         /// <summary>A pale patch whose edges fade out (no hard rectangle), e.g. to calm a texture under small text.</summary>
-        public static Image Soft(Transform parent, Color color, float inset = 0)
+        public static Image Soft(Transform parent, Color color, float inset = 0, float fade = 65)
         {
             if (_soft == null)
             {
@@ -265,7 +265,7 @@ namespace Tavern.Unity.Ui
             var img = Rect("Soft", parent).Fill(inset).gameObject.AddComponent<Image>();
             img.sprite = _soft;
             img.type = Image.Type.Sliced;
-            img.pixelsPerUnitMultiplier = 0.4f;   // the fade spans about 65 px on screen
+            img.pixelsPerUnitMultiplier = 26f / fade;   // the fade spans `fade` px on screen
             img.color = color;
             img.raycastTarget = false;
             return img;

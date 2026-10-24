@@ -57,8 +57,11 @@ namespace Tavern.Unity.Night
                 var dot = UiKit.Box(root, "Spot", stories.Count > 0 ? Theme.Gold : Theme.Hex("d8c8a4"));
                 dot.rectTransform.Place(x - 9, y - 9, 18, 18);
                 var nameW = Mathf.Min(300, r.Name.Length * 18 + 16);
-                var name = UiKit.Label(root, r.Name, stories.Count > 0 ? 18 : 15, stories.Count > 0 ? Theme.GoldLight : Theme.Hex("efe3c8"), x - 150, y + 12, 300, 44, align: TextAnchor.UpperCenter);
-                name.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, 0.9f);
+                // the map is a light inked page (2026-10-25): names in ink with a parchment halo
+                var name = UiKit.Label(root, r.Name, stories.Count > 0 ? 18 : 15, stories.Count > 0 ? Theme.InkRed : Theme.InkDark, x - 150, y + 12, 300, 44, align: TextAnchor.UpperCenter).Inked();
+                var halo = name.gameObject.AddComponent<Outline>();
+                halo.effectColor = new Color(0.94f, 0.89f, 0.76f, 0.95f);
+                halo.effectDistance = new Vector2(2, -2);
                 taken.Add(new Rect(x - nameW / 2f, y - 10, nameW, 50));
             }
             foreach (var (r, stories, x, y) in spots)

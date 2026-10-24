@@ -101,6 +101,11 @@ static class Style
         "ui" => $"Subject: {subject} Style: a hand-painted interface element for a dark fantasy computer role-playing game, in the manner of classic painted RPG interfaces: " +
                 "aged gold, bronze, dark leather and parchment, fine engraving, soft painted highlights, rich but restrained. Flat front view, perfectly symmetrical, " +
                 $"centred, isolated on a plain pure black background, nothing else in the picture. {NoText}",
+        // the region map came out as a tilted relief with tall cliffs (owner 2026-10-25: more like a fantasy map): flat, inked, from above
+        "map" => $"Subject: {subject} Style: a hand-drawn fantasy map in the tradition of the maps printed at the front of classic fantasy novels: " +
+                 "drawn completely flat from directly above like a page in a book, fine pen-and-ink linework with soft muted watercolour washes on aged parchment; " +
+                 "mountains, hills, forests and towns drawn as small inked pictograms, the sea shown with gentle wave lines and hatching along the coastline, " +
+                 $"land and sea lying on the same flat page with no relief, no cliffs, no perspective and no three-dimensional terrain. {NoText}",
         "creature" => $"Subject: {subject} Style: {Bible} The creature is fully visible and centred, nothing important touches the edges. {Anatomy} {NoText}",
         "card" => $"Subject: {subject} Style: {Bible} The effect itself is the main subject, centred; any figure is secondary or seen from behind. {Anatomy} {NoText}",
         _ => $"Subject: {subject} Style: {Bible} The figure is centred with the face clearly lit. {Anatomy} {NoText}",

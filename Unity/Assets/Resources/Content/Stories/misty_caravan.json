@@ -119,7 +119,7 @@
       "look": "拠点の酒場。神殿の司祭が、布にくるんだランタンを抱えている。", "links": [ "gate" ] },
     { "id": "gate", "name": "ロウフォードの門", "art": "bg_town", "acts": [ 1 ], "shop": true,
       "look": "隊商の荷車と、出入りする旅人。", "links": [ "tavern", "gambling", "road_camp" ] },
-    { "id": "gambling", "name": "ロウフォードの賭場", "art": "bg_sewer", "acts": [ 1 ],
+    { "id": "gambling", "name": "ロウフォードの賭場", "art": "bg_den", "acts": [ 1 ],
       "look": "煙の立ちこめる地下の賭場。", "links": [ "gate" ] },
     { "id": "road_camp", "name": "街道の野営", "art": "bg_camp", "acts": [ 1 ],
       "look": "最初の夜の焚き火。荷車が円く並ぶ。", "links": [ "gate", "causeway" ] },
