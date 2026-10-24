@@ -386,6 +386,8 @@ namespace Tavern.Core.Flow
             E.Combat = null;
             report.CombatEnded = end;
             if (end == CombatEnd.Fled) FledFoes.AddRange(combat.Foes.Where(f => f.InFight).Select(f => f.Name));
+            // A place's own foes are met once: after a won fight there, the classifier may not raise them again (the hall's armours came back).
+            if (end == CombatEnd.Won) foreach (var p in W.PlacesOfParty.ToList()) W.Events.Add(Cleared(p));
             report.Lines.Add(end switch { CombatEnd.Won => "戦闘に勝った", CombatEnd.Fled => "一行は戦いの場から逃れた", _ => "一行は倒れた" });
             changes.Add(end switch { CombatEnd.Won => "戦闘が終わった（敵は退けられた）", CombatEnd.Fled => "一行は逃げ延びた", _ => "一行は全員倒れた" });
             W.Clocks.Turn(W.Act, PartySize);

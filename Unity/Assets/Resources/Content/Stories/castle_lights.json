@@ -26,7 +26,7 @@
       "onFullKinds": [ "NpcDies" ], "fullText": "エマが息絶える（★）。伯爵の大技「血の霧」が強まる",
       "onFull": [ { "person": "emma", "state": "Dead", "text": "霊廟の杯が赤く満ちた夜、エマの胸の上下が止まった。眠る娘たちの頬からも、最後の血の気が引いていく。" } ],
       "rewinds": [ { "id": "bedside", "text": "眠る娘の枕元に聖水か聖印を置く", "amount": 2,
-        "when": [ [ { "item": "holy_water", "at": "village" } ], [ { "item": "holy_symbol", "at": "village" } ] ] } ]
+        "when": { "event": "bedside_warded" } } ]
     },
     {
       "id": "waking", "name": "古城の目覚め", "secret": "伯爵の昼歩き", "segments": 4, "speed": "every", "every": 8, "acts": [ 2, 3 ],
@@ -104,7 +104,8 @@
       "look": "黒い石棺と、赤く満ちていく杯。", "links": [ "hall" ], "enemies": [ "ghoul" ] }
   ],
   "mechanisms": [
-    { "id": "stair", "name": "玉座の裏の燭台", "place": "hall", "noCheck": true, "event": "stair_open", "uses": 1 },
+    { "id": "stair", "name": "玉座の裏の燭台を倒す（隠し階段が開く）", "place": "hall", "noCheck": true, "event": "stair_open", "uses": 1 },
+    { "id": "bedside", "name": "眠る娘の枕元に聖水か聖印の守りを置く", "place": "village", "noCheck": true, "event": "bedside_warded", "uses": 1 },
     { "id": "reseal", "name": "銀の杭を打ち直す", "place": "crypt", "ability": "STR", "tier": "難しい", "event": "volk_sealed", "uses": 1 },
     { "id": "break_cup", "name": "血の杯を砕く", "place": "crypt", "noCheck": true, "event": "cup_broken", "uses": 1 }
   ],

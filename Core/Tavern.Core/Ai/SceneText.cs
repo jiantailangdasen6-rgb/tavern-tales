@@ -53,7 +53,8 @@ namespace Tavern.Core.Ai
                 foreach (var r in p.Rules) b.AppendLine($"場所の決まり: {r.Text}");
                 if (p.Tense) b.AppendLine("ここは緊迫の場所。");
                 if (p.Shop) b.AppendLine("店がある（消耗品と道具）。");
-                if (p.Enemies.Count > 0) b.AppendLine("ここに出うる敵: " + string.Join("、", p.Enemies.Distinct().Select(x => $"[{x}]")));
+                if (p.Enemies.Count > 0 && !e.World.Events.Contains(Flow.Table.Cleared(place))) b.AppendLine("ここに出うる敵: " + string.Join("、", p.Enemies.Distinct().Select(x => $"[{x}]")));
+                else if (p.Enemies.Count > 0) b.AppendLine("ここの敵はもう退けた（同じ顔ぶれはもう出ない）。");
                 foreach (var t in p.Traps) b.AppendLine($"罠: {t.Text}（{t.Ability.Code()}・{t.Tier.Label()}で見抜く・外す）");
                 var people = e.PeopleAt(place).ToList();
                 foreach (var n in people)

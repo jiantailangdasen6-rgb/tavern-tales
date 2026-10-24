@@ -58,6 +58,9 @@ namespace Tavern.Core.Flow
     /// </summary>
     public sealed partial class Table
     {
+        /// <summary>The event set once a fight was won at a place: its own enemy table does not come back.</summary>
+        public static string Cleared(string place) => "cleared:" + place;
+
         public Evening E { get; }
         public Classifier Classifier { get; }
         public Narrator Narrator { get; }

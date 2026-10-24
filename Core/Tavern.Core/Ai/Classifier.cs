@@ -440,7 +440,8 @@ namespace Tavern.Core.Ai
             if (args["fight"] is JObject f && f["enemies"] is JArray en && en.Count > 0)
             {
                 var fight = new FightStart { Surprise = (bool?)f["surprise"] ?? false };
-                var allowed = new HashSet<string>(e.World.PlacesOfParty.SelectMany(p => e.Story.PlaceOf(p)?.Enemies ?? new List<string>()));
+                var allowed = new HashSet<string>(e.World.PlacesOfParty.Where(p => !e.World.Events.Contains(Flow.Table.Cleared(p)))
+                    .SelectMany(p => e.Story.PlaceOf(p)?.Enemies ?? new List<string>()));
                 foreach (var id in en.Select(x => (string?)x ?? ""))
                     if (allowed.Contains(id) || e.Story.People.Any(p => p.Enemy == id)) fight.Enemies.Add(id);
                     else result.Dropped.Add($"敵 '{id}' はこの場所に出ない");

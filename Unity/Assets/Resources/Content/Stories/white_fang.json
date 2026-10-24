@@ -103,8 +103,7 @@
       "links": [ "pass", "hideout" ] }
   ],
   "mechanisms": [
-    { "id": "wall_break", "name": "隠し部屋の板壁（打ち破る）", "place": "mine", "ability": "STR", "tier": "普通", "event": "hideout_open", "uses": 1 },
-    { "id": "wall_pick", "name": "隠し部屋の板壁（そっと外す）", "place": "mine", "ability": "DEX", "tier": "普通", "event": "hideout_open", "uses": 1 },
+    { "id": "wall", "name": "隠し部屋の板壁（外すか、こじ開ける）", "place": "mine", "ability": "DEX", "tier": "普通", "event": "hideout_open", "uses": 1 },
     { "id": "warm_egg", "name": "卵をくるんで温める", "place": "hideout", "noCheck": true, "event": "egg_warmed", "uses": 1 },
     { "id": "lure", "name": "卵を見せながら竜を遠ざける", "place": "nest", "ability": "AGI", "tier": "難しい", "event": "dragon_lured", "uses": 1 }
   ],
