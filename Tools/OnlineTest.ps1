@@ -2,25 +2,33 @@
 # Usage: powershell -ExecutionPolicy Bypass -File Tools/OnlineTest.ps1 [-Seconds 90] [-Shots "40,70"] [-Live] [-Friends 3] [-Rejoin 50] [-Drop 60]
 # -Live uses the real AI on the host (Gemini quota). -Friends 3 makes a party of four.
 # -Rejoin N: friend 1 quits after N seconds and comes back with the same profile (friend1b). -Drop N: friend 2 quits after N seconds for good
-# and the host lets their adventurer leave for tonight (-withdrawaway). Logs and screenshots go to Logs/online/.
-param([int]$Seconds = 90, [string]$Shots = "40,70", [switch]$Live, [int]$Friends = 2, [int]$Rejoin = 0, [int]$Drop = 0)
+# and the host lets their adventurer leave for tonight (-withdrawaway). -TestKey uses GEMINI_API_KEY_TEST with -Live; -Walk gives every bot the same
+# walkthrough (each declares its own adventurer's part); -Difficulty gentle|standard|harsh; -Turns the bots' declarations. Logs and screenshots go to Logs/online/.
+param([int]$Seconds = 90, [string]$Shots = "40,70", [switch]$Live, [switch]$TestKey, [int]$Friends = 2, [int]$Rejoin = 0, [int]$Drop = 0,
+    [string]$Walk = "", [string]$Difficulty = "", [int]$Turns = 30)
 
 $root = Split-Path -Parent $PSScriptRoot
 $exe = Join-Path $root "Builds\windows\Tavern.exe"
 $out = Join-Path $root "Logs\online"
 New-Item -ItemType Directory -Force $out | Out-Null
-Remove-Item -Force -ErrorAction SilentlyContinue (Join-Path $out "*")
+Remove-Item -Recurse -Force -ErrorAction SilentlyContinue (Join-Path $out "*")
+# each PC keeps its own files (roster, chronicle, tavern) in its own folder, as on separate PCs
 $code = Join-Path $out "code.txt"
 $demo = @()
-if (-not $Live) { $demo = @("-demo") }
-function Common([int]$quit) { @("-night", "-autoplay", "30", "-screen-width", "1600", "-screen-height", "900", "-screen-fullscreen", "0", "-mute", "-autoquit", "$quit", "-shotat", $Shots) }
+if (-not $Live) { $demo = @("-demo") } elseif ($TestKey) { $demo = @("-testkey") }
+function Common([int]$quit) {
+    $c = @("-night", "-autoplay", "$Turns", "-screen-width", "1600", "-screen-height", "900", "-screen-fullscreen", "0", "-mute", "-autoquit", "$quit", "-shotat", $Shots)
+    if ($Walk) { $c += @("-walk", (Resolve-Path $Walk).Path) }
+    $c
+}
 
 $start = Get-Date
 $all = @()
 $hostArgs = $demo + (Common $Seconds) + @(
     "-onlinehost", "-presetchar", "0", "-playername", "Host", "-profile", "host", "-codefile", $code, "-startwhen", "$($Friends + 1)",
-    "-savefile", (Join-Path $out "host-save.json"), "-screenshot", (Join-Path $out "host.png"), "-logFile", (Join-Path $out "host.log"))
+    "-savefile", (Join-Path $out "host/save.json"), "-screenshot", (Join-Path $out "host.png"), "-logFile", (Join-Path $out "host.log"))
 if ($Drop -gt 0) { $hostArgs += "-withdrawaway" }
+if ($Difficulty) { $hostArgs += @("-difficulty", $Difficulty) }
 $all += Start-Process -FilePath $exe -PassThru -ArgumentList $hostArgs
 $names = @("host")
 for ($i = 1; $i -le $Friends; $i++) {
@@ -30,7 +38,7 @@ for ($i = 1; $i -le $Friends; $i++) {
     if ($i -eq 2 -and $Drop -gt 0) { $quit = $Drop }
     $all += Start-Process -FilePath $exe -PassThru -ArgumentList ((Common $quit) + @(
         "-onlinejoinfile", $code, "-presetchar", "$i", "-playername", "Friend$i", "-profile", "friend$i",
-        "-savefile", (Join-Path $out "friend$i-save.json"), "-screenshot", (Join-Path $out "friend$i.png"), "-logFile", (Join-Path $out "friend$i.log")))
+        "-savefile", (Join-Path $out "friend$i/save.json"), "-screenshot", (Join-Path $out "friend$i.png"), "-logFile", (Join-Path $out "friend$i.log")))
     $names += "friend$i"
 }
 if ($Rejoin -gt 0) {
@@ -38,7 +46,7 @@ if ($Rejoin -gt 0) {
     $left = [Math]::Max(30, $Seconds - $Rejoin - 10)
     $all += Start-Process -FilePath $exe -PassThru -ArgumentList ((Common $left) + @(
         "-onlinejoinfile", $code, "-presetchar", "1", "-playername", "Friend1", "-profile", "friend1",
-        "-savefile", (Join-Path $out "friend1b-save.json"), "-screenshot", (Join-Path $out "friend1b.png"), "-logFile", (Join-Path $out "friend1b.log")))
+        "-savefile", (Join-Path $out "friend1/save.json"), "-screenshot", (Join-Path $out "friend1b.png"), "-logFile", (Join-Path $out "friend1b.log")))
     $names += "friend1b"
 }
 

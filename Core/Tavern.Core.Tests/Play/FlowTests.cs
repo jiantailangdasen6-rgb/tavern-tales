@@ -254,15 +254,17 @@ namespace Tavern.Core.Tests.Play
             var (t, llm, e) = New("dungeon", 3);
             e.World.Cast.Find("tom")!.WithParty = true;
             e.World.Cast.Find("rina")!.WithParty = true;
+            e.Find("rocco")!.Gear.Add(new Item { Id = "candle_b", Name = "金の燭台", Kind = ItemKind.Treasure });
             t.Abandon();
             llm.Tool("chronicle", @"{""title"": ""灰色の森の祠"", ""story"": ""一行は…"", ""rumors"": [""祠に灯がともったらしい""],
                 ""bonds"": [{""kind"": ""解けずに残った謎"", ""text"": ""騎士の名""}, {""kind"": ""逃がした敵"", ""text"": ""なし""}],
-                ""marks"": [{""who"": ""gareth"", ""name"": ""森の霧を抜けた""}]}");
+                ""marks"": [{""who"": ""gareth"", ""name"": ""森の霧を抜けた""}, {""who"": ""ロッコ"", ""name"": ""燭台を抱えて帰った""}]}");
             var c = await t.WrapUpAsync(new Bookends(llm));
             Assert.That(c.Rumors.Single(), Is.EqualTo("祠に灯がともったらしい"));
             Assert.That(c.Bonds.Select(b => b.Kind), Is.EqualTo(new[] { "解けずに残った謎" }), "only kinds the game offered");
             Assert.That(e.Find("gareth")!.Marks.Single().Name, Is.EqualTo("森の霧を抜けた"));
-            Assert.That(e.Find("rocco")!.Marks.Single().Name, Does.Contain("灰色の森の祠"), "a survivor without a name still earns one");
+            Assert.That(e.Find("rocco")!.Marks.Single().Name, Is.EqualTo("燭台を抱えて帰った"), "the AI may name the adventurer instead of the id");
+            Assert.That(llm.Seen.Last().Last().Content, Does.Contain("持ち帰った宝: ロッコの金の燭台"), "the chronicle is told what was brought home, not left to guess");
         }
 
         [Test]

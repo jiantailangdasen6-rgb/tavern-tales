@@ -47,6 +47,9 @@ namespace Tavern.Unity.Night
 
         string OwnerName(string id) => Guest ? (_state != null && _state.Owners.TryGetValue(id, out var o) ? o : "") : Room?.OwnerOf(id) ?? "";
 
+        /// <summary>The table is still the screen (after the ending or leaving, the room's events find it gone).</summary>
+        bool OnScreen => _log != null && _log;
+
         static string Clip(string s, int n) => (s ?? "").Trim().Length > n ? s!.Trim().Substring(0, n) : (s ?? "").Trim();
 
         void Listen()
@@ -56,7 +59,7 @@ namespace Tavern.Unity.Night
             if (Guest)
             {
                 NetSession.On(NightMsg.Report, (_, json) => OnReport(OnlineView.Read<ReportMsg>(json)));
-                NetSession.On(NightMsg.Dice, (from, json) => { var m = OnlineView.Read<DiceMsg>(json); _ = AnimateDice(m.Rolls.Select(v => v.ToRequest()).ToList(), m.Naturals); });
+                NetSession.On(NightMsg.Dice, (from, json) => { if (!OnScreen) return; var m = OnlineView.Read<DiceMsg>(json); _ = AnimateDice(m.Rolls.Select(v => v.ToRequest()).ToList(), m.Naturals); });
                 NetSession.On(NightMsg.Ask, (from, json) => _ = AnswerAsync(OnlineView.Read<AskMsg>(json)));
                 return;
             }
@@ -77,7 +80,7 @@ namespace Tavern.Unity.Night
 
         void OnDeclare(ulong from, string json)
         {
-            var p = Room?.PlayerOf(from);
+            var p = OnScreen ? Room?.PlayerOf(from) : null;
             if (p == null) return;
             var m = OnlineView.Read<NightDeclare>(json);
             if (_busy || _ending) { SendStateTo(p); return; }
@@ -171,7 +174,7 @@ namespace Tavern.Unity.Night
 
         void OnFriendLeft(string player)
         {
-            if (_n.Room == null) return;
+            if (_n.Room == null || !OnScreen) return;
             var p = Room!.PlayerNamed(player);
             foreach (var a in _asks.Values.Where(a => p != null && a.client == p.Id).ToList()) a.tcs.TrySetResult(null);
             AddLine($"（{player}の接続が切れた。部屋のコード {Room.Code} で入り直せば戻れる。戻れなければ、冒険者の欄の「今夜は抜けた」で物語から離せる）", Theme.Warn, 15);
@@ -190,7 +193,7 @@ namespace Tavern.Unity.Night
 
         void OnFriendBack(string player, ulong client)
         {
-            if (_n.Room == null) return;
+            if (_n.Room == null || !OnScreen) return;
             AddLine($"（{player}が戻ってきた）", Theme.Dim, 15);
             foreach (var id in Room!.MineOf(player))   // let go for tonight, but back after all: into the story again
                 if (E.Find(id) is Adventurer back && back.Withdrawn && back.Life != Life.Dead) { back.Withdrawn = false; AddLine($"{back.Name}が物語に戻った", Theme.Dim, 15); Persist(); }
@@ -217,7 +220,7 @@ namespace Tavern.Unity.Night
 
         void OnOrder(ulong from, string json)
         {
-            if (Room?.PlayerOf(from) is not RoomPlayer p) return;
+            if (!OnScreen || Room?.PlayerOf(from) is not RoomPlayer p) return;
             var m = OnlineView.Read<NightOrder>(json);
             if (m.Hint) { E.Hints.Ask(E.Difficulty); AddLine($"（{p.PlayerName}が語り部に手がかりを頼んだ）", Theme.Dim, 14); }
             else if (Clip(m.Text, 100) is string text && text.Length > 0) { _t.Requests.Add(text); AddLine($"（{p.PlayerName}の注文: {text}）", Theme.Dim, 14); }
@@ -225,7 +228,7 @@ namespace Tavern.Unity.Night
 
         void OnClue(ulong from, string json)
         {
-            if (Room?.PlayerOf(from) is not RoomPlayer p) return;
+            if (!OnScreen || Room?.PlayerOf(from) is not RoomPlayer p) return;
             var id = OnlineView.Read<ClueMsg>(json).ClueId;
             var mine = Room.MineOf(p.PlayerName);
             if (!E.World.Clues.TryGetValue(id, out var who) || !who.Any(mine.Contains)) return;
@@ -242,6 +245,13 @@ namespace Tavern.Unity.Night
             foreach (var f in Room!.Friends.ToList())
                 NetSession.Send(NightMsg.Report, OnlineView.Json(ReportMsg.For(r, Room.MineOf(f.PlayerName))), f.Id);
             BroadcastState();
+        }
+
+        /// <summary>A line in every friend's log (the host's screen has its own).</summary>
+        void Notify(string note)
+        {
+            if (!HostOnline) return;
+            foreach (var f in Room!.Friends.ToList()) NetSession.Send(NightMsg.Report, OnlineView.Json(new ReportMsg { Note = note }), f.Id);
         }
 
         void SendEnd(Chronicle? chronicle)
@@ -291,6 +301,7 @@ namespace Tavern.Unity.Night
 
         void OnReport(ReportMsg m)
         {
+            if (!OnScreen) return;
             if (m.Note.Length > 0) AddLine(m.Note, Theme.Dim, 15);
             if (m.Said.Count > 0)
             {
@@ -313,6 +324,7 @@ namespace Tavern.Unity.Night
         /// <summary>The host asks this player: their dice, coins, a new declaration, or a growth.</summary>
         async Task AnswerAsync(AskMsg m)
         {
+            if (!OnScreen) return;
             var answer = new AnswerMsg { Id = m.Id };
             var rolls = m.Rolls.Select(v => v.ToRequest()).ToList();
             switch (m.Kind)

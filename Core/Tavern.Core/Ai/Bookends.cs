@@ -139,7 +139,7 @@ namespace Tavern.Core.Ai
 
         public const string ChroniclePrompt = @"あなたは酒場の語り部オルウェンです。今夜の冒険が終わりました。記録帳に残す短い物語と、酒場に流れる噂、次の晩へ持ち越す因縁、
 生き延びた冒険者の「歴戦の印」の名前を書きます。必ず chronicle を 1 回呼びます。
-- 記録帳（story）: 今夜の出来事を 6〜10 文で、常体（〜だ・〜した）で。結末の札と事実を変えない。失敗した晩も、死者も、正直に。
+- 記録帳（story）: 今夜の出来事を 6〜10 文で、常体（〜だ・〜した）で。結末の札・失ったもの・個人の目的の成否・持ち帰った宝は、書かれたとおりに（物語の説明から推し量って変えない）。失敗した晩も、死者も、正直に。
 - 噂（rumors）: 酒場で客が話す 1〜2 行。
 - 因縁（bonds）: 候補の種類から 0〜2 件。次の晩の物語に味付けとして差し込む種（本筋や黒幕にはしない）。
 - 歴戦の印（marks）: 生き延びた冒険者ごとに、今夜の出来事から 12 字以内の短い名前（例: 骨の騎士を断った）。";
@@ -180,7 +180,7 @@ namespace Tavern.Core.Ai
                         ["items"] = new JObject
                         {
                             ["type"] = "object",
-                            ["properties"] = new JObject { ["who"] = new JObject { ["type"] = "string" }, ["name"] = new JObject { ["type"] = "string" } },
+                            ["properties"] = new JObject { ["who"] = new JObject { ["type"] = "string", ["description"] = "冒険者の id（[ ] の中）" }, ["name"] = new JObject { ["type"] = "string" } },
                             ["required"] = new JArray("who", "name"),
                         },
                     },
@@ -196,8 +196,8 @@ namespace Tavern.Core.Ai
             foreach (var x in (o["bonds"] as JArray ?? new JArray()).OfType<JObject>().Take(2))
                 if ((string?)x["kind"] is string k && bondCandidates.Any(bc => bc.StartsWith(k))) c.Bonds.Add(new Bond { Kind = k, Text = (string?)x["text"] ?? "" });
             foreach (var m in (o["marks"] as JArray ?? new JArray()).OfType<JObject>())
-                if ((string?)m["who"] is string who && e.Find(who)?.Life != Life.Dead && e.Find(who) != null)
-                    c.Marks[who] = Trim((string?)m["name"] ?? "", 24);
+                if ((string?)m["who"] is string who && (e.Find(who) ?? e.Party.FirstOrDefault(a => a.Name == who.Trim())) is Adventurer a && a.Life != Life.Dead)
+                    c.Marks[a.Id] = Trim((string?)m["name"] ?? "", 24);   // the id, or the name the AI sometimes writes instead
             foreach (var a in e.Party.Where(a => a.Life != Life.Dead && !c.Marks.ContainsKey(a.Id))) c.Marks[a.Id] = Trim(e.Story.Title + "を生き延びた", 16);
             if (c.Story.Length == 0) c.Story = endingSummary;
             return c;

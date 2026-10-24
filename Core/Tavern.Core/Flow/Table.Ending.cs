@@ -137,9 +137,11 @@ namespace Tavern.Core.Flow
                 if (p.Attitude >= Attitude.Friendly && Story.PersonOf(p.Id)?.Attitude < p.Attitude) candidates.Add($"恩を売った: {p.Name}");
             }
             if (Story.Conclusions.Any(c => !W.Convictions.Contains(c.Id))) candidates.Add("解けずに残った謎");
+            var brought = E.Party.Where(a => a.Life != Life.Dead).SelectMany(a => a.Gear.Items.Where(i => i.Kind == ItemKind.Treasure).Select(i => $"{a.Name}の{i.Name}")).ToList();
             var summary = $"結末: {EndingResult.Label(r.Card)}。" + (r.Lost.Count > 0 ? $"失ったもの: {string.Join("、", r.Lost)}。" : "") +
                 (r.Dead.Count > 0 ? $"亡くなった冒険者: {string.Join("、", r.Dead)}。" : "") +
                 string.Concat(r.Personal.Select(kv => $"{E.Find(kv.Key)?.Name}の目的「{kv.Value.goal}」は{(kv.Value.done ? "果たした" : "果たせなかった")}。")) +
+                (brought.Count > 0 ? $"持ち帰った宝: {string.Join("、", brought)}。" : "") +
                 (r.Reveal.Count > 0 ? "内緒の行動: " + string.Join(" / ", r.Reveal.Select(s => $"{E.Find(s.Who)?.Name}: {s.Text}")) : "");
             var c = await bookends.ChronicleAsync(E, summary, Log, candidates, ct);
             foreach (var a in E.Party.Where(a => a.Life != Life.Dead && !a.Withdrawn))

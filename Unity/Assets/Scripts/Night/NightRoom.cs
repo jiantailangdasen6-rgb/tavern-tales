@@ -190,7 +190,7 @@ namespace Tavern.Unity.Night
             return _n.Stories.FirstOrDefault(s => s.Id == id);
         }
 
-        /// <summary>Tonight's party in room order (the host first), with ids pc1.. and unique names; Owners filled.</summary>
+        /// <summary>Tonight's party in room order (the host first), with unique ids and names; Owners filled.</summary>
         public List<Adventurer> Party()
         {
             var party = new List<Adventurer>();
@@ -202,7 +202,9 @@ namespace Tavern.Unity.Night
                 var name = a.Name.Trim().Length == 0 ? "旅人" : a.Name;
                 while (!used.Add(name)) name += "二";
                 var saved = SavedAdventurer.From(a);
-                saved.Id = "pc" + (i + 1);
+                // each PC names its own adventurer "pc1": keep an id only while it is unique in the room
+                if (saved.Id.Length == 0 || saved.Id.StartsWith("pc") || party.Any(x => x.Id == saved.Id)) saved.Id = "pc" + (i + 1);
+                while (party.Any(x => x.Id == saved.Id)) saved.Id += "_";
                 saved.Name = name;
                 var b = saved.ToAdventurer(_n.Classes);
                 party.Add(b);

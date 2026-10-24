@@ -437,7 +437,9 @@ namespace Tavern.Unity.Night
             {
                 Debug.LogWarning("[Night] turn: " + e);
                 AddLine("（AI の呼び出しに失敗しました。もう一度宣言してください: " + e.Message + "）", Theme.Warn, 15);
-                if (e is Tavern.Core.Gm.LlmRateLimitException rl && rl.Daily) AskToStopForTonight();
+                var daily = e is Tavern.Core.Gm.LlmRateLimitException rl && rl.Daily;
+                Notify(daily ? "（ホストの AI の今日の枠が尽きた。ホストが今夜を区切るか、もう一度試すのを待っている）" : "（語り部の AI が答えなかった。もう一度宣言してください）");
+                if (daily) AskToStopForTonight();
             }
             _busy = false;
             _busyText.text = "";
