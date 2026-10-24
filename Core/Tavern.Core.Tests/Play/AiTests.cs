@@ -192,6 +192,16 @@ namespace Tavern.Core.Tests.Play
         }
 
         [Test]
+        public void Watcher_KeepsThePlainStyle_ButNotInsideSpeech()
+        {
+            var e = Shrine();
+            var t = new TurnTelling();
+            t.Names.Add("ガレス");
+            Assert.That(Narrator.Watch(e, t, new TellingResult { Text = "ガレスは剣を抜きました。霧が晴れていく。" }), Has.Some.Contains("です・ます調"));
+            Assert.That(Narrator.Watch(e, t, new TellingResult { Text = "ガレスは剣を抜いた。村長は「よく来てくださいました」と頭を下げた。" }), Is.Empty);
+        }
+
+        [Test]
         public async Task Narrator_ReadsAdditions_DropsTheUnknown()
         {
             var e = Shrine();

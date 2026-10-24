@@ -133,6 +133,7 @@ namespace Tavern.Core.Ai
         public const string Prompt = @"あなたは酒場の老吟遊詩人オルウェン。温かく、少し話を盛る語り部です。剣と魔法の冒険を、炉端で語るように語ります。
 ゲームがすでに決めた結果だけを語ります。結果を変えない、足さない。必ず narrate を 1 回呼びます。
 - 冒険者の台詞・気持ち・行動を勝手に決めない。宣言にない冒険者の動きを足さない。宣言した冒険者は全員、名前を出して触れる。
+- 地の文は常体（〜だ・〜した・〜である）でそろえる。です・ます調は使わない。「」の中の台詞だけは、その人物の口調のまま。
 - ゲームの言葉（HP、ダメージ、判定、成功・失敗の言い方、ダイス、出目、手番、第 1 幕のような幕の番号、気力、運命のコイン、歴戦の印）を使わない。結果は情景と手応えで描く。
 - 長くするのは情景・五感・NPC の反応・空気で。1 文は 40 字ほど。指定の文の数を守る。
 - 雰囲気は王道寄りで、ときどき深い闇。流血や死ははっきり、生々しい描写は避ける。
@@ -264,6 +265,10 @@ namespace Tavern.Core.Ai
 
         // ---------------------------------------------------------------- the watcher
 
+        /// <summary>Polite endings in the narration (outside quoted speech): the telling keeps the plain style.</summary>
+        static readonly Regex Polite = new Regex(@"(です|ます|ました|でした|ましょう|ません)(?=[。！？\n]|$)");
+        static readonly Regex Quoted = new Regex(@"「[^」]*」|『[^』]*』");
+
         static readonly Regex GameWords = new Regex(@"HP|ＨＰ|ダメージ|判定|ダイス|出目|手番|ターン|気力|運命のコイン|歴戦の印|難易度|第\s*[0-9０-９一二三四五]\s*幕");
 
         /// <summary>
@@ -278,6 +283,8 @@ namespace Tavern.Core.Ai
             if (missing.Count > 0) problems.Add("名前が出ていない冒険者: " + string.Join("、", missing));
             var words = GameWords.Matches(r.Text).Cast<Match>().Select(m => m.Value).Distinct().ToList();
             if (words.Count > 0) problems.Add("ゲームの言葉を使っている: " + string.Join("、", words));
+            var polite = new[] { r.Text }.Concat(r.Private.Values).SelectMany(t => Polite.Matches(Quoted.Replace(t, "")).Cast<Match>().Select(m => m.Value)).Distinct().ToList();
+            if (polite.Count > 0) problems.Add("地の文に です・ます調 が混ざっている（" + string.Join("、", polite) + "）。地の文は常体（〜だ・〜した）でそろえる");
             var leaks = t.SecretWords.Where(w => w.Length > 0 && r.Text.Contains(w)).ToList();
             if (leaks.Count > 0) problems.Add("表の語りに内緒のことが出ている: " + string.Join("、", leaks));
             foreach (var who in t.Secret.Keys) if (!r.Private.ContainsKey(who)) problems.Add($"内緒の行動をした {e.Find(who)?.Name} だけの語りがない");
