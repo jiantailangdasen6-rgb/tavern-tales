@@ -63,7 +63,7 @@ namespace Tavern.Unity.Night
         float _hold;
 
         // bots and screenshots
-        int _autoTurns;
+        int _autoTurns, _autoDone;
         float _autoWait;
         readonly List<string> _walk = new List<string>();
 
@@ -664,7 +664,13 @@ namespace Tavern.Unity.Night
             if (_autoTurns > 0 && !_busy && !_ending && !waitingForOthers && _typing == null && _pending.Count == 0 && _dialog == null && _t.Phase != Phase.Over)
             {
                 _autoWait += Time.unscaledDeltaTime;
-                if (_autoWait > 0.8f) { _autoWait = 0; _autoTurns--; BotDeclare(); }
+                if (_autoWait > 0.8f)
+                {
+                    _autoWait = 0; _autoTurns--;
+                    // -switchai N: after the first turn, switch to paid model N as the host would in the settings (tests; not saved)
+                    if (_autoDone++ == 1 && int.TryParse(AppMain.Arg("-switchai"), out var m)) { _n.Ai.Switch(true, m); RefreshAll(); }
+                    BotDeclare();
+                }
             }
         }
 

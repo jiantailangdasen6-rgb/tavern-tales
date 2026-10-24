@@ -59,7 +59,7 @@ namespace Tavern.Unity.App
             void OpenSettings()
             {
                 var layer = UiKit.Rect("Settings", root).Fill();
-                SettingsPanel.Show(layer, null, () => Object.Destroy(layer.gameObject), () => { _app.Night.ResetAi(); aiText.text = _app.Night.Ai.Description; });
+                SettingsPanel.Show(layer, null, () => Object.Destroy(layer.gameObject), () => { _app.Night.ResetAi(); return aiText.text = _app.Night.Ai.Description; }, _app.Night.Ai.Description);
             }
             UiKit.IconButton(root, "ic_settings", "設定", OpenSettings, 1720, 30, 160, 50, 20);
             if (AppMain.Flag("-showsettings")) OpenSettings();

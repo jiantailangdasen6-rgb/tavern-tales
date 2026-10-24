@@ -39,6 +39,14 @@ namespace Tavern.Unity.Night
 
         /// <summary>The host changed the AI in the tavern's settings: the next evening makes it anew.</summary>
         public void ResetAi() => _ai = null;
+
+        /// <summary>The host changed the AI at the table: tonight's calls so far are saved, then the next one goes to the new AI.</summary>
+        public void SwitchAi()
+        {
+            if (_ai == null) return;
+            if (_ai.Meter != null) Store.SaveCalls(_ai.KeyName, _ai.Meter);
+            _ai.Switch(AiChoice.Paid, AiChoice.Model);
+        }
         public Difficulty Difficulty { get; set; } = Difficulty.Standard;
 
         NightRoom? _room;

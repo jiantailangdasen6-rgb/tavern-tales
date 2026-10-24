@@ -177,11 +177,11 @@ namespace Tavern.Unity.Night
             return pick;
         }
 
-        /// <summary>Sound, text size and narration speed during the evening (the same panel as the title's).</summary>
+        /// <summary>Sound, text size and narration speed during the evening (the same panel as the title's); the host can also change the AI there.</summary>
         void ShowSettings()
         {
             var layer = Overlay("Settings", 0, 0, 1920, 1080, 0f);
-            SettingsPanel.Show(layer, RebuildLog, () => Close(layer), aiNow: Guest ? "" : _n.Ai.Description);
+            SettingsPanel.Show(layer, RebuildLog, () => Close(layer), Guest ? null : () => { _n.SwitchAi(); RefreshAll(); return _n.Ai.Description; }, Guest ? "" : _n.Ai.Description);
         }
 
         /// <summary>The log again at the new text size: the last lines of the evening, at once.</summary>

@@ -7,6 +7,7 @@
   宣言ボタンは「行動を宣言する」（オーナー指摘）。部品は `Ui/Ui.cs` の `UiKit`（Panel / Paper / Modal / Heading / Rule / Frame / Icon / Wrapped ほか）。
   羊皮紙の上の濃い文字はリニア色空間で細く薄く出るので、同じ色の薄い縁（`Inked`）で太らせている。日本語の長文は `Wrapped`（禁則で手で折る）。
 - **語り部の AI を選べるようにした**（オーナー要望）: タイトルの設定で「無料枠／有料キー」と、有料なら「Flash-Lite／Flash／Pro」（`09_Spec` の 13）。
+  あとから卓の設定でも替えられるようにした（試遊で見比べる）。卓の上に直前の語りを答えたモデルが出る。試験は `-autoplay 3 -switchai 1`（1 手目のあとに有料・Flash へ）。
   仕分けはいつも Flash-Lite のまま、変わるのは語りだけ。有料キー・Flash で exe を 2 手動かし、語りが Flash で出ることを確かめた（5 回の呼び出し）。Pro は API の応答だけ確認。
 - **片付け**: 使っていないカードの絵 `cd_*` 32 枚を消した（ビルドが 16 MB 軽くなった）。
 - **撮影用の起動オプション**: `-showhelp -showroster -showchronicle -showwall -showhandouts -showrequests -showsettings -showending -showfight -holdopening`、

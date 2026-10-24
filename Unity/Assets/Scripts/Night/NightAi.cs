@@ -19,15 +19,34 @@ namespace Tavern.Unity.Night
     /// </summary>
     public sealed class NightAi
     {
-        public Classifier Classifier { get; private set; } = null!;
-        public Narrator Narrator { get; private set; } = null!;
-        public Narrator Highlight { get; private set; } = null!;
-        public Bookends Bookends { get; private set; } = null!;
+        public Classifier Classifier { get; }
+        public Narrator Narrator { get; }
+        public Narrator Highlight { get; }
+        public Bookends Bookends { get; }
         /// <summary>The everyday calls today (shown to the host).</summary>
         public CallMeter? Meter { get; private set; }
         public string Description { get; private set; } = "";
         public bool Demo { get; private set; }
         public bool Ready => Classifier != null;
+
+        /// <summary>The model that told the last narration with the paid key ("Flash", or "Flash-Lite" when Flash was slow and it stood in).</summary>
+        public string LastVoice { get; private set; } = "";
+
+        // The table keeps these for the whole evening; Switch puts other backends behind them (09_Spec 13: the host compares models in a test play).
+        readonly Swap _sort = new Swap(), _tell = new Swap(), _strong = new Swap();
+        bool _testKey;
+        Func<string, int>? _usedToday;
+        /// <summary>The object whose LastVoice this one's backends set (the evening's after a Switch hands them over).</summary>
+        NightAi _owner;
+
+        NightAi()
+        {
+            _owner = this;
+            Classifier = new Classifier(_sort);
+            Narrator = new Narrator(_tell);
+            Highlight = new Narrator(_strong);
+            Bookends = new Bookends(_tell);
+        }
 
         static HttpClient? _http;
         static HttpClient Http => _http ??= new HttpClient { Timeout = TimeSpan.FromMinutes(3) };
@@ -49,7 +68,7 @@ namespace Tavern.Unity.Night
         /// </summary>
         public static NightAi Create(bool demo, bool testKey, Func<string, int>? usedToday = null, bool paid = false, int model = 0)
         {
-            var ai = new NightAi();
+            var ai = new NightAi { _testKey = testKey, _usedToday = usedToday };
             if (demo)
             {
                 var d = new DemoNightLlm();
@@ -83,9 +102,12 @@ namespace Tavern.Unity.Night
             {
                 var (everyday, strongModel) = PaidModels[Math.Clamp(model, 0, PaidModels.Length - 1)];
                 // a richer narrator falls back to Flash-Lite when it is slow or fails, like the strong one always did
-                ILlmClient tell = everyday == "gemini-3.5-flash-lite" ? meter
-                    : new FallbackLlm(ai.Count(new GeminiClient(Http, key!, everyday, "low")), meter) { Patience = TimeSpan.FromSeconds(30) };
-                var strong = new FallbackLlm(ai.Count(new GeminiClient(Http, key!, strongModel, "low")), meter) { Patience = TimeSpan.FromSeconds(strongModel.Contains("pro") ? 60 : 40) };
+                var lite = ai.Voice("Flash-Lite", meter);
+                ILlmClient tell = everyday == "gemini-3.5-flash-lite" ? lite
+                    : new FallbackLlm(ai.Voice("Flash", ai.Count(new GeminiClient(Http, key!, everyday, "low"))), lite) { Patience = TimeSpan.FromSeconds(30) };
+                var pro = strongModel.Contains("pro");
+                var strong = new FallbackLlm(ai.Voice(pro ? "Pro" : "Flash", ai.Count(new GeminiClient(Http, key!, strongModel, "low"))), lite)
+                    { Patience = TimeSpan.FromSeconds(pro ? 60 : 40) };
                 ai.Set(meter, tell, strong);
                 ai.Description = $"AI: Gemini（有料キー・{App.AiChoice.ModelNames[Math.Clamp(model, 0, PaidModels.Length - 1)]}）";
             }
@@ -100,18 +122,57 @@ namespace Tavern.Unity.Night
         readonly List<CallMeter> _rich = new List<CallMeter>();
         CallMeter Count(ILlmClient inner) { var m = new CallMeter(inner, int.MaxValue); _rich.Add(m); return m; }
 
+        ILlmClient Voice(string name, ILlmClient inner) => new Swap { Inner = inner, Answered = () => _owner.LastVoice = name };
+
         void Set(ILlmClient sort, ILlmClient tell, ILlmClient strong)
         {
-            Classifier = new Classifier(sort);
-            Narrator = new Narrator(tell);
-            Highlight = new Narrator(strong);
-            Bookends = new Bookends(tell);
+            _sort.Inner = sort;
+            _tell.Inner = tell;
+            _strong.Inner = strong;
+        }
+
+        /// <summary>
+        /// The host changed the AI at the table: the next call goes to the new one (a call already sent finishes on the old).
+        /// False when the new choice has no key on this PC, or this is the -demo run; the evening then keeps its AI.
+        /// </summary>
+        public bool Switch(bool paid, int model)
+        {
+            if (Demo && Description.Contains("-demo")) return false;
+            var next = Create(false, _testKey, _usedToday, paid, model);
+            if (next.Demo) return false;
+            next._owner = this;
+            Set(next._sort.Inner, next._tell.Inner, next._strong.Inner);
+            Meter = next.Meter;
+            Description = next.Description;
+            KeyName = next.KeyName;
+            Paid = next.Paid;
+            Demo = false;
+            LastVoice = "";
+            _rich.Clear();
+            _rich.AddRange(next._rich);
+            Narrator.AllowRetell = Highlight.AllowRetell = Meter?.Low != true;
+            return true;
+        }
+
+        /// <summary>Passes calls to Inner, which Switch may replace between calls; Answered runs after each reply.</summary>
+        sealed class Swap : ILlmClient
+        {
+            public ILlmClient Inner = null!;
+            public Action? Answered;
+            public string Name => Inner.Name;
+
+            public async Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, string? forceTool = null, CancellationToken ct = default)
+            {
+                var reply = await Inner.ChatAsync(messages, tools, forceTool, ct).ConfigureAwait(false);
+                Answered?.Invoke();
+                return reply;
+            }
         }
 
         void Set(ILlmClient everyday, ILlmClient strong) => Set(everyday, everyday, strong);
 
         /// <summary>"AI 残り 431 回（16:00 に戻る）"; with the paid key "有料キー・今日 52 回"; empty for the demo.</summary>
-        public string QuotaText() => Meter == null ? "" : Paid ? $"AI 有料キー・今日 {Meter.Used + _rich.Sum(m => m.Used)} 回" :
+        public string QuotaText() => Meter == null ? "" : Paid ? $"AI 有料キー・今日 {Meter.Used + _rich.Sum(m => m.Used)} 回" + (LastVoice.Length > 0 ? $"・直前の語り {LastVoice}" : "") :
             $"AI 残り {Meter.Left} 回（{Meter.ResetsAt.ToOffset(TimeZoneInfo.Local.GetUtcOffset(DateTime.UtcNow)):HH:mm} に戻る）";
     }
 
