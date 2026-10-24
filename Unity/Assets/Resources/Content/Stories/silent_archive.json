@@ -126,7 +126,7 @@
       "voice": "早口で熱っぽい。遺跡の話になると止まらない", "wants": "書を確かめる", "fears": "名もなく終わること",
       "secret": "本心では書を持ち帰りたい", "lie": "聞かれると「確かめるだけだ」と言う",
       "clues": [ "c1_2" ], "joins": "Glad", "joinNote": "書庫まで付いてくる", "build": "Weak" },
-    { "id": "helga", "name": "銀枝会の魔術師ヘルガ", "portrait": "pt_witch", "at": "hill", "role": "競い合う魔術師", "attitude": "Wary",
+    { "id": "helga", "name": "銀枝会の魔術師ヘルガ", "portrait": "pt_sorceress", "at": "hill", "role": "競い合う魔術師", "attitude": "Wary",
       "voice": "冷ややかで高慢。凡庸な者を見下す", "wants": "学院の長の座", "fears": "凡庸",
       "secret": "書で他人の知恵を奪うつもり", "joins": "Conditional", "joinWhen": { "person": "helga", "attitude": "Trusting" },
       "joinNote": "信頼すれば手を組む。ただし書を見たら奪おうとする（信頼なら奪わない）",

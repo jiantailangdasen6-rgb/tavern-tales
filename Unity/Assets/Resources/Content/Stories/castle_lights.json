@@ -125,7 +125,7 @@
       "clues": [ "c1_2", "c2_2" ], "joins": "Never", "build": "Weak" },
     { "id": "emma", "name": "セラフィナの妹エマ", "portrait": "pt_youth_girl", "at": "village", "role": "眠り続ける娘", "attitude": "Friendly",
       "voice": "眠ったまま、話せない", "wants": "目覚めること", "fears": "赤い霧", "joins": "Never", "build": "Weak" },
-    { "id": "gaspar", "name": "墓守ガスパール", "portrait": "pt_elder", "at": "graveyard", "role": "墓守", "attitude": "Wary",
+    { "id": "gaspar", "name": "墓守ガスパール", "portrait": "pt_gravekeeper", "at": "graveyard", "role": "墓守", "attitude": "Wary",
       "voice": "しわがれた声。目を合わせない", "wants": "娘の命", "fears": "自分の罪が知られること",
       "secret": "伯爵を封じていた銀の杭を抜いた。伯爵が滅べば娘の病が戻ることも知っている",
       "lie": "聞かれると「知らん」と嘘をつく。責めずに話を聞けば（友好以上）打ち明ける。信頼まで上がれば、伯爵の誘いを断る",

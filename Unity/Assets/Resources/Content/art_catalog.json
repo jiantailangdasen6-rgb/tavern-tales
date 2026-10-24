@@ -44,6 +44,20 @@
     { "id": "pt_child", "about": "村の子ども・少女（ランタンを持つ）" },
     { "id": "pt_sailor", "about": "老水夫・船乗り（パイプ、ロープ）" },
     { "id": "pt_blacksmith", "about": "鍛冶屋・職人の男" },
-    { "id": "pt_mercenary", "about": "女傭兵・頬に傷のある剣士" }
+    { "id": "pt_mercenary", "about": "女傭兵・頬に傷のある剣士" },
+    { "id": "pt_villager_woman", "about": "村の女・母親（素朴な服、心配そうな顔）" },
+    { "id": "pt_youth_girl", "about": "若い娘・村の少女（赤い髪紐）" },
+    { "id": "pt_mercenary_m", "about": "男の傭兵・護衛頭（傷のある顎、革鎧）" },
+    { "id": "pt_official", "about": "中年の代官・役人・網元（官職の鎖、帳簿）" },
+    { "id": "pt_trapper", "about": "毛皮商人・猟師の男（狼の毛皮の外套）" },
+    { "id": "pt_bard", "about": "若い吟遊詩人の男（リュート、赤い外套）" },
+    { "id": "pt_sorceress", "about": "誇り高い女魔術師（銀の枝の髪留め、紺の長衣）" },
+    { "id": "pt_deacon", "about": "若い助祭・神官の男（白と金の祭服）" },
+    { "id": "pt_smith_f", "about": "女鍛冶（革の前掛け、大槌）" },
+    { "id": "pt_innkeeper", "about": "宿の主人・大柄な男（灰色の髭、ランタン）" },
+    { "id": "pt_old_woman", "about": "村の老婆（白い頭巾、焚き火）" },
+    { "id": "pt_gravekeeper", "about": "墓守の老人（頭巾、鋤、墓石）" },
+    { "id": "pt_bandit", "about": "捕まった賊・斥候の若い男（縄で縛られている）" },
+    { "id": "pt_thief_guild", "about": "盗賊ギルドの連絡役の女（黒い頭巾、銀の烏のピン）" }
   ]
 }

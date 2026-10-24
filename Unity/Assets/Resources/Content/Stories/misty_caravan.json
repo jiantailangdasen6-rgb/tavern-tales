@@ -1,5 +1,5 @@
 {
-  "_note": "Docs/scenarios/misty_caravan.md written as a story sheet (Docs/09_Spec.md 9). Spoilers: friends playing this should not read it. Personal goals and the minor clue-holders (bookie, gatekeeper, ferryman, captured bandit, priest) were added when writing it out. Resting does not push the ship clock; the ruin ghost is the act 3 middle boss.",
+  "_note": "Docs/scenarios/misty_caravan.md written as a story sheet (Docs/09_Spec.md 9). Spoilers: friends playing this should not read it. Personal goals and the minor clue-holders (bookie, gatekeeper, ferryman, captured bandit, priest) were added when writing it out. Resting does not push the ship clock; the ruin ghost is the act 3 middle boss. Turning Bruno is a mechanism (false_signal), not a climax solution: Berndt still comes to the cove.",
   "id": "misty_caravan",
   "title": "霧の街道の隊商",
   "kind": "旅（護衛・裏切り・逃げた花嫁）",
@@ -164,7 +164,7 @@
       "clues": [ "c4_1" ], "joins": "Never", "build": "Weak" },
     { "id": "joachim", "name": "商人ヨアヒム", "portrait": "pt_merchant", "at": "gate", "role": "隊商の主", "attitude": "Friendly",
       "voice": "陽気で、損得の話ばかり", "wants": "荷を無事に届ける", "fears": "損", "joins": "Glad", "build": "Weak" },
-    { "id": "bruno", "name": "護衛頭ブルーノ", "portrait": "pt_mercenary", "at": "gate", "role": "隊商の護衛頭", "attitude": "Friendly",
+    { "id": "bruno", "name": "護衛頭ブルーノ", "portrait": "pt_mercenary_m", "at": "gate", "role": "隊商の護衛頭", "attitude": "Friendly",
       "voice": "頼もしげで豪快。博打の話になると目が泳ぐ", "wants": "借金から逃れる", "fears": "賊に消されること",
       "secret": "賊の頭目に隊商の道筋と日取りを売った", "lie": "問われると「知らない」",
       "joins": "Glad", "joinNote": "喜んで加わる（ただし第 5 幕で賊に付く。信頼か、結論 6 を突きつけられていれば寝返る）",
@@ -178,13 +178,13 @@
     { "id": "pilgrim", "name": "年老いた巡礼者", "portrait": "pt_elder", "at": "road_camp", "role": "隊商の巡礼者", "attitude": "Friendly",
       "voice": "ゆっくりと、昔語りのように", "wants": "王都の大聖堂を見る", "fears": "死ぬ前に間に合わないこと",
       "clues": [ "c4_2" ], "joins": "Glad", "build": "Weak", "combatRole": "Heal" },
-    { "id": "bookie", "name": "賭場の胴元", "portrait": "pt_noble", "at": "gambling", "role": "賭場の主", "attitude": "Neutral",
+    { "id": "bookie", "name": "賭場の胴元", "portrait": "pt_official", "at": "gambling", "role": "賭場の主", "attitude": "Neutral",
       "voice": "ねっとりとした愛想笑い", "wants": "金", "fears": "役人", "clues": [ "c1_1" ], "joins": "Never", "build": "Weak" },
     { "id": "gatekeeper", "name": "ロウフォードの門番", "portrait": "pt_guard", "at": "gate", "role": "町の門番", "attitude": "Neutral",
       "voice": "退屈そうに欠伸をしながら", "wants": "無事に当番を終える", "fears": "面倒ごと", "clues": [ "c2_2" ], "joins": "Never", "build": "Weak" },
     { "id": "ferryman", "name": "黒沼の渡し守", "portrait": "pt_fisher", "at": "ferry", "role": "渡し守", "attitude": "Neutral",
       "voice": "霧の向こうを見たまま、ぽつりぽつりと話す", "wants": "静かに暮らす", "fears": "黒沼の賊", "clues": [ "c6_2" ], "joins": "Never", "build": "Weak" },
-    { "id": "captive", "name": "捕まえた賊", "portrait": "pt_mercenary", "at": "causeway", "role": "黒沼の賊の下っ端", "attitude": "Hostile",
+    { "id": "captive", "name": "捕まえた賊", "portrait": "pt_bandit", "at": "causeway", "role": "黒沼の賊の下っ端", "attitude": "Hostile",
       "voice": "命乞いをしながら、頭のことはぺらぺら話す", "wants": "命だけは助かること", "fears": "頭目", "clues": [ "c3_2", "c6_1" ], "joins": "Never", "build": "Weak" },
     { "id": "dietrich", "name": "騎士ディートリヒ", "portrait": "pt_knight", "at": "old_road", "role": "クララを追う騎士", "attitude": "Wary",
       "voice": "礼儀正しく、どこか迷っている", "wants": "クララの幸せ", "fears": "命令に背くこと",
@@ -217,10 +217,7 @@
       { "id": "guard_lamp", "text": "聖灯を守り抜く: 待ち伏せを越え、入り江で頭目ベルントを倒すか退ける",
         "when": [ [ { "person": "berndt", "is": "down" } ], [ { "person": "berndt", "is": "dead" } ], [ { "person": "berndt", "is": "retreated" } ] ] },
       { "id": "outwit", "text": "裏をかく: 抜け道や浅瀬から入り江へ回り込み、戦わずに船へ（荷は一部捨てる）",
-        "when": [ [ { "event": "outflanked" } ], [ { "event": "shortcut_taken" }, { "place": "cove", "who": "any" } ] ] },
-      { "id": "turn_coat", "text": "ブルーノを寝返らせる: 偽の合図で賊を橋で空振りさせる",
-        "when": { "event": "false_signal" },
-        "then": [ { "text": "ブルーノの偽の合図に、賊たちは橋の下で空振りした。頭目は少ない手勢で入り江に現れる。" } ] }
+        "when": [ [ { "event": "outflanked" } ], [ { "event": "shortcut_taken" }, { "place": "cove", "who": "any" } ] ] }
     ]
   },
   "choice": "クララをどうするか。船に乗せればクララは南へ逃げ、ディートリヒは（信頼なら）「見失った」と報告するが、ローデリヒ卿の恨みが残る。ディートリヒに引き渡せば、クララは王都へ戻り婚礼を挙げる。二人で船に乗せれば、どちらの家にも背く。そして聖灯の油。三回のうちどこで使うかで、霧の沼、遺跡の夜、入り江の戦いのどれかが厳しくなる。",

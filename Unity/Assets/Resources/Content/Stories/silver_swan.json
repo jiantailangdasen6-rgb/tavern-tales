@@ -118,7 +118,7 @@
       "secret": "白鳥号のただ一人の生き残り", "lie": "聞かれるまで言わない",
       "clues": [ "c1_1", "c4_2" ], "joins": "Conditional", "joinWhen": { "person": "harlan", "attitude": "Trusting" },
       "joinNote": "船を出し、岩場まで運ぶ", "build": "Weak" },
-    { "id": "victor", "name": "網元ヴィクター", "portrait": "pt_noble", "at": "village", "role": "網元（真珠を隠した男）", "attitude": "Neutral",
+    { "id": "victor", "name": "網元ヴィクター", "portrait": "pt_official", "at": "village", "role": "網元（真珠を隠した男）", "attitude": "Neutral",
       "voice": "人当たりがよく、村の暮らしを語る", "wants": "村を豊かにする", "fears": "貧しさ",
       "secret": "真珠を海の洞窟に隠し、王都の商人に売るつもり", "lie": "「歌は真珠と関係ない」と嘘をつく",
       "joins": "Never", "build": "Weak", "mastermind": true },

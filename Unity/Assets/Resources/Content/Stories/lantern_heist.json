@@ -128,7 +128,7 @@
     { "id": "letter", "name": "ルーカスの告発状の下書き", "kind": "Story", "at": "clerk_room", "note": "太陽神の神殿の司祭あて" }
   ],
   "people": [
-    { "id": "nera", "name": "夜鴉の連絡役ネラ", "portrait": "pt_mercenary", "at": "tavern", "role": "依頼人（盗賊ギルド）", "attitude": "Neutral",
+    { "id": "nera", "name": "夜鴉の連絡役ネラ", "portrait": "pt_thief_guild", "at": "tavern", "role": "依頼人（盗賊ギルド）", "attitude": "Neutral",
       "voice": "低く早口。目は常に出口を見ている", "wants": "帳簿", "fears": "夜鴉の名が出ること",
       "secret": "帳簿に夜鴉の名があると知っている", "lie": "聞かれても言わない", "joins": "Never", "build": "Normal" },
     { "id": "drunk_guard", "name": "非番の衛兵", "portrait": "pt_guard", "at": "tavern", "role": "酔った衛兵", "attitude": "Neutral",
@@ -139,7 +139,7 @@
       "voice": "職人気質で口が重い", "wants": "静かに商売", "fears": "代官", "clues": [ "c1_2", "c3_1" ], "joins": "Never", "build": "Weak" },
     { "id": "priest", "name": "礼拝堂の司祭", "portrait": "pt_priestess", "at": "chapel", "role": "太陽神の司祭", "attitude": "Friendly",
       "voice": "穏やかだが、不正には厳しい", "wants": "正しい裁き", "fears": "罪が闇に葬られること", "clues": [ "c4_2" ], "joins": "Never", "build": "Weak" },
-    { "id": "godwin", "name": "代官ゴドウィン", "portrait": "pt_noble", "at": "hall", "role": "代官（横領の主）", "attitude": "Wary",
+    { "id": "godwin", "name": "代官ゴドウィン", "portrait": "pt_official", "at": "hall", "role": "代官（横領の主）", "attitude": "Wary",
       "voice": "疲れきった声。娘の話になると震える", "wants": "金を貯めて王都へ移る", "fears": "亡き娘の思い出が汚されること",
       "secret": "税を横領している。娘の死後、何もかもどうでもよくなった", "joins": "Never", "build": "Weak", "mastermind": true },
     { "id": "lucas", "name": "書記ルーカス", "portrait": "pt_scholar", "at": "clerk_room", "role": "代官の書記", "attitude": "Wary",
