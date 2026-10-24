@@ -59,6 +59,7 @@ namespace Tavern.Core.Flow
             foreach (var id in leaving ?? Enumerable.Empty<string>()) if (E.Find(id) is Adventurer gone) gone.Withdrawn = true;
             foreach (var a in E.Party.Where(a => a.Life != Life.Dead && !a.Withdrawn))
             {
+                a.Revive();   // a night has passed: whoever fell was tended and gets up
                 a.FateCoins++;
                 a.EarnMark(Story.Title + "の前半を越えた");
             }

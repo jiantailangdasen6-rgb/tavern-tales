@@ -81,7 +81,14 @@ namespace Tavern.Core.Ai
 
         /// <summary>The ways out of a place and whether each is open.</summary>
         public IEnumerable<(Link link, bool open)> Ways(string place) =>
-            (Story.PlaceOf(place)?.Links ?? new List<Link>()).Select(l => (l, l.Open.Holds(World)));
+            (Story.PlaceOf(place)?.Links ?? new List<Link>()).Select(l => (l, l.Open.Holds(World) && OpenInAct(l.To)));
+
+        /// <summary>
+        /// A long story's places open with the acts: a place first used in act N can be reached from act N-1 on
+        /// (the next act's places are the frontier; without this a party could walk to the last place in act 2).
+        /// </summary>
+        public bool OpenInAct(string place) =>
+            !Story.Long || !(Story.PlaceOf(place) is Place p) || p.Acts.Count == 0 || p.Acts.Min() <= World.Act + 1;
 
         /// <summary>
         /// The way from one place to another over open links (the places passed, ending with the target), or null when there is none.

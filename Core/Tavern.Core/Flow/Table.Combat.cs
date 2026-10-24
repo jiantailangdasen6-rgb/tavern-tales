@@ -408,6 +408,9 @@ namespace Tavern.Core.Flow
             }
             foreach (var p in W.Cast.People.Where(p => p.Fighting != null)) p.Fighting = null;
             foreach (var a in Active) { a.Ward = 0; a.Statuses.Remove(StatusKind.Stunned); }
+            // after the fight the others tend whoever fell (09_Spec 7): up with 1 HP, or they would lie at 0 for the rest of the night
+            if (end != CombatEnd.Wiped)
+                foreach (var a in Active.Where(x => x.Life == Life.Down)) { a.Revive(); report.Lines.Add($"{a.Name}は仲間に助け起こされた（HP {a.Hp}）"); }
             E.Combat = null;
             report.CombatEnded = end;
             if (end == CombatEnd.Fled) FledFoes.AddRange(combat.Foes.Where(f => f.InFight).Select(f => f.Name));

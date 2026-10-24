@@ -302,7 +302,8 @@ namespace Tavern.Core.Flow
                 if (path == null)
                 {
                     var way = E.Ways(here).FirstOrDefault(w => w.link.To == s.MoveTo);
-                    r.Refused = way.link != null && !way.open ? $"まだ通れない{(way.link.Text.Length > 0 ? "（" + way.link.Text + "）" : "")}"
+                    r.Refused = !E.OpenInAct(s.MoveTo) ? $"{Story.PlaceOf(s.MoveTo)?.Name}へは、物語がもっと進んでから"
+                        : way.link != null && !way.open ? $"まだ通れない{(way.link.Text.Length > 0 ? "（" + way.link.Text + "）" : "")}"
                         : $"{Story.PlaceOf(s.MoveTo)?.Name}への道を、まだ知らない";
                     return;
                 }

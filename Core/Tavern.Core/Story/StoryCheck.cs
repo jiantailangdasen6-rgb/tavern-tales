@@ -158,6 +158,10 @@ namespace Tavern.Core.Story
                 if (act.Advance.IsEmpty) E($"幕 {act.N} に進む条件がない");
                 else if (!act.Advance.Groups.Any(g => g.Any(c => c.Type == ConditionType.Place && !c.Not)))
                     E($"幕 {act.N} の進む条件に場所の条件がない");
+                // a long story's places open one act ahead (Evening.OpenInAct): a group needing a place further on never holds
+                if (s.Long && act.Advance.Groups.Count > 0 && act.Advance.Groups.All(g => g.Any(c => c.Type == ConditionType.Place && !c.Not
+                        && s.PlaceOf(c.Id) is Place p && p.Acts.Count > 0 && p.Acts.Min() > act.N + 1)))
+                    E($"幕 {act.N} の進む条件の場所が、まだ開いていない幕の場所（中編の場所は 1 つ先の幕まで）");
             }
             if (s.Climax.Starts.IsEmpty) E("山場の始まる条件がない");
 

@@ -204,6 +204,45 @@ namespace Tavern.Core.Tests.Play
         }
 
         [Test]
+        public async Task LongStory_PlacesOpenOneActAhead()
+        {
+            var (t, llm, e) = New("village", 1);
+            e.Story.Long = true;
+            e.Story.PlaceOf("forest_path")!.Acts.Clear();
+            e.Story.PlaceOf("forest_path")!.Acts.Add(3);
+            Assert.That(e.OpenInAct("forest_path"), Is.False);
+            llm.Tool(Classifier.ToolName, Cls(@"{""who"": ""gareth"", ""steps"": [{""text"": ""森の小道へ行く"", ""sort"": ""auto"", ""move_to"": ""forest_path""}]}"))
+               .Tool(Narrator.ToolName, Ok);
+            await t.ExploreAsync(D(("gareth", "森の小道へ行く")));
+            Assert.That(e.PlaceOf(e.Find("gareth")!), Is.EqualTo("village"));
+            e.World.Act = 2;
+            Assert.That(e.OpenInAct("forest_path"), Is.True);
+        }
+
+        [Test]
+        public async Task Fight_WhoFellGetsUpWhenItIsWon()
+        {
+            var (t, llm, e) = New("dungeon", 2, 19);
+            llm.Tool(Classifier.ToolName, Cls(@"{""who"": ""rocco"", ""steps"": [{""text"": ""錠前を開ける"", ""sort"": ""check"", ""ability"": ""DEX"", ""tier"": ""normal"", ""mechanism"": ""cell_lock""}]}"))
+               .Tool(Narrator.ToolName, Ok);
+            await t.ExploreAsync(D(("rocco", "錠前を開ける")));
+            var rocco = e.Find("rocco")!;
+            rocco.TakeDamage(rocco.Hp);
+            Assert.That(rocco.Life, Is.EqualTo(Life.Down));
+            var guard = 0;
+            while (t.Phase == Phase.Combat && guard++ < 30)
+            {
+                var foe = e.Combat!.Foes.First(f => f.InFight).Id;
+                llm.Tool(Classifier.ToolName, Cls($@"{{""who"": ""gareth"", ""steps"": [{{""text"": ""斬る"", ""sort"": ""check"", ""ability"": ""STR"", ""tier"": ""normal"", ""combat_act"": ""attack"", ""target"": ""{foe}""}}]}}"))
+                   .Tool(Narrator.ToolName, Ok);
+                await t.ExploreAsync(D(("gareth", "斬る")));
+            }
+            Assert.That(e.Combat, Is.Null);
+            Assert.That(rocco.Life, Is.EqualTo(Life.Up));
+            Assert.That(rocco.Hp, Is.GreaterThanOrEqualTo(1));
+        }
+
+        [Test]
         public async Task Fight_AnItemCanBePutDown()
         {
             var (t, llm, e) = New("dungeon", 2, 19);
