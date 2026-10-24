@@ -199,10 +199,10 @@ namespace Tavern.Core.Ai
   ただし真相や設定表の秘密に答えがある問い（「若者は生きているか」「犯人は誰か」）は fate にせず impossible の world_rule 5。名品を得る問いは world_rule 6。
 
 ## 向け先（id で。場面にない id は書かない）
-- mechanism: 仕掛けを動かす段。item: 物を使う・取る・渡す・置く段（take=true は拾う・奪う、give_to は渡す相手の id、place_at は置く場所の id）。
+- mechanism: 仕掛けを動かす段。item: 物を使う・取る・渡す・置く段（take=true は拾う・奪う・持ち上げる・抱える・運び出す、つまり持ち主になる行動。give_to は渡す相手の id、place_at は置く場所の id。持っている物を「どこかに置く・返す・戻す」なら必ず place_at に今いる場所の id）。
 - person: 人物に向けた段。頼みなら request（small: 道や噂を聞く / normal: 物を借りる・人に会わせる・知っていることを話す / large: 同行・危険を冒す・秘密を話す・主を裏切る）と
   approach（ask 頼む / persuade 説得 / threaten 脅す / trick 騙す・言いくるめる）。頼みの判定の要否と難しさはゲームが態度で決めるので、sort は check にして ability だけ合わせてください。
-- clue: その段で手に入りうる手がかりの id（判定なしの段にも付ける）。move_to: 別の場所へ移る段の行き先 id。
+- clue: その段で手に入りうる手がかりの id（判定なしの段にも付ける）。「自分だけが知る手がかり」を仲間に話す・見せる段にも、その手がかりの id を付ける（皆のものになる）。move_to: 別の場所へ移る段の行き先 id。
 - against: 仲間の冒険者に向けた行動（奪う、騙す、攻撃する）の相手の id。helps: 仲間の判定を手伝う段の相手の id。
 
 ## 失敗しても話が進む
@@ -286,7 +286,7 @@ namespace Tavern.Core.Ai
                     ["likelihood"] = Enum("certain", "likely", "even", "unlikely", "remote"),
                     ["mechanism"] = Str("仕掛けの id"),
                     ["item"] = Str("物の id（持ち物の id も可）"),
-                    ["take"] = Bool("item を拾う・奪う"),
+                    ["take"] = Bool("item を拾う・奪う・持ち上げる・抱える（持ち主になる）"),
                     ["give_to"] = Str("item を渡す相手の id（人物か冒険者）"),
                     ["place_at"] = Str("item を置く場所の id"),
                     ["person"] = Str("向けた人物の id"),
@@ -434,6 +434,7 @@ namespace Tavern.Core.Ai
                     var place = e.Story.PlaceOf(e.World.PlacesOfParty.First());
                     var fs = new FightStart();
                     fs.Enemies.AddRange(place?.Enemies.Where(x => hinted.Contains(x)) ?? hinted);
+                    fs.Enemies.AddRange(hinted.Where(x => x.StartsWith("person:")));   // a story person who fights
                     result.Fight = fs;
                 }
             }
@@ -546,6 +547,69 @@ namespace Tavern.Core.Ai
             return found;
         }
 
+        /// <summary>Every id the classifier may name: places, people, items, mechanisms, clues, conclusions, adventurers, foes.</summary>
+        static IEnumerable<string> KnownIds(Evening e) =>
+            e.Story.Places.Select(p => p.Id).Concat(e.Story.People.Select(p => p.Id)).Concat(e.World.Cast.People.Select(p => p.Id))
+                .Concat(e.Story.Items.Select(i => i.Item.Id)).Concat(e.Party.SelectMany(a => a.Gear.Items.Select(i => i.Id)))
+                .Concat(e.Story.Mechanisms.Select(m => m.Id)).Concat(e.Story.Clues.Select(c => c.Id)).Concat(e.Story.Conclusions.Select(c => c.Id))
+                .Concat(e.Party.Select(a => a.Id)).Concat(e.Combat?.Foes.Select(f => f.Id) ?? Enumerable.Empty<string>()).Distinct();
+
+        /// <summary>Edit distance (insertions, deletions, substitutions).</summary>
+        static int Distance(string a, string b)
+        {
+            var d = new int[b.Length + 1];
+            for (int j = 0; j <= b.Length; j++) d[j] = j;
+            for (int i = 1; i <= a.Length; i++)
+            {
+                int prev = d[0];
+                d[0] = i;
+                for (int j = 1; j <= b.Length; j++)
+                {
+                    int keep = d[j];
+                    d[j] = Math.Min(Math.Min(d[j] + 1, d[j - 1] + 1), prev + (a[i - 1] == b[j - 1] ? 0 : 1));
+                    prev = keep;
+                }
+            }
+            return d[b.Length];
+        }
+
+        /// <summary>Words of an attack (to start a fight with a place's foe the model did not name as the target).</summary>
+        static readonly System.Text.RegularExpressions.Regex AttackWords =
+            new System.Text.RegularExpressions.Regex("斬りかか|切りかか|斬りつけ|切りつけ|攻撃|襲いかか|殴りかか|突きかか|射かけ|矢を放|矢を射|魔力の矢|隙を突");
+
+        /// <summary>
+        /// Whether a declaration names someone: the whole name, the part after the last "の" (傷だらけの大熊 → 大熊),
+        /// or the end of a titled name of three letters or more (吟遊詩人フィン → フィン).
+        /// </summary>
+        static bool Names(string text, string name)
+        {
+            if (name.Length == 0) return false;
+            if (text.Contains(name)) return true;
+            var tail = name.Split('の').Last();
+            if (tail.Length >= 2 && tail != name && text.Contains(tail)) return true;
+            for (int k = name.Length - 1; k >= 3; k--) if (text.Contains(name.Substring(name.Length - k))) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// The words said in a declaration: what is in 「」, or the whole text when it says something (the model sometimes copies
+        /// the declaration without the brackets: 犯人は…と皆に話す). Null when nothing is said.
+        /// </summary>
+        static string? Quoted(string text)
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(text, "「([^」]{4,})」");
+            if (m.Success) return m.Groups[1].Value;
+            return System.Text.RegularExpressions.Regex.IsMatch(text, "(話す|話した|言う|言った|告げ|伝え|叫ぶ|突きつけ|問い詰め|推理)") ? text : null;
+        }
+
+        /// <summary>How much of a conclusion's wording (its two-letter pieces, the closing だ/である aside) a statement has, 0..1.</summary>
+        static double Cover(string conclusion, string said)
+        {
+            var core = System.Text.RegularExpressions.Regex.Replace(conclusion, "(だ|である|。)+$", "");
+            var pieces = Enumerable.Range(0, Math.Max(0, core.Length - 1)).Select(i => core.Substring(i, 2)).Distinct().ToList();
+            return pieces.Count == 0 ? 0 : (double)pieces.Count(said.Contains) / pieces.Count;
+        }
+
         static Step ReadStep(Evening e, string who, JObject s, List<string> dropped)
         {
             var step = new Step { Text = (string?)s["text"] ?? "" };
@@ -555,6 +619,10 @@ namespace Tavern.Core.Ai
                 var v = ((string?)s[field] ?? "").Trim().Trim('[', ']');
                 if (v.Length == 0) return "";
                 if (exists(v)) return v;
+                // a near miss of a real name id ("lise" for "liese"): the one closest id of the right kind, a letter or two off
+                // (not numbered ids like clues "c5_2": a letter off there is another clue)
+                var near = System.Text.RegularExpressions.Regex.IsMatch(v, @"\d") ? new List<(string c, int d)>() : KnownIds(e).Where(exists).Select(c => (c, d: Distance(v, c))).Where(x => x.d <= (x.c.Length >= 5 ? 2 : 1)).OrderBy(x => x.d).ToList();
+                if (near.Count > 0 && (near.Count == 1 || near[0].d < near[1].d)) return near[0].c;
                 dropped.Add($"{who}: {field} '{v}' は知らない id");
                 return "";
             }
@@ -579,7 +647,18 @@ namespace Tavern.Core.Ai
             step.Helps = Id("helps", id => IsAdventurer(id) && id != who);
             // outside a fight, an enemy of this place as the target means the fight starts (read in Read)
             if (e.Combat == null && rawTarget.Length > 0 && e.World.PlacesOfParty.Any(p => e.Story.PlaceOf(p)?.Enemies.Contains(rawTarget) == true)) { step.FoeHint = rawTarget; s.Remove("target"); }
-            step.Target = Id("target", id => IsAdventurer(id) || IsPerson(id) || e.Combat?.Find(id) != null);
+            // and an attack that names one of them ("大熊に斬りかかる" for 傷だらけの大熊) or a story person here who fights
+            // ("フィンに斬りかかる"), when the model left the target out
+            if (e.Combat == null && step.FoeHint.Length == 0 && e.Find(who) is Adventurer actor && AttackWords.IsMatch(step.Text)
+                && e.Story.PlaceOf(e.PlaceOf(actor)) is Place here)
+            {
+                if (!e.World.Events.Contains(Flow.Table.Cleared(here.Id)))
+                    step.FoeHint = here.Enemies.FirstOrDefault(id => e.FoeNames.TryGetValue(id, out var name) && Names(step.Text, name)) ?? "";
+                if (step.FoeHint.Length == 0)
+                    step.FoeHint = e.World.Cast.People.Where(p => p.Location == here.Id && p.State == PersonState.Alive && !p.WithParty)
+                        .Select(p => e.Story.PersonOf(p.Id)).Where(d => d != null && d.Enemy.Length > 0 && Names(step.Text, d.Name)).Select(d => "person:" + d!.Id).FirstOrDefault() ?? "";
+            }
+            step.Target =Id("target", id => IsAdventurer(id) || IsPerson(id) || e.Combat?.Find(id) != null);
             step.CombatAct = (string?)s["combat_act"] ?? "";
             step.Rest = (bool?)s["rest"] ?? false;
             step.Recruit = (bool?)s["recruit"] ?? false;
@@ -588,7 +667,14 @@ namespace Tavern.Core.Ai
             step.Pay = Math.Max(0, (int?)s["pay"] ?? 0);
             step.Conclusion = Id("conclusion", id => e.Story.Conclusions.Any(c => c.Id == id));
             step.Correct = (bool?)s["correct"] ?? false;
-            step.Request = ((string?)s["request"]) switch { "small" => RequestSize.Small, "normal" => RequestSize.Normal, "large" => RequestSize.Large, _ => (RequestSize?)null };
+            // a deduction said aloud that the model did not pick up: the words of a conclusion, nearly all in the quote, are that conclusion
+            if (step.Conclusion.Length == 0 && Quoted(step.Text) is string said)
+            {
+                var hit = e.Story.Conclusions.Where(c => !e.World.Convictions.Contains(c.Id)).Select(c => (c, cover: Cover(c.Text, said)))
+                    .Where(x => x.cover >= 0.7).OrderByDescending(x => x.cover).FirstOrDefault();
+                if (hit.c != null) { step.Conclusion = hit.c.Id; step.Correct = true; step.Sort = Sort.Auto; }
+            }
+            step.Request =((string?)s["request"]) switch { "small" => RequestSize.Small, "normal" => RequestSize.Normal, "large" => RequestSize.Large, _ => (RequestSize?)null };
             step.Approach = ((string?)s["approach"]) switch { "ask" => Play.Approach.Ask, "persuade" => Play.Approach.Persuade, "threaten" => Play.Approach.Threaten, "trick" => Play.Approach.Trick, _ => (Approach?)null };
             step.Unexpected = (bool?)s["unexpected"] ?? false;
             step.PlaceRule = (bool?)s["place_rule"] ?? false;

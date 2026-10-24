@@ -13,7 +13,7 @@ using System.Text.Json.Nodes;
 var a = args.ToList();
 string? Opt(string n) { int i = a.IndexOf(n); return i >= 0 && i + 1 < a.Count ? a[i + 1] : null; }
 
-// import <srcDir> <destDir> [--engine sdxl] [--pick id=2,id=1]: copy the chosen candidate of each id as a JPEG
+// import <srcDir> <destDir> [--engine sdxl] [--pick id=2,id=1] [--only id,..] [--trim-bottom 0.08]: copy the chosen candidate of each id as a JPEG
 // (backgrounds 1344 wide, the rest 512x768) into Unity/Assets/Resources/Art.
 if (a.Count > 0 && a[0] == "import")
 {
@@ -24,12 +24,13 @@ if (a.Count > 0 && a[0] == "import")
     Directory.CreateDirectory(dest);
     var ids = Directory.GetFiles(src, $"*_{eng}_*.png").Select(f => Path.GetFileNameWithoutExtension(f))
         .Select(n => n[..n.LastIndexOf($"_{eng}_", StringComparison.Ordinal)]).Distinct().OrderBy(x => x).ToList();
-    foreach (var id in ids)
+    var chosen = Opt("--only")?.Split(",").ToHashSet();
+    foreach (var id in ids.Where(i => chosen == null || chosen.Contains(i)))
     {
         var seed = picks.TryGetValue(id, out var sp) ? sp : "1";
         var file = Path.Combine(src, $"{id}_{eng}_{seed}.png");
         if (!File.Exists(file)) { Console.WriteLine($"{id}: missing {file}"); continue; }
-        ImageTools.SaveJpeg(file, Path.Combine(dest, id + ".jpg"), id.StartsWith("bg_") ? 1344 : 512, id.StartsWith("bg_") ? 768 : 768);
+        ImageTools.SaveJpeg(file, Path.Combine(dest, id + ".jpg"), id.StartsWith("bg_") ? 1344 : 512, 768, float.TryParse(Opt("--trim-bottom"), System.Globalization.CultureInfo.InvariantCulture, out var tb) ? tb : 0);
         Console.WriteLine($"{id} <- seed {seed}");
     }
     return 0;
@@ -76,7 +77,16 @@ static class Style
         "dramatic chiaroscuro with warm candle or firelight against deep shadows; atmospheric depth with softer, darker edges in the background. " +
         "Serious and grounded, painterly, not photorealistic, not anime, not cartoon, not smooth digital art.";
 
-    const string NoText = "No text, letters, numbers, logos, signatures, watermarks, borders or frames anywhere.";
+    /// <summary>
+    /// Places: the same classical oil painting, but luminous. With the Bible's muted palette and dark edges every scene came out
+    /// as a dim brown haze (2026-10-24), so scenes get their own light and colour.
+    /// </summary>
+    public const string SceneBible =
+        "A detailed, luminous classical oil painting in the manner of nineteenth-century romantic landscape and interior painters and vintage fantasy book plates: " +
+        "rich glowing colour, crisp detail, deep clear shadows and bright warm light from fire, lanterns, candles, moonlight or the sky, " +
+        "strong contrast, the place and its main features clearly readable. Painterly, not photorealistic, not anime, not cartoon.";
+
+    const string NoText ="No text, letters, numbers, logos, signatures, watermarks, borders or frames anywhere.";
     const string Anatomy = "Correct anatomy: each visible hand has exactly five fingers, and figures hold only the objects described.";
 
     public const string Negative =
@@ -85,7 +95,8 @@ static class Style
     /// <summary>Subject first (long style text first made models ignore the subject in the cardgame project).</summary>
     public static string Build(string kind, string subject) => kind switch
     {
-        "scene" => $"Subject: {subject} An empty scene with no figures. Style: {Bible} {NoText}",
+        // scenes came out murky (dim, flat, a canvas haze over everything): they ask for a lit, readable place
+        "scene" => $"Subject: {subject} An empty scene with no figures. Style: {SceneBible} {NoText}",
         "creature" => $"Subject: {subject} Style: {Bible} The creature is fully visible and centred, nothing important touches the edges. {Anatomy} {NoText}",
         "card" => $"Subject: {subject} Style: {Bible} The effect itself is the main subject, centred; any figure is secondary or seen from behind. {Anatomy} {NoText}",
         _ => $"Subject: {subject} Style: {Bible} The figure is centred with the face clearly lit. {Anatomy} {NoText}",

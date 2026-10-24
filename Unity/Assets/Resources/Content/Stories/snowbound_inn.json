@@ -141,7 +141,7 @@
     { "id": "talk_finn", "name": "フィンを説き伏せてリーゼを放させる", "place": "lake_tower", "ability": "MND", "tier": "難しい", "event": "liese_rescued", "uses": 1 }
   ],
   "items": [
-    { "id": "medicine", "name": "大旦那の薬", "kind": "Consumable", "uses": 1, "at": "npc:apothecary", "note": "胸の病の薬。明日までに届ける" },
+    { "id": "medicine", "name": "大旦那の薬", "kind": "Consumable", "uses": 1, "at": "party", "note": "胸の病の薬。明日までに届ける。薬屋から預かって出発する" },
     { "id": "letter", "name": "辺境伯の手紙", "kind": "Story", "at": "npc:jonas", "note": "蝋の封が割れている。ヴァルデン家の紋" },
     { "id": "signet", "name": "古い印章の指輪", "kind": "Story", "at": "npc:liese", "note": "リーゼの首飾りの鎖に通されている。ヴァルデン家の紋" },
     { "id": "pouch", "name": "雪苔の小袋と細い短剣", "kind": "Story", "at": "corridor", "note": "フィンのリュートの胴の中" },

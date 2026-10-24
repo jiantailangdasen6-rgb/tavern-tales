@@ -141,7 +141,8 @@ namespace Tavern.Core.Story
             }
             void CheckHolder(string what, string at)
             {
-                if (at.StartsWith("npc:")) { if (s.PersonOf(at.Substring(4)) == null) E($"{what} の持ち主 '{at}' がない"); }
+                if (at == "party") { }   // in the first adventurer's pack from the start (Evening.Begin)
+                else if (at.StartsWith("npc:")) { if (s.PersonOf(at.Substring(4)) == null) E($"{what} の持ち主 '{at}' がない"); }
                 else if (at.StartsWith("enemy:"))
                 {
                     var e = at.Substring(6);

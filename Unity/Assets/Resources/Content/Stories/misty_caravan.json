@@ -27,7 +27,7 @@
       "id": "ship", "name": "船の出港", "secret": "王都の船", "segments": 12, "speed": "every", "every": 8,
       "onFullKinds": [ "Ending" ], "fullText": "船が出る（目的が果たせない）",
       "onFull": [ { "event": "ship_sailed", "text": "入り江の沖で、王都の船が帆を上げた。夕陽の中を、船影がゆっくりと遠ざかっていく。" } ],
-      "rewinds": [ { "id": "shortcut", "text": "近道を使う（古の都の丘の抜け道、1 回）", "amount": 2, "when": { "event": "shortcut_taken" } } ]
+      "rewinds": [ { "id": "shortcut", "text": "近道を使う（古の都の丘の抜け道、1 回）", "amount": 2, "when": { "event": "visited:shortcut" } } ]
     },
     {
       "id": "pursuers", "name": "追っ手", "secret": "ディートリヒの騎士たち", "segments": 6, "speed": "every", "every": 5, "acts": [ 1, 2, 3, 4 ],
@@ -150,12 +150,11 @@
   "mechanisms": [
     { "id": "fix_cart", "name": "鍛冶の心得で荷車を直す", "place": "causeway", "ability": "DEX", "tier": "普通", "event": "cart_fixed", "uses": 0 },
     { "id": "false_trail", "name": "足跡を消し、偽の道に誘う", "place": "old_road", "ability": "AGI", "tier": "普通", "event": "trail_covered", "uses": 1 },
-    { "id": "take_shortcut", "name": "山越えの抜け道を行く", "place": "shortcut", "noCheck": true, "event": "shortcut_taken", "uses": 1 },
     { "id": "outflank", "name": "浅瀬から入り江へ回り込む", "place": "bridge", "ability": "AGI", "tier": "普通", "event": "outflanked", "uses": 1 },
     { "id": "signal", "name": "ブルーノに偽の合図を出させる", "place": "bridge", "noCheck": true, "event": "false_signal", "uses": 1 }
   ],
   "items": [
-    { "id": "lamp", "name": "聖灯", "kind": "Consumable", "uses": 3, "at": "npc:priest", "note": "灯せば霧を払い、死者を退ける。油は三回分" },
+    { "id": "lamp", "name": "聖灯", "kind": "Consumable", "uses": 3, "at": "party", "note": "灯せば霧を払い、死者を退ける。油は三回分。司祭から預かって出発する" },
     { "id": "cargo", "name": "隊商の荷", "kind": "Story", "at": "npc:joachim", "note": "ヨアヒムの商品" }
   ],
   "people": [
@@ -213,7 +212,7 @@
       { "id": "guard_lamp", "text": "聖灯を守り抜く: 待ち伏せを越え、入り江で頭目ベルントを倒すか退ける",
         "when": [ [ { "person": "berndt", "is": "down" } ], [ { "person": "berndt", "is": "dead" } ], [ { "person": "berndt", "is": "retreated" } ] ] },
       { "id": "outwit", "text": "裏をかく: 抜け道や浅瀬から入り江へ回り込み、戦わずに船へ（荷は一部捨てる）",
-        "when": [ [ { "event": "outflanked" } ], [ { "event": "shortcut_taken" }, { "place": "cove", "who": "any" } ] ] }
+        "when": [ [ { "event": "outflanked" } ], [ { "event": "visited:shortcut" }, { "place": "cove", "who": "any" } ] ] }
     ]
   },
   "choice": "クララをどうするか。船に乗せればクララは南へ逃げ、ディートリヒは（信頼なら）「見失った」と報告するが、ローデリヒ卿の恨みが残る。ディートリヒに引き渡せば、クララは王都へ戻り婚礼を挙げる。二人で船に乗せれば、どちらの家にも背く。そして聖灯の油。三回のうちどこで使うかで、霧の沼、遺跡の夜、入り江の戦いのどれかが厳しくなる。",

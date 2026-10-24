@@ -116,6 +116,64 @@ namespace Tavern.Core.Tests.Play
         }
 
         [Test]
+        public void Classifier_TakesANearMissOfAName_ButNotOfANumberedId()
+        {
+            var e = Shrine("village", 1);
+            var args = JObject.Parse(@"{""declarations"": [{""who"": ""rocco"", ""steps"": [
+                {""text"": ""ヘレンに聞く"", ""sort"": ""auto"", ""person"": ""helne""},
+                {""text"": ""子どもらに聞く"", ""sort"": ""auto"", ""person"": ""childern"", ""clue"": ""c1_9""}]}]}");
+            var c = new Classification();
+            Classifier.Read(e, Decl(("rocco", "…")), false, args, c);
+            Assert.That(c.For("rocco")!.Steps[0].Person, Is.EqualTo("helen"));
+            Assert.That(c.For("rocco")!.Steps[1].Person, Is.EqualTo("children"));
+            Assert.That(c.For("rocco")!.Steps[1].Clue, Is.EqualTo(""));
+        }
+
+        [Test]
+        public void Classifier_AnAttackNamingAPlaceFoe_StartsTheFight()
+        {
+            var e = Shrine("forest_path", 1);
+            e.FoeNames["wolf"] = "灰色狼";
+            var args = JObject.Parse(@"{""declarations"": [{""who"": ""gareth"", ""steps"": [
+                {""text"": ""灰色狼に剣で斬りかかる"", ""sort"": ""check"", ""ability"": ""STR"", ""tier"": ""normal""}]}]}");
+            var c = new Classification();
+            Classifier.Read(e, Decl(("gareth", "…")), false, args, c);
+            Assert.That(c.Fight, Is.Not.Null);
+            Assert.That(c.Fight!.Enemies, Has.Member("wolf"));
+            // looking at them is no attack
+            var look = new Classification();
+            Classifier.Read(e, Decl(("gareth", "…")), false, JObject.Parse(@"{""declarations"": [{""who"": ""gareth"", ""steps"": [
+                {""text"": ""灰色狼の足跡を調べる"", ""sort"": ""auto""}]}]}"), look);
+            Assert.That(look.Fight, Is.Null);
+            // a story person who fights, named by the end of a titled name
+            var crypt = Shrine("crypt", 3);
+            var atk = new Classification();
+            Classifier.Read(crypt, Decl(("gareth", "…")), false, JObject.Parse(@"{""declarations"": [{""who"": ""gareth"", ""steps"": [
+                {""text"": ""バルドリックに斬りかかる"", ""sort"": ""check"", ""ability"": ""STR"", ""tier"": ""normal""}]}]}"), atk);
+            Assert.That(atk.Fight!.Enemies, Has.Member("person:baldric"));
+        }
+
+        [Test]
+        public void Classifier_ADeductionSaidAloud_IsTakenEvenIfTheModelMissedIt()
+        {
+            var e = Shrine("village", 1);
+            var args = JObject.Parse(@"{""declarations"": [{""who"": ""gareth"", ""steps"": [
+                {""text"": ""「若者たちは祠の地下にいるはずだ」と皆に話す"", ""sort"": ""check"", ""ability"": ""MND"", ""tier"": ""normal""}]},
+                {""who"": ""rocco"", ""steps"": [{""text"": ""「若者たちは森の小屋にいる」と言う"", ""sort"": ""auto""}]}]}");
+            var c = new Classification();
+            Classifier.Read(e, Decl(("gareth", "…"), ("rocco", "…")), false, args, c);
+            Assert.That(c.For("gareth")!.Steps[0].Conclusion, Is.EqualTo("c1"));
+            Assert.That(c.For("gareth")!.Steps[0].Correct, Is.True);
+            Assert.That(c.For("gareth")!.Steps[0].Sort, Is.EqualTo(Sort.Auto), "a deduction is never rolled");
+            Assert.That(c.For("rocco")!.Steps[0].Conclusion, Is.EqualTo(""), "a wrong guess is not matched");
+            // the model copied it without the brackets
+            var bare = new Classification();
+            Classifier.Read(e, Decl(("gareth", "…")), false, JObject.Parse(@"{""declarations"": [{""who"": ""gareth"", ""steps"": [
+                {""text"": ""騎士は名を呼ばれると剣を止めると皆に話す"", ""sort"": ""check"", ""ability"": ""INT"", ""tier"": ""normal""}]}]}"), bare);
+            Assert.That(bare.For("gareth")!.Steps[0].Conclusion, Is.EqualTo("c4"));
+        }
+
+        [Test]
         public void Classifier_LimitsChecksPerTurn()
         {
             var e = Shrine("corridor", 2);

@@ -297,7 +297,7 @@
         "id":  "en_wyvern",
         "kind":  "creature",
         "aspect":  "2:3",
-        "prompt":  "A great wyvern perched on a snowy mountain crag, leathery wings spread, barbed tail, roaring, scattered bones."
+        "prompt":  "A great white wyvern with pale ivory-white scales and long white fangs, perched on a snowy mountain crag, pale leathery wings spread, barbed tail, roaring, scattered bones."
     },
     {
         "id":  "pc_mage_f",

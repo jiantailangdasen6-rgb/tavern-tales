@@ -243,6 +243,20 @@ namespace Tavern.Core.Tests.Play
         }
 
         [Test]
+        public async Task ASecretClue_ToldToTheOthers_BecomesTheParty()
+        {
+            var (t, llm, e) = New("village", 1, 2);
+            e.World.Learn("c1_3", "rocco", secret: true);
+            Assert.That(e.World.Knows("gareth", "c1_3"), Is.False);
+            // told somewhere else, and the AI asks for a roll: neither stops it (and the roll of 2 would fail)
+            llm.Tool(Classifier.ToolName, Cls(@"{""who"": ""rocco"", ""steps"": [{""text"": ""見つけたことを皆に話す"", ""sort"": ""check"", ""ability"": ""MND"", ""tier"": ""normal"", ""clue"": ""c1_3""}]}"))
+               .Tool(Narrator.ToolName, Ok);
+            var r = await t.ExploreAsync(D(("rocco", "見つけたことを皆に話す")));
+            Assert.That(e.World.Knows("gareth", "c1_3"), Is.True);
+            Assert.That(r.Lines, Has.Some.StartWith("手がかりを皆に明かした"));
+        }
+
+        [Test]
         public async Task Fight_AnItemCanBePutDown()
         {
             var (t, llm, e) = New("dungeon", 2, 19);

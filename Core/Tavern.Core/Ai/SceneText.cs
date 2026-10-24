@@ -53,7 +53,7 @@ namespace Tavern.Core.Ai
                 foreach (var r in p.Rules) b.AppendLine($"場所の決まり: {r.Text}");
                 if (p.Tense) b.AppendLine("ここは緊迫の場所。");
                 if (p.Shop) b.AppendLine("店がある（消耗品と道具）。");
-                if (p.Enemies.Count > 0 && !e.World.Events.Contains(Flow.Table.Cleared(place))) b.AppendLine("ここに出うる敵: " + string.Join("、", p.Enemies.Distinct().Select(x => $"[{x}]")));
+                if (p.Enemies.Count > 0 && !e.World.Events.Contains(Flow.Table.Cleared(place))) b.AppendLine("ここに出うる敵: " + string.Join("、", p.Enemies.Distinct().Select(x => $"[{x}]" + (e.FoeNames.TryGetValue(x, out var fn) ? " " + fn : ""))));
                 else if (p.Enemies.Count > 0) b.AppendLine("ここの敵はもう退けた（同じ顔ぶれはもう出ない）。");
                 foreach (var t in p.Traps) b.AppendLine($"罠: {t.Text}（{t.Ability.Code()}・{t.Tier.Label()}で見抜く・外す）");
                 var people = e.PeopleAt(place).ToList();
@@ -101,6 +101,9 @@ namespace Tavern.Core.Ai
                 b.AppendLine($"  得意: {string.Join("、", a.Specialties.Select(s => s.Kind.Label() + (s.UndeadBane ? "（不死に強い）" : "") + (s.SelfOnly ? "（自分だけ）" : "")).Distinct())}");
                 if (a.Techniques.Count > 0) b.AppendLine($"  名付けた技: {string.Join("、", a.Techniques.Select(t => $"【{t.Name}】{t.Kind.Label()}・{t.Size.Label()}・{t.Ability.Code()}"))}");
                 b.AppendLine($"  持ち物: {string.Join("、", a.Gear.Items.Select(i => $"[{i.Id}] {i.Name}"))}");
+                // clues found in secret: telling the others is a step with that clue's id (it becomes the party's)
+                var mine = e.Story.Clues.Where(c => e.World.Knows(a.Id, c.Id) && !e.World.Knows("", c.Id)).ToList();
+                if (mine.Count > 0) b.AppendLine($"  自分だけが知る手がかり: {string.Join("、", mine.Select(c => $"[{c.Id}] {c.Text}"))}");
                 if (a.Background.Length > 0) b.AppendLine($"  生い立ち: {a.Background}");
             }
             return b.ToString();

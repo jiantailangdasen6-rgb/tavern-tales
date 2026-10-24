@@ -19,6 +19,8 @@ namespace Tavern.Core.Ai
         public Dictionary<string, Mechanism> Mechanisms { get; } = new Dictionary<string, Mechanism>();
         /// <summary>事実メモ: facts settled tonight (fate dice, small additions); never contradicted.</summary>
         public List<string> Facts { get; } = new List<string>();
+        /// <summary>The display names of the places' foes by id (set by the table from the bestiary; not saved).</summary>
+        public Dictionary<string, string> FoeNames { get; } = new Dictionary<string, string>();
         /// <summary>Rumours of the last three evenings.</summary>
         public List<string> Rumors { get; } = new List<string>();
         public Difficulty Difficulty { get; set; } = Difficulty.Standard;
@@ -55,12 +57,25 @@ namespace Tavern.Core.Ai
                 });
             foreach (var i in story.Items)
             {
-                e.World.PutItem(i.Item.Id, i.At.StartsWith("npc:") ? World.NpcHolder(i.At.Substring(4)) : i.At);
                 e.World.ItemKinds[i.Item.Id] = i.Item.Kind;
+                // "party": the client's charge, in the first adventurer's pack from the start (the holy lamp to deliver)
+                if (i.At == "party" && e.Party.FirstOrDefault(a => a.Gear.Add(Carried(i))) is Adventurer bearer)
+                {
+                    e.World.PutItem(i.Item.Id, World.Pc(bearer.Id));
+                    continue;
+                }
+                e.World.PutItem(i.Item.Id, i.At.StartsWith("npc:") ? World.NpcHolder(i.At.Substring(4)) : i.At);
             }
             foreach (var c in story.Clocks) e.World.Clocks.All.Add(new Clock(c.Def) { Visible = c.Visible.IsEmpty });
             foreach (var m in story.Mechanisms) e.Mechanisms[m.Id] = new Mechanism(m);
             return e;
+        }
+
+        static Item Carried(StoryItem i)
+        {
+            var it = i.Item.Clone();
+            it.StoryId = i.Item.Id;
+            return it;
         }
 
         public Adventurer? Find(string id) => Party.FirstOrDefault(a => a.Id == id);

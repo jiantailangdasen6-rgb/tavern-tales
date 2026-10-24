@@ -96,6 +96,8 @@ namespace Tavern.Core.Flow
         public Table(Evening e, Classifier classifier, Narrator narrator, IPlayers players, IRandom rng, Bestiary enemies, Narrator? highlight = null)
         {
             E = e; Classifier = classifier; Narrator = narrator; Highlight = highlight ?? narrator; Players = players; Rng = rng; Enemies = enemies;
+            // the names of the places' foes, so the AI can match "大熊に斬りかかる" to [dire_bear]
+            foreach (var id in e.Story.Places.SelectMany(p => p.Enemies).Distinct().Where(enemies.Has)) e.FoeNames[id] = enemies[id].Name;
         }
 
         public StoryDef Story => E.Story;
@@ -311,7 +313,10 @@ namespace Tavern.Core.Flow
             }
             if (s.Person.Length > 0 && !E.PeopleAt(here).Any(p => p.Id == s.Person)) { r.Refused = $"{W.Cast.Find(s.Person)?.Name ?? "その人"}はここにいない"; return; }
             if (s.Mechanism.Length > 0 && !E.MechanismsAt(here).Any(m => m.Id == s.Mechanism)) s.Mechanism = "";
-            if (s.Clue.Length > 0 && !E.CluesHere(here).Any(c => c.Id == s.Clue)) s.Clue = "";
+            // telling the others a clue only this adventurer knows: anywhere, no roll (Apply makes it the party's)
+            var sharing = !r.Secret && s.Clue.Length > 0 && W.Knows(a.Id, s.Clue) && !W.Knows("", s.Clue);
+            if (s.Clue.Length > 0 && !sharing && !E.CluesHere(here).Any(c => c.Id == s.Clue)) s.Clue = "";
+            if (sharing) { s.Sort = Sort.Auto; s.Check = null; }
             if (s.Pay > 0 && a.Silver < s.Pay) { r.Refused = "銀貨が足りない"; return; }
             if (s.Buy.Length > 0 && !(Story.PlaceOf(here)?.Shop ?? false)) { r.Refused = "ここには店がない"; return; }
             if (s.Rest && RestedAct == W.Act) { r.Refused = "この幕ではもう休んだ（休めるのは 1 幕に 1 回）"; return; }
@@ -330,7 +335,7 @@ namespace Tavern.Core.Flow
             }
 
             // the check: the sheet's numbers win over the AI's for clues and mechanisms
-            if (s.Clue.Length > 0 && Story.ClueOf(s.Clue) is Clue clue && s.Person.Length == 0)
+            if (!sharing && s.Clue.Length > 0 && Story.ClueOf(s.Clue) is Clue clue && s.Person.Length == 0)
             {
                 if (clue.Access == ClueAccess.Free) { s.Sort = Sort.Auto; s.Check = null; }
                 else if (clue.Access == ClueAccess.Check)
@@ -592,7 +597,15 @@ namespace Tavern.Core.Flow
             // clue
             if (s.Clue.Length > 0 && Story.ClueOf(s.Clue) is Clue clue)
             {
+                var onlyMine = W.Knows(a.Id, clue.Id) && !W.Knows("", clue.Id);
                 var isNew = W.Learn(clue.Id, a.Id, r.Secret);
+                // a clue found in secret, told to everyone (the clue book's 見せる, as a declaration)
+                if (onlyMine && !r.Secret)
+                {
+                    progress = true;
+                    report.Lines.Add($"手がかりを皆に明かした（{a.Name}）: {clue.Text}");
+                    changes.Add($"{a.Name}が、自分だけが知っていた手がかりを皆に明かした: {clue.Text}");
+                }
                 W.Events.Add("clue:" + clue.Id);
                 if (isNew)
                 {
