@@ -12,7 +12,7 @@ namespace Tavern.Unity.Night
 {
     /// <summary>
     /// The region map spread on the tavern table (09_Spec 11): a mark where each story happens; press one for its title and
-    /// introduction, pick the difficulty, start. Played stories show their endings. (The map picture comes in stage 7.)
+    /// introduction, pick the difficulty, start. Played stories show their endings.
     /// </summary>
     public sealed class MapView
     {
@@ -37,15 +37,19 @@ namespace Tavern.Unity.Night
             // the map: parchment with the regions
             var map = UiKit.Box(root, "Map", Theme.Hex("3a2e20"), frame: true);
             map.rectTransform.Place(MapX, MapY, MapW, MapH);
-            UiKit.Box(map.transform, "Inner", Theme.Hex("6b5638"), frame: false).rectTransform.Fill(10);
+            var art = ArtLibrary.Get("bg_map_valden");
+            var pic = UiKit.Picture(map.transform, art, 0, 0, MapW, MapH);
+            pic.rectTransform.Fill(8);
+            pic.uvRect = ArtLibrary.Cover(art, MapW - 16, MapH - 16);
             foreach (var r in _n.Regions)
             {
                 var stories = _n.Stories.Where(s => s.Region == r.Id).ToList();
                 var x = MapX + 20 + r.X * (MapW - 40);
                 var y = MapY + 20 + r.Y * (MapH - 40);
-                var dot = UiKit.Box(root, "Spot", stories.Count > 0 ? Theme.Gold : Theme.Hex("8a7756"));
+                var dot = UiKit.Box(root, "Spot", stories.Count > 0 ? Theme.Gold : Theme.Hex("d8c8a4"));
                 dot.rectTransform.Place(x - 9, y - 9, 18, 18);
-                UiKit.Label(root, r.Name, stories.Count > 0 ? 18 : 15, stories.Count > 0 ? Theme.GoldLight : Theme.Hex("d8c8a4"), x - 150, y + 12, 300, 44, align: TextAnchor.UpperCenter);
+                var name = UiKit.Label(root, r.Name, stories.Count > 0 ? 18 : 15, stories.Count > 0 ? Theme.GoldLight : Theme.Hex("efe3c8"), x - 150, y + 12, 300, 44, align: TextAnchor.UpperCenter);
+                name.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, 0.9f);
                 foreach (var (s, i) in stories.Select((s, i) => (s, i)))
                 {
                     var played = _tavern.Played.ContainsKey(s.Id);

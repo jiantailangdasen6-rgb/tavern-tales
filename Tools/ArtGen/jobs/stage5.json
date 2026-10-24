@@ -1,0 +1,8 @@
+[
+  { "id": "map_valden", "kind": "scene", "aspect": "16:9",
+    "prompt": "A hand-drawn old fantasy regional map on aged, stained parchment seen from directly above, filling the whole frame: a rugged coastline with cliffs along the far left edge, a misty grey forest in the left middle, a small walled road town in the centre with roads spreading out, high jagged snowy mountains across the top, a dark marsh with reeds at the bottom, crumbling ancient ruins on the hills at the right, painted in muted sepia, olive and grey inks with tiny trees, hills and wave strokes. No labels, no lettering, no compass text, no people." },
+  { "id": "pt_villager_woman", "kind": "portrait", "aspect": "2:3",
+    "prompt": "Half-length portrait of a careworn village mother in her forties with tear-reddened eyes and auburn hair tied back under a plain linen kerchief, wearing a simple brown wool dress and apron, clutching a small red hair ribbon to her chest, standing in a muddy village square at dusk with thatched cottages behind her." },
+  { "id": "pt_youth_girl", "kind": "portrait", "aspect": "2:3",
+    "prompt": "Half-length portrait of an exhausted village girl of about seventeen with long red hair, pale and shivering, wrapped in a damp grey shawl, her simple green dress soaked at the hem, sitting against the rusted iron bars of a dim flooded dungeon cell lit by a single torch." }
+]
