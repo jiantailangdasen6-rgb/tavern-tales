@@ -387,7 +387,9 @@ namespace Tavern.Unity.Night
         {
             var name = _t.Phase == Phase.Over && _t.Ending != null ? "ending_" + (_t.Ending.Card switch { Card.Success => "success", Card.Bitter => "bitter", _ => "failure" })
                 : E.Combat != null ? (E.Combat.Foes.Any(f => f.Boss && f.InFight) ? "boss" : "battle")
-                : place?.Id == Story.Start || place?.Art == "bg_tavern" ? "tavern" : AudioDirector.Zone(place?.Art ?? "");
+                : place?.Id == Story.Start || place?.Art == "bg_tavern" ? "tavern"
+                : place?.Tense == true ? "tense"   // tense places (09_Spec) get their own uneasy music
+                : AudioDirector.Zone(place?.Art ?? "");
             if (name == _music) return;
             _music = name;
             AudioDirector.Music(name);

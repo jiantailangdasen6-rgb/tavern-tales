@@ -15,7 +15,7 @@ PagDev「Fireplace Sound loop」（OpenGameArt、CC0）
 そのほかの効果音と曲は、このゲームのために合成したもの。
 
 ■ 絵
-Juggernaut XL（試作の仮絵）で生成。
+画像生成で描いた。多くは試作の仮絵（Juggernaut XL）、地図と新しい人物・敵は FLUX.1 Kontext Pro（fal.ai）。
 
 ■ 文字（ブラウザ版）
 Noto Sans JP・Noto Serif JP（Google、SIL Open Font License 1.1、https://github.com/notofonts/noto-cjk）

@@ -45,25 +45,63 @@ namespace Tavern.Unity.Night
             var pic = UiKit.Picture(map.transform, art, 0, 0, MapW, MapH);
             pic.rectTransform.Fill(8);
             pic.uvRect = ArtLibrary.Cover(art, MapW - 16, MapH - 16);
-            foreach (var r in _n.Regions)
+            // Region names first, then each story's sign where it overlaps nothing placed so far (eleven stories crowded the north).
+            var taken = new List<Rect>();
+            var spots = _n.Regions.Select(r => (r, stories: _n.Stories.Where(s => s.Region == r.Id).ToList(),
+                x: MapX + 20 + r.X * (MapW - 40), y: MapY + 20 + r.Y * (MapH - 40))).ToList();
+            foreach (var (r, stories, x, y) in spots)
             {
-                var stories = _n.Stories.Where(s => s.Region == r.Id).ToList();
-                var x = MapX + 20 + r.X * (MapW - 40);
-                var y = MapY + 20 + r.Y * (MapH - 40);
                 var dot = UiKit.Box(root, "Spot", stories.Count > 0 ? Theme.Gold : Theme.Hex("d8c8a4"));
                 dot.rectTransform.Place(x - 9, y - 9, 18, 18);
+                var nameW = Mathf.Min(300, r.Name.Length * 18 + 16);
                 var name = UiKit.Label(root, r.Name, stories.Count > 0 ? 18 : 15, stories.Count > 0 ? Theme.GoldLight : Theme.Hex("efe3c8"), x - 150, y + 12, 300, 44, align: TextAnchor.UpperCenter);
                 name.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, 0.9f);
-                foreach (var (s, i) in stories.Select((s, i) => (s, i)))
+                taken.Add(new Rect(x - nameW / 2f, y - 10, nameW, 50));
+            }
+            foreach (var (r, stories, x, y) in spots)
+                foreach (var s in stories)
                 {
                     var played = _tavern.Played.ContainsKey(s.Id);
                     var pins = _room?.Pins.Where(kv => kv.Value == s.Id).Select(kv => kv.Key).ToList() ?? new List<string>();
                     var label = (played ? "✓ " : "◆ ") + s.Title + (pins.Count > 0 ? $"　<color=#e8d9a8>ピン {pins.Count}</color>" : "");
-                    var pin = UiKit.Button(root, label, () => Pick(s, fromClick: true), x - 140, y - 58 - i * 46, 280, 40, 17, gold: true);
+                    var at = FreeSpot(taken, x, y);
+                    taken.Add(at);
+                    var pin = UiKit.Button(root, label, () => Pick(s, fromClick: true), at.x, at.y, at.width, at.height, 16, gold: true);
                     pin.name = "Pin_" + s.Id;
                 }
-            }
 
+            // the side panel: the picked story (below)
+            BuildSide(root);
+        }
+
+        const float SignW = 250, SignH = 38;
+
+        /// <summary>
+        /// Where a story's sign goes: above its spot first (stacking upward), then below the region's name, then to the left or the
+        /// right, at the first place that overlaps no sign or name already placed and stays on the map.
+        /// </summary>
+        static Rect FreeSpot(List<Rect> taken, float x, float y)
+        {
+            var tries = new List<Vector2>();
+            for (int i = 0; i < 4; i++) tries.Add(new Vector2(x - SignW / 2, y - 54 - i * (SignH + 6)));
+            for (int i = 0; i < 3; i++) tries.Add(new Vector2(x - SignW / 2, y + 44 + i * (SignH + 6)));
+            for (int i = 0; i < 3; i++) { tries.Add(new Vector2(x - SignW - 24, y - SignH / 2 + i * (SignH + 6))); tries.Add(new Vector2(x + 24, y - SignH / 2 + i * (SignH + 6))); }
+            for (int i = 0; i < 2; i++) { tries.Add(new Vector2(x - SignW - 10, y - 54 - i * (SignH + 6))); tries.Add(new Vector2(x + 10, y - 54 - i * (SignH + 6))); }
+            Rect? best = null;
+            var bestOverlap = float.MaxValue;
+            foreach (var p in tries)
+            {
+                var r = new Rect(p.x, p.y, SignW, SignH);
+                if (r.xMin < MapX + 6 || r.xMax > MapX + MapW - 6 || r.yMin < MapY + 6 || r.yMax > MapY + MapH - 6) continue;
+                var overlap = taken.Sum(t => Mathf.Max(0, Mathf.Min(t.xMax, r.xMax) - Mathf.Max(t.xMin, r.xMin)) * Mathf.Max(0, Mathf.Min(t.yMax, r.yMax) - Mathf.Max(t.yMin, r.yMin)));
+                if (overlap <= 0) return r;
+                if (overlap < bestOverlap) { bestOverlap = overlap; best = r; }   // nowhere free: the least covered place
+            }
+            return best ?? new Rect(tries[0].x, tries[0].y, SignW, SignH);
+        }
+
+        void BuildSide(Transform root)
+        {
             // the side panel: the picked story
             var side = UiKit.Panel(root, "Side", 1270, 110, 590, 860).transform;
             _title = UiKit.Label(side, "地図の印を押すと、物語の導入が出ます", 28, Theme.Gold, 24, 20, 540, 80, serif: true);
