@@ -26,6 +26,7 @@ namespace Tavern.Core.Tests.Play
             var e = Evening.Begin(s, party, Difficulty.Standard);
             e.World.Act = act;
             foreach (var p in party) e.World.Move(p.Id, at);
+            e.SettleOpening();
             var llm = new ScriptedLlm();
             var rng = new Rolls(rolls.Length > 0 ? rolls : new[] { 15 });
             var bot = new BotPlayers(rng, e.Find);
@@ -214,6 +215,42 @@ namespace Tavern.Core.Tests.Play
             await t.ExploreAsync(D(("gareth", "村へ行く")));
             Assert.That(e.PlaceOf(e.Find("gareth")!), Is.EqualTo("village"));
             Assert.That(e.World.Cast.Find("elder")!.Location, Is.EqualTo("village"));
+        }
+
+        [Test]
+        public async Task AnObjectTheStoryNeverListed_GoesInTheBagWithNoEffect()
+        {
+            var (t, llm, e) = New("tavern");
+            llm.Tool(Classifier.ToolName, Cls(@"{""who"": ""gareth"", ""steps"": [{""text"": ""村長の杖を奪う"", ""sort"": ""auto"", ""take"": true, ""new_item"": ""オズリックの杖""}]}"))
+               .Tool(Narrator.ToolName, Ok);
+            var r = await t.ExploreAsync(D(("gareth", "村長の杖を奪う")));
+            var staff = e.Find("gareth")!.Gear.Items.FirstOrDefault(i => i.Name == "オズリックの杖");
+            Assert.That(staff, Is.Not.Null, string.Join(" / ", r.Lines));
+            Assert.That(staff!.Kind, Is.EqualTo(ItemKind.Story));
+            Assert.That(staff.Bonus, Is.EqualTo(0));
+            Assert.That(r.Lines, Has.Some.Contains("効果のない品"));
+        }
+
+        [Test]
+        public async Task AListedThingNamedInWords_IsThatThing_NotASecondOne()
+        {
+            var (t, llm, e) = New("altar", 2);
+            llm.Tool(Classifier.ToolName, Cls(@"{""who"": ""gareth"", ""steps"": [{""text"": ""祭壇の燭台を手に取る"", ""sort"": ""auto"", ""take"": true, ""new_item"": ""金の燭台""}]}"))
+               .Tool(Narrator.ToolName, Ok);
+            await t.ExploreAsync(D(("gareth", "祭壇の燭台を手に取る")));
+            var gear = e.Find("gareth")!.Gear.Items;
+            Assert.That(gear.Any(i => i.StoryId == "candle_a"), Is.True, string.Join(",", gear.Select(i => i.Id)));
+            Assert.That(gear.Any(i => i.Id.StartsWith("found_")), Is.False);
+        }
+
+        [Test]
+        public async Task AnUnlistedThingNamedInTheItemField_IsStillTaken()
+        {
+            var (t, llm, e) = New("tavern");
+            llm.Tool(Classifier.ToolName, Cls(@"{""who"": ""gareth"", ""steps"": [{""text"": ""村長の杖を奪う"", ""sort"": ""auto"", ""item"": ""杖""}]}"))
+               .Tool(Narrator.ToolName, Ok);
+            await t.ExploreAsync(D(("gareth", "村長の杖を奪う")));
+            Assert.That(e.Find("gareth")!.Gear.Items.Any(i => i.Name == "杖"), Is.True);
         }
 
         [Test]

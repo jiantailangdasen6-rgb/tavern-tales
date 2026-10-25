@@ -43,6 +43,8 @@ namespace Tavern.Core.Ai
         public string GiveTo { get; set; } = "";
         public string PlaceAt { get; set; } = "";
         public bool Take { get; set; }
+        /// <summary>An object the story never listed, taken from the scene (its name); it becomes a keepsake with no effect.</summary>
+        public string NewItem { get; set; } = "";
         public string Person { get; set; } = "";
         public RequestSize? Request { get; set; }
         public Approach? Approach { get; set; }
@@ -225,6 +227,9 @@ namespace Tavern.Core.Ai
 - お金: 銀貨を渡す段（買収・情報料・贈り物）は pay に枚数を。店で買う段は buy に品の鍵（torch 松明 / rope ロープ / oil 油 / antidote 解毒薬 / potion 薬 小 / potion_m 薬 中 / scroll 巻物）を。買い物は auto。
 - 内緒の宣言（secret）も普通に仕分ける（物を取るなら item と take も）。表向きが書かれていなければ、必ず cover に、判定の要らない当たり障りのない行動を 1 文で書く。
 - 物を使う・取る・渡す・置く段には、場面や持ち物にある物の id を必ず item に入れる（仲間の持ち物を奪うときも）。
+- 設定表にない物を取る段（導入や語り・場面に出てきて、その場の人が持っている物やその場にある物。例: 村長がついている杖）は、item を空にして new_item に物の名前（短く）、take=true。効果のない品として持ち物に入る。
+  場面に出ていない物を取り出す段（伝説の剣が落ちていることにする、など）は new_item にせず lacking か situation。
+- 人から物を奪う・盗む・取り上げる段は、person（相手）だけでなく、必ず item か new_item（取る物）と take=true も入れる。
 - 戦闘が始まるべきとき（敵が襲う、冒険者が攻撃をしかける）は fight に、その場所に出うる敵の id を並べる。冒険者が気付かれずに先に仕掛けたら surprise=true。
 - 戦闘中は、段ごとに combat_act（attack 武器や魔力の矢で攻撃 / flee 逃げる / revive 倒れた仲間を起こす / finish 倒れた相手にとどめ / defend 身を守る /
   item 持ち物を使う / talk 説得・降伏の呼びかけ / other ほか）と、狙う敵や相手の id を target に。技・呪文は effect も。
@@ -285,8 +290,9 @@ namespace Tavern.Core.Ai
                     ["question"] = Str("運命のダイスの問い"),
                     ["likelihood"] = Enum("certain", "likely", "even", "unlikely", "remote"),
                     ["mechanism"] = Str("仕掛けの id"),
-                    ["item"] = Str("物の id（持ち物の id も可）"),
+                    ["item"] = Str("物の id（設定表の物か持ち物の id だけ。設定表にない物は id を作らず、new_item に名前を書く）"),
                     ["take"] = Bool("item を拾う・奪う・持ち上げる・抱える（持ち主になる）"),
+                    ["new_item"] = Str("設定表にない物（場面の人が持つ物・その場にある物）を取るときの、その物の名前。例: 村長の杖。item は空、take は true"),
                     ["give_to"] = Str("item を渡す相手の id（人物か冒険者）"),
                     ["place_at"] = Str("item を置く場所の id"),
                     ["person"] = Str("向けた人物の id"),
@@ -633,6 +639,22 @@ namespace Tavern.Core.Ai
             step.Mechanism = Id("mechanism", id => e.Story.Mechanisms.Any(m => m.Id == id));
             step.Item = Id("item", IsItem);
             step.Take = (bool?)s["take"] ?? false;
+            var found = ((string?)s["new_item"] ?? "").Trim();
+            // the model often names the object in item instead ("杖"): an unknown, non-id name taken from the scene counts as one
+            var named = ((string?)s["item"] ?? "").Trim();
+            if (step.Item.Length == 0 && named.Any(ch => ch > 0x7f))
+            {
+                // a listed thing named in words (金の燭台) is that thing, never a second, made-up one
+                var near = e.Find(who) is Adventurer me ? e.PlaceOf(me) : "";
+                var listed = e.Story.Items.Where(i => i.Item.Name == named || i.Item.Name.Contains(named) || named.Contains(i.Item.Name))
+                    .OrderBy(i => e.World.WhereIs(i.Item.Id) == near ? 0 : 1).ThenBy(i => i.Item.Name == named ? 0 : 1).FirstOrDefault();
+                if (listed != null) step.Item = listed.Item.Id;
+                else if (found.Length == 0) found = named;
+            }
+            if (found.Length > 0 && e.Story.Items.Where(i => i.Item.Name == found).OrderBy(i => e.Find(who) is Adventurer me2 && e.World.WhereIs(i.Item.Id) == e.PlaceOf(me2) ? 0 : 1).FirstOrDefault() is StoryItem same)
+            { step.Item = same.Item.Id; found = ""; }
+            step.NewItem = step.Item.Length == 0 && found.Length > 0 ? (found.Length > 20 ? found.Substring(0, 20) : found) : "";
+            if (step.NewItem.Length > 0) step.Take = true;   // a name there means taking it, even when take was left out
             step.GiveTo = Id("give_to", id => IsPerson(id) || IsAdventurer(id));
             step.PlaceAt = Id("place_at", IsPlace);
             step.Person = Id("person", IsPerson);

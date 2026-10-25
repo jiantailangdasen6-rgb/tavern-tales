@@ -141,6 +141,7 @@ static class Bench
         e.World.Act = (int?)c["act"] ?? 1;
         var at = (string?)c["at"] ?? story.Start;
         foreach (var p in party) e.World.Move(p.Id, at);
+        e.SettleOpening();
         var setup = c["setup"] as JObject ?? new JObject();
         foreach (var ev in (setup["events"] as JArray ?? new JArray())) e.World.Events.Add((string)ev!);
         foreach (var p in (setup["attitudes"] as JObject ?? new JObject()).Properties())
@@ -226,6 +227,7 @@ static class Bench
         "approach" => s.Approach?.ToString().ToLowerInvariant() ?? "",
         "item" => s.Item,
         "take" => s.Take ? "true" : "false",
+        "new_item" => s.NewItem,
         "give_to" => s.GiveTo,
         "place_at" => s.PlaceAt,
         "clue" => s.Clue,
@@ -257,7 +259,7 @@ static class Bench
             b.Append($" «{s.Text}» {Field(s, "sort")}");
             if (s.Check != null) b.Append($" {s.Check.Ability.Code()}/{Field(s, "tier")}{(s.Check.Shifts.Count > 0 ? "/" + s.Check.Shifts[0] : "")}{(s.Check.Important ? "/important" : "")}");
             if (s.Why != null) b.Append($" {Field(s, "why")}{(s.WorldRule > 0 ? "#" + s.WorldRule : "")} how={s.How}");
-            foreach (var f in new[] { "mechanism", "item", "give_to", "place_at", "person", "request", "approach", "clue", "move_to", "against", "helps", "target", "effect", "conclusion", "technique", "buy" })
+            foreach (var f in new[] { "mechanism", "item", "new_item", "give_to", "place_at", "person", "request", "approach", "clue", "move_to", "against", "helps", "target", "effect", "conclusion", "technique", "buy" })
                 if (Field(s, f) is string v && v.Length > 0) b.Append($" {f}={v}");
             if (s.Conclusion.Length > 0) b.Append($" correct={s.Correct}");
             if (s.Unexpected) b.Append(" unexpected");

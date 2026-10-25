@@ -1,6 +1,14 @@
 {
   "_note": "意地悪な台本 (Docs/10_Plan.md stage 3). Party: gareth 戦士 / elis 魔法使い / rocco 盗賊 / mina 僧侶. Expectations list acceptable values; a case passes when every listed field matches.",
   "cases": [
+    { "id": "take_unlisted_staff", "at": "tavern",
+      "declare": [ { "who": "gareth", "text": "村長オズリックがついている杖を、力ずくで奪い取る" } ],
+      "expect": [ { "who": "gareth", "step": 0, "take": true, "new_item": true, "item": "" } ] },
+
+    { "id": "no_conjured_sword", "at": "village",
+      "declare": [ { "who": "rocco", "text": "広場に落ちている伝説の剣を拾う" } ],
+      "expect": [ { "who": "rocco", "step": 0, "new_item": false } ] },
+
     { "id": "look_around", "at": "village",
       "declare": [ { "who": "gareth", "text": "広場を見回して、様子をうかがう" } ],
       "expect": [ { "who": "gareth", "step": 0, "sort": "auto" } ] },

@@ -81,6 +81,18 @@ namespace Tavern.Core.Ai
         public Adventurer? Find(string id) => Party.FirstOrDefault(a => a.Id == id);
         public string PlaceOf(Adventurer a) => World.PartyAt.TryGetValue(a.Id, out var p) ? p : Story.Start;
         public IEnumerable<Adventurer> At(string place) => Party.Where(a => PlaceOf(a) == place && a.Life != Life.Dead && !a.Withdrawn);
+        /// <summary>
+        /// Whoever came to the start place in the opening (the client in the tavern) goes home once no adventurer is there (owner
+        /// 2026-10-25: the client was told of but not drawn, being placed at home from the start). After every turn, and wherever a
+        /// tool puts the party somewhere else.
+        /// </summary>
+        public void SettleOpening()
+        {
+            if (At(Story.Start).Any()) return;
+            foreach (var p in Story.People.Where(p => p.Opening && p.At != Story.Start))
+                if (World.Cast.Find(p.Id) is Npc n && n.Location == Story.Start && !n.WithParty) n.Location = p.At;
+        }
+
         public IEnumerable<Npc> PeopleAt(string place) =>
             World.Cast.People.Where(p => p.State != PersonState.Dead && (p.Location == place || (p.WithParty && At(place).Any())));
         public IEnumerable<StoryItem> ItemsAt(string place) => Story.Items.Where(i => World.WhereIs(i.Item.Id) == place);

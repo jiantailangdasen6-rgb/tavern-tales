@@ -624,6 +624,7 @@ namespace Tavern.Core.Flow
             }
             // items
             if (s.Item.Length > 0) MoveItem(r, report, changes);
+            else if (s.NewItem.Length > 0) TakeFound(r, report, changes);
             // a person
             if (s.Person.Length > 0 && W.Cast.Find(s.Person) is Npc npc)
             {
@@ -735,6 +736,23 @@ namespace Tavern.Core.Flow
             }
             Line(report, r, $"代償: {cost.Label()}{(cost == Cost.Wound ? $"（{a.Name} HP {a.Hp}/{a.MaxHp}）" : "")}");
             changes.Add($"失敗の代償: {a.Name} {cost.Label()}");
+        }
+
+        /// <summary>
+        /// An object the story never listed (owner 2026-10-25: the elder's staff, taken in the tavern, never reached the bag): it goes in
+        /// as a keepsake with no effect, so what the narration says happened stays in hand.
+        /// </summary>
+        void TakeFound(StepRun r, TurnReport report, List<string> changes)
+        {
+            var a = r.A;
+            var name = r.S.NewItem;
+            if (a.Gear.Items.Any(i => i.Name == name)) return;
+            var n = W.Events.Count(x => x.StartsWith("found:")) + 1;
+            var it = new Item { Id = $"found_{n}", Name = name, Kind = ItemKind.Story, Concealed = r.Secret };
+            if (!a.Gear.Add(it)) { Line(report, r, $"{a.Name}: 持ち物がいっぱいで{name}を持てない"); return; }
+            W.Events.Add("found:" + name);
+            Line(report, r, $"{a.Name} は{name}を手に入れた（効果のない品）{(r.Secret ? "（隠し持ち）" : "")}");
+            changes.Add($"{(r.Secret ? "（内緒）" : "")}{a.Name}が{name}を手に入れた（物語の外の品。持ち物に残る）");
         }
 
         void MoveItem(StepRun r, TurnReport report, List<string> changes)
@@ -859,11 +877,7 @@ namespace Tavern.Core.Flow
                 foreach (var sol in Story.Climax.Solutions)
                     if (sol.When.Holds(W)) { RunActions(sol.Then, report, changes); SolveClimax(sol.Id, report, changes); break; }
 
-            // whoever came to the tavern in the opening goes home once the party has left it (owner 2026-10-25: the client was told of
-            // but not drawn, being placed at home from the start)
-            if (!E.At(Story.Start).Any())
-                foreach (var p in Story.People.Where(p => p.Opening && p.At != Story.Start))
-                    if (W.Cast.Find(p.Id) is Npc n && n.Location == Story.Start && !n.WithParty) n.Location = p.At;
+            E.SettleOpening();
 
             // hints and tension
             E.Hints.Turn(progress, E.Difficulty);
