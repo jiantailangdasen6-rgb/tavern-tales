@@ -863,7 +863,9 @@ namespace Tavern.Core.Flow
             E.Hints.Turn(progress, E.Difficulty);
             if (E.Tension.On) E.Tension.Turn();
             if (W.Clocks.AnyAtLastSegment(W.Act)) E.Tension.Trigger();
-            if (Active.Any(a => a.Life == Life.Down)) E.Tension.Trigger();
+            // a fallen ally: outside a fight at once; in a fight only once it is over (the fight's own music and pace come first)
+            if (E.Combat != null) { if (Active.Any(a => a.Life == Life.Down)) E.Tension.AfterFight = true; }
+            else if (E.Tension.AfterFight || Active.Any(a => a.Life == Life.Down)) { E.Tension.AfterFight = false; E.Tension.Trigger(); }
 
             // endings the world decides
             if (!Active.Any(a => a.Life == Life.Up)) { Finish(EndingTrigger.Wiped, report); return; }

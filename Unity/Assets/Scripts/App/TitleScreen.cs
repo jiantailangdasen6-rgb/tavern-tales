@@ -15,45 +15,46 @@ namespace Tavern.Unity.App
         public void Build(Transform root)
         {
             AudioDirector.Music("tavern");
-            var bg = ArtLibrary.Get("bg_tavern");
+            // the title's own picture (owner 2026-10-25: the party over the valley); the menu sits on the left, over the open sky and hills
+            var bg = ArtLibrary.Get("bg_title_valley");
             var pic = UiKit.Picture(root, bg, 0, 0, 1920, 1080);
-            pic.uvRect = ArtLibrary.Cover(bg, 1920, 1080);
-            var shade = UiKit.Box(root, "Shade", new Color(0.05f, 0.03f, 0.02f, 0.55f));
-            shade.rectTransform.Fill();
+            pic.uvRect = ArtLibrary.Cover(bg, 1920, 1080, focusX: 0.6f);
+            var shade = UiKit.Picture(root, LeftShade, 0, 0, 1920, 1080);
             shade.raycastTarget = false;
-            var vignette = UiKit.Box(root, "Vignette", new Color(0, 0, 0, 0.0f));
-            vignette.rectTransform.Fill();
 
-            var title = UiKit.Title(root, "酒場の語り部", 128, Theme.Hex("e2bf6e"), 0, 236, 1920, 180, align: TextAnchor.MiddleCenter);
+            const float X = 110, W = 640;
+            var title = UiKit.Title(root, "酒場の語り部", 112, Theme.Hex("e2bf6e"), X - 10, 150, 1000, 160, align: TextAnchor.MiddleLeft);
             title.gameObject.AddComponent<Outline>().effectColor = new Color(0.12f, 0.06f, 0.02f, 0.9f);
             title.gameObject.AddComponent<Shadow>().effectDistance = new Vector2(4, -5);
-            UiKit.Label(root, "炉端の語り部が、今宵の冒険を語りはじめる", 30, Theme.Ink, 0, 420, 1920, 50, serif: true, align: TextAnchor.MiddleCenter)
+            UiKit.Label(root, "炉端の語り部が、今宵の冒険を語りはじめる", 28, Theme.Ink, X, 318, 900, 46, serif: true)
                 .gameObject.AddComponent<Shadow>().effectColor = new Color(0, 0, 0, 0.9f);
-            UiKit.Rule(root, 660, 478, 600, Theme.FrameGold);
+            UiKit.Rule(root, X, 380, W, Theme.FrameGold);
 
-            float y = 520;
-            if (WebPage.IsBrowser) { BuildBrowserMenu(root, y); return; }
+            float y = 420;
+            if (WebPage.IsBrowser) { BuildBrowserMenu(root, X, y); return; }
             // the menu sits on a dark leather plate in a gold frame, like a tavern's notice board
-            var plate = UiKit.Box(root, "Menu", new Color(0.06f, 0.04f, 0.03f, 0.78f));
-            plate.rectTransform.Place(530, y - 24, 860, 486);
+            var plate = UiKit.Box(root, "Menu", new Color(0.06f, 0.04f, 0.03f, 0.8f));
+            plate.rectTransform.Place(X - 30, y - 30, W + 60, 496);
             UiKit.Frame(plate.transform, thin: false);
-            UiKit.Button(root, "友人と遊ぶ: 部屋を作る", () => _app.Night.ShowParty(Night.RoomMode.Host), 560, y, 400, 70, 26, gold: true);
-            UiKit.Button(root, "友人の部屋に入る", () => _app.Night.ShowParty(Night.RoomMode.Join), 980, y, 400, 70, 26, gold: true);
-            y += 92;
-            UiKit.Button(root, "ひとりで新しい夜をはじめる", () => _app.Night.ShowParty(), 760, y, 400, 60, 22);
-            y += 76;
+            var half = (W - 12) / 2;
+            UiKit.Button(root, "友人と遊ぶ: 部屋を作る", () => _app.Night.ShowParty(Night.RoomMode.Host), X, y, half, 70, 23, gold: true);
+            UiKit.Button(root, "友人の部屋に入る", () => _app.Night.ShowParty(Night.RoomMode.Join), X + half + 12, y, half, 70, 23, gold: true);
+            y += 90;
+            UiKit.Button(root, "ひとりで新しい夜をはじめる", () => _app.Night.ShowParty(), X, y, W, 60, 22);
+            y += 74;
             var seats = _app.Night.Store.HasEvening ? _app.Night.Store.LoadSeats() : null;
-            var cont = UiKit.Button(root, seats?.HasFriends == true ? "続きから（部屋を開き直す）" : "続きから", () => _app.Night.Continue(), 760, y, 400, 56, 22);
+            var cont = UiKit.Button(root, seats?.HasFriends == true ? "続きから（部屋を開き直す）" : "続きから", () => _app.Night.Continue(), X, y, W, 56, 22);
             cont.interactable = _app.Night.Store.HasEvening;
             y += 72;
-            UiKit.Button(root, "冒険者の名簿", () => Night.TavernBook.ShowRoster(_app.Night, root), 760, y, 130, 56, 19);
-            UiKit.Button(root, "記録帳", () => Night.TavernBook.ShowChronicle(_app.Night, root), 895, y, 130, 56, 19);
-            UiKit.Button(root, "酒場の壁", () => Night.TavernBook.ShowWall(_app.Night, root), 1030, y, 130, 56, 19);
+            var third = (W - 20) / 3;
+            UiKit.Button(root, "冒険者の名簿", () => Night.TavernBook.ShowRoster(_app.Night, root), X, y, third, 56, 19);
+            UiKit.Button(root, "記録帳", () => Night.TavernBook.ShowChronicle(_app.Night, root), X + third + 10, y, third, 56, 19);
+            UiKit.Button(root, "酒場の壁", () => Night.TavernBook.ShowWall(_app.Night, root), X + 2 * (third + 10), y, third, 56, 19);
             y += 72;
-            UiKit.Button(root, "遊び方", () => ShowHelp(root), 760, y, 195, 56, 22);
-            UiKit.Button(root, "クレジット", () => ShowCredits(root), 965, y, 195, 56, 22);
+            UiKit.Button(root, "遊び方", () => ShowHelp(root), X, y, half, 56, 22);
+            UiKit.Button(root, "クレジット", () => ShowCredits(root), X + half + 12, y, half, 56, 22);
             y += 72;
-            UiKit.Button(root, "終わる", Application.Quit, 760, y, 400, 56, 22);
+            UiKit.Button(root, "終わる", Application.Quit, X, y, W, 56, 22);
 
             var aiText = UiKit.Label(root, _app.Night.Ai.Description, 18, Theme.Dim, 0, 1030, 1900, 30, align: TextAnchor.MiddleRight);
             void OpenSettings()
@@ -71,24 +72,45 @@ namespace Tavern.Unity.App
         }
 
         /// <summary>The browser build only joins a friend's room (the host plays the Windows version, which calls the AI).</summary>
-        void BuildBrowserMenu(Transform root, float y)
+        void BuildBrowserMenu(Transform root, float x, float y)
         {
-            UiKit.Button(root, "友人の部屋に入る", () => _app.Night.ShowParty(Night.RoomMode.Join), 760, y, 400, 76, 28, gold: true);
+            const float W = 640;
+            var half = (W - 12) / 2;
+            UiKit.Button(root, "友人の部屋に入る", () => _app.Night.ShowParty(Night.RoomMode.Join), x, y, W, 76, 28, gold: true);
             y += 98;
-            UiKit.Button(root, "冒険者の名簿", () => Night.TavernBook.ShowRoster(_app.Night, root), 760, y, 195, 56, 20);
-            UiKit.Button(root, "語り部の記録帳", () => Night.TavernBook.ShowChronicle(_app.Night, root), 965, y, 195, 56, 20);
+            UiKit.Button(root, "冒険者の名簿", () => Night.TavernBook.ShowRoster(_app.Night, root), x, y, half, 56, 20);
+            UiKit.Button(root, "語り部の記録帳", () => Night.TavernBook.ShowChronicle(_app.Night, root), x + half + 12, y, half, 56, 20);
             y += 72;
-            UiKit.Button(root, "遊び方", () => ShowHelp(root), 760, y, 195, 56, 22);
-            UiKit.Button(root, "クレジット", () => ShowCredits(root), 965, y, 195, 56, 22);
+            UiKit.Button(root, "遊び方", () => ShowHelp(root), x, y, half, 56, 22);
+            UiKit.Button(root, "クレジット", () => ShowCredits(root), x + half + 12, y, half, 56, 22);
             y += 90;
-            UiKit.Box(root, "NoteBack", new Color(0.05f, 0.03f, 0.02f, 0.8f)).rectTransform.Place(360, y - 6, 1200, 52);
+            UiKit.Box(root, "NoteBack", new Color(0.05f, 0.03f, 0.02f, 0.8f)).rectTransform.Place(x - 10, y - 6, W + 20, 92);
             UiKit.Label(root, "ブラウザ版は、友人が作った部屋に入るためのものです。部屋を作る（語り部の AI を動かす）のは Windows 版です。",
-                20, Theme.Ink, 360, y, 1200, 40, align: TextAnchor.MiddleCenter);
+                20, Theme.Ink, x, y, W, 80, align: TextAnchor.MiddleLeft).Wrapped(W);
             UiKit.IconButton(root, "ic_settings", "設定", () =>
             {
                 var layer = UiKit.Rect("Settings", root).Fill();
                 SettingsPanel.Show(layer, null, () => Object.Destroy(layer.gameObject));
             }, 1720, 30, 160, 50, 20);
+        }
+
+        static Texture2D? _leftShade;
+        /// <summary>Dark on the left under the menu, clearing towards the right so the picture shows.</summary>
+        static Texture2D LeftShade
+        {
+            get
+            {
+                if (_leftShade != null) return _leftShade;
+                const int n = 128;
+                _leftShade = new Texture2D(n, 1, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+                for (int i = 0; i < n; i++)
+                {
+                    var t = i / (n - 1f);
+                    _leftShade.SetPixel(i, 0, new Color(0.04f, 0.025f, 0.015f, Mathf.Lerp(0.78f, 0.12f, Mathf.SmoothStep(0.25f, 0.75f, t))));
+                }
+                _leftShade.Apply();
+                return _leftShade;
+            }
         }
 
         const string Help =

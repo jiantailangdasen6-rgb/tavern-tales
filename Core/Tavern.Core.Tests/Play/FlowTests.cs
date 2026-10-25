@@ -243,6 +243,31 @@ namespace Tavern.Core.Tests.Play
         }
 
         [Test]
+        public async Task Fight_AnAllyWhoFell_BringsTensionOnceItIsOver()
+        {
+            var (t, llm, e) = New("dungeon", 2, 19);
+            llm.Tool(Classifier.ToolName, Cls(@"{""who"": ""rocco"", ""steps"": [{""text"": ""錠前を開ける"", ""sort"": ""check"", ""ability"": ""DEX"", ""tier"": ""normal"", ""mechanism"": ""cell_lock""}]}"))
+               .Tool(Narrator.ToolName, Ok);
+            await t.ExploreAsync(D(("rocco", "錠前を開ける")));
+            var rocco = e.Find("rocco")!;
+            rocco.TakeDamage(rocco.Hp);
+            var guard = 0;
+            var duringFight = false;
+            while (t.Phase == Phase.Combat && guard++ < 30)
+            {
+                var foe = e.Combat!.Foes.First(f => f.InFight).Id;
+                llm.Tool(Classifier.ToolName, Cls($@"{{""who"": ""gareth"", ""steps"": [{{""text"": ""斬る"", ""sort"": ""check"", ""ability"": ""STR"", ""tier"": ""normal"", ""combat_act"": ""attack"", ""target"": ""{foe}""}}]}}"))
+                   .Tool(Narrator.ToolName, Ok);
+                await t.ExploreAsync(D(("gareth", "斬る")));
+                if (e.Combat != null) duringFight |= e.Tension.On;
+            }
+            Assert.That(e.Combat, Is.Null);
+            Assert.That(duringFight, Is.False, "the fight's own pace comes first");
+            Assert.That(e.Tension.On, Is.True, "the fallen are carried on under tension");
+            Assert.That(e.Tension.AfterFight, Is.False);
+        }
+
+        [Test]
         public async Task ASecretClue_ToldToTheOthers_BecomesTheParty()
         {
             var (t, llm, e) = New("village", 1, 2);

@@ -98,6 +98,7 @@ namespace Tavern.Core.Flow
         public Phase Phase;
         public ulong RngState;
         public int TensionLeft, TensionUsed, HintStalled, HintLevel;
+        public bool TensionAfterFight;
         public List<string> LastEndings = new List<string>(), Facts = new List<string>(), Rumors = new List<string>(), Log = new List<string>();
         public List<SavedAdventurer> Party = new List<SavedAdventurer>();
         public Dictionary<string, string> PartyAt = new Dictionary<string, string>(), ItemAt = new Dictionary<string, string>();
@@ -143,7 +144,7 @@ namespace Tavern.Core.Flow
                 StoryId = e.Story.Id, Difficulty = e.Difficulty, Length = t.Length, Turn = e.Turn, Act = w.Act, RestedAct = t.RestedAct,
                 ClimaxStarted = e.ClimaxStarted, UnexpectedUsed = t.UnexpectedUsed, FirstEvening = e.FirstEvening, SolvedBy = t.SolvedBy, Phase = t.Phase,
                 RngState = (t.Rng as SeededRandom)?.State ?? 0,
-                TensionLeft = e.Tension.Left, TensionUsed = e.Tension.Used, HintStalled = e.Hints.Stalled, HintLevel = e.Hints.Level,
+                TensionLeft = e.Tension.Left, TensionUsed = e.Tension.Used, TensionAfterFight = e.Tension.AfterFight, HintStalled = e.Hints.Stalled, HintLevel = e.Hints.Level,
                 LastEndings = e.LastEndings.ToList(), Facts = e.Facts.ToList(), Rumors = e.Rumors.ToList(), Log = t.Log.ToList(),
                 Party = e.Party.Select(SavedAdventurer.From).ToList(),
                 PartyAt = new Dictionary<string, string>(w.PartyAt), ItemAt = new Dictionary<string, string>(w.ItemAt),
@@ -198,7 +199,7 @@ namespace Tavern.Core.Flow
                 e.Mechanisms[m.Id] = mech;
             }
             e.Facts.AddRange(Facts); e.Rumors.AddRange(Rumors); e.LastEndings.AddRange(LastEndings);
-            e.Tension.Restore(TensionLeft, TensionUsed);
+            e.Tension.Restore(TensionLeft, TensionUsed, TensionAfterFight);
             e.Hints.Restore(HintStalled, HintLevel);
             var rng = new SeededRandom(RngState == 0 ? (ulong)DateTime.Now.Ticks : RngState);
             if (Combat is SavedCombat sc2)

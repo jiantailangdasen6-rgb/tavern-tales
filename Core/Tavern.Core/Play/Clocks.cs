@@ -236,6 +236,8 @@ namespace Tavern.Core.Play
         public int Left { get; private set; }
         public int Used { get; private set; }
         public bool On => Left > 0;
+        /// <summary>An ally fell in a fight: tension starts once the fight is over, the fallen carried on (owner 2026-10-25).</summary>
+        public bool AfterFight { get; set; }
 
         /// <summary>Starts it if allowed. Returns true when it started.</summary>
         public bool Trigger()
@@ -250,8 +252,8 @@ namespace Tavern.Core.Play
         public void Turn() { if (Left > 0) Left--; }
 
         /// <summary>A new night of a long story starts the count again.</summary>
-        public void NewNight() { Used = 0; Left = 0; }
+        public void NewNight() { Used = 0; Left = 0; AfterFight = false; }
 
-        public void Restore(int left, int used) { Left = left; Used = used; }
+        public void Restore(int left, int used, bool afterFight = false) { Left = left; Used = used; AfterFight = afterFight; }
     }
 }

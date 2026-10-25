@@ -39,10 +39,28 @@ namespace Tavern.Unity.Editor
             SetupArtImport();
             SetupUiImport();
             SetupAudioImport();
+            SetupIcon();
             SetupScene();
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
             AssetDatabase.SaveAssets();
             Debug.Log("[ProjectSetup] done");
+        }
+
+        const string IconPath = "Assets/Icon/app_icon.png";
+
+        /// <summary>The application icon (owner 2026-10-25: the gold d20 on a red disc, cut close so it reads at 32 px).</summary>
+        static void SetupIcon()
+        {
+            AssetDatabase.ImportAsset(IconPath);
+            if (AssetImporter.GetAtPath(IconPath) is TextureImporter ti)
+            {
+                var dirty = ti.textureCompression != TextureImporterCompression.Uncompressed || ti.npotScale != TextureImporterNPOTScale.None;
+                ti.textureCompression = TextureImporterCompression.Uncompressed;
+                ti.npotScale = TextureImporterNPOTScale.None;
+                if (dirty) ti.SaveAndReimport();
+            }
+            var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(IconPath);
+            if (tex != null) PlayerSettings.SetIcons(UnityEditor.Build.NamedBuildTarget.Unknown, new[] { tex }, IconKind.Any);
         }
 
         static void SetupUrp()
