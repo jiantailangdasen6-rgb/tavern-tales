@@ -67,6 +67,7 @@ namespace Tavern.Unity.App
             if (AppMain.Flag("-showcredits")) ShowCredits(root);   // for screenshots
             if (AppMain.Flag("-showhelp")) ShowHelp(root);
             if (AppMain.Flag("-showroster")) Night.TavernBook.ShowRoster(_app.Night, root);
+            if (AppMain.Flag("-showregister")) Night.AdventurerForm.Show(_app.Night, root, _ => { });
             if (AppMain.Flag("-showchronicle")) Night.TavernBook.ShowChronicle(_app.Night, root);
             if (AppMain.Flag("-showwall")) Night.TavernBook.ShowWall(_app.Night, root);
         }

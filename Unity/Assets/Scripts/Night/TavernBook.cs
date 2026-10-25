@@ -21,18 +21,33 @@ namespace Tavern.Unity.Night
 
         public static void ShowRoster(NightApp n, Transform root)
         {
-            var (_, panel) = Open(root, "冒険者の名簿", "ic_warrior");
+            var (layer, panel) = Open(root, "冒険者の名簿", "ic_warrior");
+            void Reopen() { Object.Destroy(layer.gameObject); ShowRoster(n, root); }
+            // adventurers are registered here ahead of any evening (owner 2026-10-25); one never taken out can still be struck off
+            UiKit.Button(panel, "＋ 新しい冒険者を登録", () => AdventurerForm.Show(n, root, _ => Reopen()), 56, 834, 340, 52, 20, gold: true);
             var list = UiKit.Scroll(panel, 52, 126, 1296, 690, out _, spacing: 14);
             var roster = n.Store.LoadRoster();
-            if (roster.Count == 0) Ink(list, "まだ誰もいない。今夜の冒険を終えると、名前がここに残る。", 20, Theme.InkBrown);
+            if (roster.Count == 0) Ink(list, "まだ誰もいない。下の「新しい冒険者を登録」から作れる。", 20, Theme.InkBrown);
             foreach (var r in roster.OrderBy(r => r.Dead))
             {
                 var cls = n.Classes.Classes.TryGetValue(r.ClassId, out var c) ? c.Name : r.ClassId;
                 var text = r.Dead
                     ? $"<color=#a08080>† {r.Name}（{cls}）— {r.DiedIn}にて没。{r.Evenings} 晩を生きた。</color>"
-                    : $"<color=#c9a24a>{r.Name}</color>（{cls}）{r.Evenings} 晩　歴戦の印: {(r.Marks.Count == 0 ? "なし" : string.Join("・", r.Marks.Select(m => m.Name)))}" +
-                      (r.Techniques.Count > 0 ? "\n　名付けた技: " + string.Join("、", r.Techniques.Select(t => "【" + t.Name + "】")) : "");
+                    : $"<color=#c9a24a>{r.Name}</color>（{cls}）{(r.Evenings == 0 ? "まだ冒険に出ていない" : $"{r.Evenings} 晩")}　歴戦の印: {(r.Marks.Count == 0 ? "なし" : string.Join("・", r.Marks.Select(m => m.Name)))}" +
+                      (r.Techniques.Count > 0 ? "\n　名付けた技: " + string.Join("、", r.Techniques.Select(t => "【" + t.Name + "】")) : "") +
+                      (r.Background.Length > 0 ? $"\n　<size=16>{r.Background}</size>" : "");
                 Ink(list, text, 19, Theme.InkDark);
+                if (r.Dead || r.Evenings > 0) continue;
+                var row = UiKit.Rect("Row", list);
+                row.gameObject.AddComponent<LayoutElement>().preferredHeight = 40;
+                var id = r.Id;
+                UiKit.Button(row, "名簿から外す", () =>
+                {
+                    var all = n.Store.LoadRoster();
+                    all.RemoveAll(x => x.Id == id);
+                    n.Store.SaveRoster(all);
+                    Reopen();
+                }, 20, 0, 180, 38, 15);
             }
         }
 
