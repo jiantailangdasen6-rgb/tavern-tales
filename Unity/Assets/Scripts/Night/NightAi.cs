@@ -154,6 +154,9 @@ namespace Tavern.Unity.Night
             return true;
         }
 
+        /// <summary>Every call (model, tool, what was asked, the answer or the error, how long), for the play record (owner 2026-10-25).</summary>
+        public static Action<string, string?, IReadOnlyList<ChatMessage>, LlmReply?, string?, TimeSpan>? Recorder;
+
         /// <summary>Passes calls to Inner, which Switch may replace between calls; Answered runs after each reply.</summary>
         sealed class Swap : ILlmClient
         {
@@ -163,9 +166,15 @@ namespace Tavern.Unity.Night
 
             public async Task<LlmReply> ChatAsync(IReadOnlyList<ChatMessage> messages, IReadOnlyList<ToolDef> tools, string? forceTool = null, CancellationToken ct = default)
             {
-                var reply = await Inner.ChatAsync(messages, tools, forceTool, ct).ConfigureAwait(false);
-                Answered?.Invoke();
-                return reply;
+                var started = DateTime.Now;
+                try
+                {
+                    var reply = await Inner.ChatAsync(messages, tools, forceTool, ct).ConfigureAwait(false);
+                    Answered?.Invoke();
+                    Recorder?.Invoke(Inner.Name, forceTool, messages, reply, null, DateTime.Now - started);
+                    return reply;
+                }
+                catch (Exception e) { Recorder?.Invoke(Inner.Name, forceTool, messages, null, e.Message, DateTime.Now - started); throw; }
             }
         }
 

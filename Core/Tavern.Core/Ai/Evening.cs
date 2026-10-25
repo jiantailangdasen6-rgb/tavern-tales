@@ -19,6 +19,10 @@ namespace Tavern.Core.Ai
         public Dictionary<string, Mechanism> Mechanisms { get; } = new Dictionary<string, Mechanism>();
         /// <summary>事実メモ: facts settled tonight (fate dice, small additions); never contradicted.</summary>
         public List<string> Facts { get; } = new List<string>();
+        /// <summary>When the evening began (yyyyMMdd_HHmm): names its play record, which outlives the save (owner 2026-10-25).</summary>
+        public string Started { get; set; } = "";
+        /// <summary>The last narrations (newest last, at most 2), so the next one carries the thread on.</summary>
+        public List<string> RecentNarration { get; } = new List<string>();
         /// <summary>The display names of the places' foes by id (set by the table from the bestiary; not saved).</summary>
         public Dictionary<string, string> FoeNames { get; } = new Dictionary<string, string>();
         /// <summary>Rumours of the last three evenings.</summary>
@@ -40,7 +44,7 @@ namespace Tavern.Core.Ai
         /// <summary>Builds tonight's world from the sheet: everyone at the start, people and items in place, clocks set.</summary>
         public static Evening Begin(StoryDef story, IEnumerable<Adventurer> party, Difficulty difficulty)
         {
-            var e = new Evening(story) { Difficulty = difficulty };
+            var e = new Evening(story) { Difficulty = difficulty, Started = DateTime.Now.ToString("yyyyMMdd_HHmm") };
             foreach (var a in party)
             {
                 a.StartEvening(difficulty, story.Advance);

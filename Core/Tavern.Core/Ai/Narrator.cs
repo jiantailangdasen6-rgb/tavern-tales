@@ -175,6 +175,12 @@ namespace Tavern.Core.Ai
             if (t.HintLevel > 0)
                 b.AppendLine($"ヒント（段 {t.HintLevel}: {(t.HintLevel == 1 ? "気配" : t.HintLevel == 2 ? "糸口" : "持ち主が向こうから来る")}）: {t.HintWhere} へ気を向けさせる。中身は言わない。");
             if (t.Names.Count > 0) b.AppendLine("名前を出す冒険者: " + string.Join("、", t.Names));
+            // the thread so far (owner 2026-10-25: the story drifted, the narrator seeing only the facts memo and this turn)
+            if (e.RecentNarration.Count > 0)
+            {
+                b.AppendLine("これまでの語り（直前の手。話の流れと、誰がどこで何をしたかをつなぐため。同じ文は繰り返さない）:");
+                foreach (var n in e.RecentNarration) b.AppendLine("- " + (n.Length > 400 ? n.Substring(0, 400) + "…" : n));
+            }
             if (e.LastEndings.Count > 0) b.AppendLine("直前の語りの締めくくり（同じ締め方を避ける）: " + string.Join(" / ", e.LastEndings));
             if (t.Requests.Count > 0) b.AppendLine("語り方への注文（語り方だけ変える。ルール・数字・秘密は変えない）: " + string.Join(" / ", t.Requests));
             if (e.FirstEvening) b.AppendLine("この一行の最初の晩: 語りの中で、宣言は文章で自由に書けることなどに、台詞でさりげなく触れてよい。");

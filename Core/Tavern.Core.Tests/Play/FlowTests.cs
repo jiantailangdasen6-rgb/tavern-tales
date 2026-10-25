@@ -254,6 +254,25 @@ namespace Tavern.Core.Tests.Play
         }
 
         [Test]
+        public void WinterFort_TheDawnComesWithinAnEvening()
+        {
+            var s = StoryLoader.Load(File.ReadAllText(Path.Combine(PlayContent.Dir(), "Stories", "winter_fort.json")));
+            var party = new List<Adventurer> { new Adventurer(PlayContent.Classes["warrior"], "ガレス", "gareth"), new Adventurer(PlayContent.Classes["mage"], "エリス", "elis") };
+            var e = Evening.Begin(s, party, Difficulty.Standard);
+            var w = e.World;
+            // the raid comes in about fifteen turns for two (it took about forty before, owner 2026-10-25)
+            int turns = 0;
+            while (!w.Clocks.Find("raid")!.Full && turns < 60) { w.Clocks.Turn(1, 2); turns++; }
+            Assert.That(turns, Is.InRange(12, 18));
+            // the dawn waits for the night battle, then moves on turns and on every fight round
+            Assert.That(w.Clocks.Find("dawn")!.Filled, Is.EqualTo(0));
+            for (int r = 0; r < 4; r++) w.Clocks.CombatRound(3);
+            Assert.That(w.Clocks.Find("dawn")!.Filled, Is.EqualTo(4));
+            for (int t = 0; t < 6; t++) w.Clocks.Turn(3, 2);
+            Assert.That(w.Clocks.Find("dawn")!.Full, Is.True);
+        }
+
+        [Test]
         public async Task LongStory_PlacesOpenOneActAhead()
         {
             var (t, llm, e) = New("village", 1);

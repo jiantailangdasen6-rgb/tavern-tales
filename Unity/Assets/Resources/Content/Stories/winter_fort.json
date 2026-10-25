@@ -25,18 +25,18 @@
   ],
   "clocks": [
     {
-      "id": "dawn", "name": "夜明け", "secret": "援軍", "segments": 8, "speed": "every", "every": 5, "good": true,
+      "id": "dawn", "name": "夜明け", "secret": "援軍", "segments": 6, "speed": "every", "every": 2, "rounds": true, "acts": [ 3 ], "good": true,
       "fullText": "援軍が着き、山賊は退く（満ちれば山場が解ける）",
       "onFull": [ { "event": "dawn", "text": "東の峰が白み、角笛の音が谷に響いた。辺境伯の援軍だ。山賊たちは算を乱して逃げていく。" } ]
     },
     {
-      "id": "raid", "name": "襲撃", "secret": "ゴルムの攻め時", "segments": 6, "speed": "every", "every": 5, "acts": [ 1, 2 ],
+      "id": "raid", "name": "襲撃", "secret": "ゴルムの攻め時", "segments": 6, "speed": "every", "every": 2, "acts": [ 1, 2 ],
       "onFullKinds": [ "EnemiesAppear" ], "fullText": "第 3 幕が始まる（備えの途中でも攻めてくる）",
       "onFull": [ { "climax": true, "text": "雪原の向こうで松明がいっせいに灯った。山賊たちが雄叫びをあげて砦へ押し寄せてくる。" } ],
       "rewinds": [ { "id": "decoy", "text": "偽の灯りで山賊を惑わす（1 回）", "amount": 2, "when": { "event": "decoy_lights" } } ]
     },
     {
-      "id": "betrayal", "name": "裏切り", "secret": "裏門の閂", "segments": 4, "speed": "every", "every": 8, "acts": [ 2, 3 ],
+      "id": "betrayal", "name": "裏切り", "secret": "裏門の閂", "segments": 4, "speed": "every", "every": 3, "acts": [ 2, 3 ],
       "onFullKinds": [ "EnemiesAppear" ], "fullText": "裏門が開き、山賊が中庭に入る（守りの戦いが一つ増える）",
       "onFull": [ { "event": "back_gate_open", "text": "裏門の閂が音もなく外され、山賊たちが中庭へなだれ込んできた。" },
                   { "enemies": [ "bandit", "bandit" ], "at": "courtyard" } ],

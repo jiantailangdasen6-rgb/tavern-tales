@@ -980,7 +980,12 @@ namespace Tavern.Core.Flow
             finally
             {
                 Log.AddRange(report.Lines);
-                if (report.Narration.Length > 0) Log.Add("語り: " + report.Narration);
+                if (report.Narration.Length > 0)
+                {
+                    Log.Add("語り: " + report.Narration);
+                    E.RecentNarration.Add(report.Narration);
+                    while (E.RecentNarration.Count > 2) E.RecentNarration.RemoveAt(0);
+                }
             }
             Untold.Clear();
         }

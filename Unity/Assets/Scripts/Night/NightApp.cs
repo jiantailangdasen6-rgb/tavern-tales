@@ -164,9 +164,31 @@ namespace Tavern.Unity.Night
         {
             var view = new TableView(this);
             var t = new Table(e, Ai.Classifier, Ai.Narrator, view, rng, Enemies, Ai.Highlight);
+            RecordAi(t);
             view.Attach(t);
             t.Save = SaveEvening;
             return t;
+        }
+
+        /// <summary>Every AI call of this evening goes to its play record (night_logs/..._ai.txt): what was asked, the answer, how long.</summary>
+        void RecordAi(Table t)
+        {
+            var path = Store.AiRecordPath(t);
+            NightAi.Recorder = (model, tool, messages, reply, error, took) => NightStore.AppendAi(path, AiEntry(model, tool, messages, reply, error, took));
+        }
+
+        static string AiEntry(string model, string? tool, IReadOnlyList<Tavern.Core.Gm.ChatMessage> messages, Tavern.Core.Gm.LlmReply? reply, string? error, TimeSpan took)
+        {
+            var b = new System.Text.StringBuilder();
+            b.AppendLine($"=== {DateTime.Now:HH:mm:ss} {model} {tool} {took.TotalSeconds:0.0} 秒");
+            if (messages.LastOrDefault(m => m.Role == Tavern.Core.Gm.Role.User) is Tavern.Core.Gm.ChatMessage asked) b.AppendLine("[入力]").AppendLine(asked.Content);
+            if (error != null) b.AppendLine("[失敗] " + error);
+            if (reply != null)
+            {
+                if (reply.Content.Length > 0) b.AppendLine("[返事]").AppendLine(reply.Content);
+                foreach (var c in reply.ToolCalls) b.AppendLine($"[{c.Name}]").AppendLine(c.Arguments.ToString(Newtonsoft.Json.Formatting.None));
+            }
+            return b.AppendLine().ToString();
         }
 
         /// <summary>The host's save: the table, and in a room who plays whom (so the room can be reopened).</summary>
@@ -179,6 +201,8 @@ namespace Tavern.Unity.Night
 
         void ShowTable(Table t, bool opening)
         {
+            if (t.E.Started.Length == 0) t.E.Started = DateTime.Now.ToString("yyyyMMdd_HHmm");   // an evening saved before records had names
+            RecordAi(t);
             var view = (TableView)t.Players;
             Screen("table");
             App.Tick = view.Update;

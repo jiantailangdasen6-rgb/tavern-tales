@@ -89,7 +89,7 @@ namespace Tavern.Core.Flow
     {
         public const int CurrentVersion = 2;
         public int Version = CurrentVersion;
-        public string StoryId = "";
+        public string StoryId = "", Started = "";
         public Difficulty Difficulty;
         public Telling Length;
         public int Turn, Act, RestedAct;
@@ -100,6 +100,7 @@ namespace Tavern.Core.Flow
         public int TensionLeft, TensionUsed, HintStalled, HintLevel;
         public bool TensionAfterFight;
         public List<string> LastEndings = new List<string>(), Facts = new List<string>(), Rumors = new List<string>(), Log = new List<string>();
+        public List<string> RecentNarration = new List<string>();
         public List<SavedAdventurer> Party = new List<SavedAdventurer>();
         public Dictionary<string, string> PartyAt = new Dictionary<string, string>(), ItemAt = new Dictionary<string, string>();
         public List<string> Events = new List<string>(), Convictions = new List<string>(), Visited = new List<string>();
@@ -141,7 +142,7 @@ namespace Tavern.Core.Flow
             var w = e.World;
             var s = new SaveGame
             {
-                StoryId = e.Story.Id, Difficulty = e.Difficulty, Length = t.Length, Turn = e.Turn, Act = w.Act, RestedAct = t.RestedAct,
+                StoryId = e.Story.Id, Started = e.Started, RecentNarration = e.RecentNarration.ToList(), Difficulty = e.Difficulty, Length = t.Length, Turn = e.Turn, Act = w.Act, RestedAct = t.RestedAct,
                 ClimaxStarted = e.ClimaxStarted, UnexpectedUsed = t.UnexpectedUsed, FirstEvening = e.FirstEvening, SolvedBy = t.SolvedBy, Phase = t.Phase,
                 RngState = (t.Rng as SeededRandom)?.State ?? 0,
                 TensionLeft = e.Tension.Left, TensionUsed = e.Tension.Used, TensionAfterFight = e.Tension.AfterFight, HintStalled = e.Hints.Stalled, HintLevel = e.Hints.Level,
@@ -199,6 +200,7 @@ namespace Tavern.Core.Flow
                 e.Mechanisms[m.Id] = mech;
             }
             e.Facts.AddRange(Facts); e.Rumors.AddRange(Rumors); e.LastEndings.AddRange(LastEndings);
+            e.Started = Started; e.RecentNarration.AddRange(RecentNarration);
             e.Tension.Restore(TensionLeft, TensionUsed, TensionAfterFight);
             e.Hints.Restore(HintStalled, HintLevel);
             var rng = new SeededRandom(RngState == 0 ? (ulong)DateTime.Now.Ticks : RngState);

@@ -73,10 +73,46 @@ namespace Tavern.Unity.Night
         }
 
         string P(string name) => Path.Combine(Folder, name);
+
+        // ---------------------------------------------------------------- the play record
+
+        /// <summary>
+        /// Every evening's play record, kept after the save is gone (owner 2026-10-25: a night's drift could not be traced once it
+        /// ended): night_logs/<started>_<story>.txt (the table's lines, rewritten after each turn) and ..._ai.txt (every AI call).
+        /// </summary>
+        string LogDir => P("night_logs");
+        string RecordPath(Table t) => Path.Combine(LogDir, $"{(t.E.Started.Length > 0 ? t.E.Started : "unknown")}_{t.E.Story.Id}");
+        public string AiRecordPath(Table t) => RecordPath(t) + "_ai.txt";
+
+        public void KeepRecord(Table t, string? closing = null)
+        {
+            try
+            {
+                Directory.CreateDirectory(LogDir);
+                var b = new System.Text.StringBuilder();
+                b.AppendLine($"「{t.E.Story.Title}」 {t.E.Started}　難易度 {t.E.Difficulty}　{t.E.Turn} 手・第 {t.E.World.Act} 幕");
+                b.AppendLine("一行: " + string.Join("、", t.E.Party.Select(a => $"{a.Name}（{a.Class.Name}）")));
+                foreach (var l in t.Log)
+                {
+                    if (l.StartsWith("語り: ")) { b.AppendLine(); b.AppendLine(l); b.AppendLine(); }
+                    else b.AppendLine(l);
+                }
+                if (closing != null) { b.AppendLine(); b.AppendLine(closing); }
+                File.WriteAllText(RecordPath(t) + ".txt", b.ToString());
+            }
+            catch (Exception e) { Debug.LogWarning("[Night] cannot keep the play record: " + e.Message); }
+        }
+
+        static readonly object AiLock = new object();
+        /// <summary>Appends to the AI record (calls may answer on other threads).</summary>
+        public static void AppendAi(string path, string text)
+        {
+            lock (AiLock) { try { Directory.CreateDirectory(Path.GetDirectoryName(path)!); File.AppendAllText(path, text); } catch (Exception) { } }
+        }
         public string EveningPath => P("night_evening.json");
         public bool HasEvening => File.Exists(EveningPath);
 
-        public void SaveEvening(Table t) => Write(EveningPath, SaveGame.From(t).ToJson());
+        public void SaveEvening(Table t) { Write(EveningPath, SaveGame.From(t).ToJson()); KeepRecord(t); }
         public SaveGame? LoadEvening()
         {
             try { return HasEvening ? SaveGame.FromJson(File.ReadAllText(EveningPath)) : null; }
@@ -152,6 +188,7 @@ namespace Tavern.Unity.Night
         {
             var e = t.E;
             var end = t.Ending!;
+            if (!guest) KeepRecord(t, $"結末: {EndingResult.Label(end.Card)}\n記録帳「{c.Title}」\n{c.Story}\n噂: {string.Join(" / ", c.Rumors)}");
             var roster = LoadRoster();
             foreach (var a in e.Party.Where(a => mine == null || mine.Contains(a.Id)))
             {

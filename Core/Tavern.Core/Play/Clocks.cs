@@ -71,6 +71,8 @@ namespace Tavern.Core.Play
         public int Segments { get; set; } = 6;
         public ClockSpeed Speed { get; set; }
         public int Every { get; set; } = 5;
+        /// <summary>Also +1 every fight round (where it runs): the night battle brings the dawn closer (winter_fort, owner 2026-10-25).</summary>
+        public bool Rounds { get; set; }
         /// <summary>Acts in which it runs (empty = all).</summary>
         public List<int> Acts { get; } = new List<int>();
         /// <summary>A good clock (dawn coming) is one the party wants filled.</summary>
@@ -166,7 +168,7 @@ namespace Tavern.Core.Play
         public List<Clock> CombatRound(int act)
         {
             var filled = new List<Clock>();
-            foreach (var c in All.Where(c => c.Def.Speed == ClockSpeed.CombatRounds && c.RunsIn(act) && !c.Paused))
+            foreach (var c in All.Where(c => (c.Def.Speed == ClockSpeed.CombatRounds || c.Def.Rounds) && c.RunsIn(act) && !c.Paused && !c.Full))
                 if (c.Push(1)) filled.Add(c);
             return filled;
         }

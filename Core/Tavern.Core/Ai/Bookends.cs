@@ -137,9 +137,20 @@ namespace Tavern.Core.Ai
             return list;
         }
 
+        static readonly string[] KeyMarks = { "手がかり", "確信", "幕", "山場", "戦闘開始", "戦闘に勝った", "逃げ", "仲間に", "手に入れた", "倒れ", "息絶え", "抜けた", "加わ" };
+
+        /// <summary>The evening for the chronicle: each narration cut to its start, and the lines that move the story (clues, acts, fights won).</summary>
+        static IEnumerable<string> KeyLines(IReadOnlyList<string> log)
+        {
+            var keep = log.Where(l => l.StartsWith("語り: ") || KeyMarks.Any(l.Contains))
+                .Select(l => l.StartsWith("語り: ") && l.Length > 130 ? l.Substring(0, 130) + "…" : l).ToList();
+            return keep.Count <= 90 ? keep : keep.Take(30).Concat(keep.Skip(keep.Count - 60));
+        }
+
         public const string ChroniclePrompt = @"あなたは酒場の語り部オルウェンです。今夜の冒険が終わりました。記録帳に残す短い物語と、酒場に流れる噂、次の晩へ持ち越す因縁、
 生き延びた冒険者の「歴戦の印」の名前を書きます。必ず chronicle を 1 回呼びます。
 - 記録帳（story）: 今夜の出来事を 6〜10 文で、常体（〜だ・〜した）で。結末の札・失ったもの・個人の目的の成否・持ち帰った宝は、書かれたとおりに（物語の説明から推し量って変えない）。失敗した晩も、死者も、正直に。
+  出来事の場所と順番は「今夜の流れ」のとおりに。流れにない場面（酒場に戻った、など）を足さない。結末の札や個人の目的の成否と食い違うことを書かない。
 - 噂（rumors）: 酒場で客が話す 1〜2 行。
 - 因縁（bonds）: 候補の種類から 0〜2 件。次の晩の物語に味付けとして差し込む種（本筋や黒幕にはしない）。
 - 歴戦の印（marks）: 生き延びた冒険者ごとに、今夜の出来事から 12 字以内の短い名前（例: 骨の騎士を断った）。";
@@ -148,8 +159,13 @@ namespace Tavern.Core.Ai
         {
             var b = new StringBuilder();
             b.AppendLine($"# 物語「{e.Story.Title}」\n{endingSummary}");
-            b.AppendLine("今夜の流れ（抜粋）:");
-            foreach (var l in log.Skip(Math.Max(0, log.Count - 40))) b.AppendLine("- " + l);
+            // the whole evening, not just its end (owner 2026-10-25: from the last 40 lines alone the chronicle began back in the tavern
+            // and let the knight run off whose goal had been kept): every narration in order, shortened, the key lines, the facts memo
+            b.AppendLine("今夜の流れ（はじめから順に。語りは短く切ってある）:");
+            foreach (var l in KeyLines(log)) b.AppendLine("- " + l);
+            b.AppendLine("最後の場面（そのまま）:");
+            foreach (var l in log.Skip(Math.Max(0, log.Count - 15))) b.AppendLine("- " + l);
+            if (e.Facts.Count > 0) { b.AppendLine("事実メモ（覆さない）:"); foreach (var f in e.Facts.Skip(Math.Max(0, e.Facts.Count - 30))) b.AppendLine("- " + f); }
             b.AppendLine("因縁の候補: " + (bondCandidates.Count > 0 ? string.Join(" / ", bondCandidates) : "（なし）"));
             b.AppendLine("生き延びた冒険者: " + string.Join("、", e.Party.Where(a => a.Life != Life.Dead).Select(a => $"[{a.Id}] {a.Name}")));
             var schema = new JObject

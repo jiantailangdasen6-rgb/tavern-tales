@@ -70,7 +70,7 @@ namespace Tavern.Core.Story
             var def = new ClockDef
             {
                 Id = id, Name = Str(c, "name"), SecretName = Str(c, "secret"), Segments = (int?)c["segments"] ?? 6,
-                Every = (int?)c["every"] ?? 0, Good = (bool?)c["good"] ?? false, FullText = Str(c, "fullText"),
+                Every = (int?)c["every"] ?? 0, Rounds = (bool?)c["rounds"] ?? false, Good = (bool?)c["good"] ?? false, FullText = Str(c, "fullText"),
                 Speed = Str(c, "speed") switch
                 {
                     "every" => ClockSpeed.EveryTurns, "events" => ClockSpeed.EventsOnly, "combat" => ClockSpeed.CombatRounds,
