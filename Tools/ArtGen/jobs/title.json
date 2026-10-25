@@ -1,0 +1,10 @@
+[
+  { "id": "bg_title_hearth", "kind": "title", "aspect": "16:9",
+    "prompt": "The inside of a great old timber tavern late at night: at the far left a huge stone hearth with a roaring fire, an old grey-haired storyteller woman in a dark shawl seated in a high-backed chair beside it, her hand raised as she tells a tale; at the right a few adventurers (a warrior in mail, a robed mage, a hooded thief) sit listening at a long table with tankards and candles; dark rafters and hanging lanterns above, the warm firelight fading into shadow in the middle." },
+  { "id": "bg_title_valley", "kind": "title", "aspect": "16:9",
+    "prompt": "Four adventurers seen small from behind on a rocky hilltop at the left at dusk (a warrior with a shield, a robed mage with a staff, a hooded thief, a priest with a lantern), looking out over a wide northern valley: a small walled town with lit windows far below, a misty forest, a winding road, snowy mountains under a deep blue and amber sky, the ruins of an old tower on a crag at the right." },
+  { "id": "bg_title_book", "kind": "title", "aspect": "16:9",
+    "prompt": "An old leather-bound storybook lying open on a worn tavern table by candlelight; from its pages rise faint glowing visions of a castle on a crag, a forest path and a dragon's silhouette in golden mist; around the book a pewter tankard, a burning candle, a quill in an ink pot and one ivory twenty-sided die; the edges of the table at the left and right richly lit, the dark tavern behind." },
+  { "id": "bg_title_inn", "kind": "title", "aspect": "16:9",
+    "prompt": "A snowy forest village at night: at the right a cosy two-storey timber tavern with warm glowing windows, smoke from its chimney and a carved wooden sign of a sleeping dragon over the door; at the left two cloaked travellers with a lantern walking up the snowy path towards it; tall dark pines, falling snow and a pale moon over a quiet open sky in the middle." }
+]

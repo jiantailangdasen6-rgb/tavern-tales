@@ -90,6 +90,7 @@ namespace Tavern.Unity.Night
         public void Attach(Table t) { _t = t; }
 
         bool Auto => _autoTurns > 0 || AppMain.Flag("-autoquit");
+        readonly HashSet<string> _bossSeen = new HashSet<string>();
         List<Adventurer> Living => E.Party.Where(a => a.Life != Life.Dead && !a.Withdrawn).ToList();
         Adventurer Selected { get { var mine = MyLiving; return mine.Count == 0 ? E.Party[0] : mine[Mathf.Clamp(_selected, 0, mine.Count - 1)]; } }
 
@@ -109,7 +110,7 @@ namespace Tavern.Unity.Night
             if (opening)
             {
                 Queue("語り部 オルウェン", Story.Intro, true);
-                if (!Auto) ShowHandouts();
+                if (!Auto && !AppMain.Flag("-showdice")) ShowHandouts();
             }
             else if (_t.Untold.Count > 0 && !Guest) _ = RunAsync(() => _t.TellUntoldAsync());
             else if (_t.Phase == Phase.Break && !Guest) { if (_t.GrowthDue.Count > 0) ShowGrowth(); else ShowNextNight(); }
@@ -120,6 +121,7 @@ namespace Tavern.Unity.Night
             if (AppMain.Flag("-showsettings")) ShowSettings();
             if (AppMain.Flag("-showending")) { PreviewEnding(); return; }
             if (AppMain.Flag("-showfight")) PreviewFight();
+            if (AppMain.Flag("-showdice")) _ = PreviewDice(int.Parse(AppMain.Arg("-showdice") ?? "1"));
             RefreshAll();
             BroadcastState();
         }
@@ -186,8 +188,9 @@ namespace Tavern.Unity.Night
                 var t = card.transform;
                 var tex = ArtLibrary.Get(a.Portrait);
                 c.Portrait = UiKit.Picture(t, tex, 0, 0, 260, 238);
-                c.Portrait.uvRect = ArtLibrary.Cover(tex, 260, 238, 0.7f);
-                UiKit.Fade(t);
+                c.Portrait.uvRect = ArtLibrary.Cover(tex, 260, 238, 0.64f);
+                // the dark fade only under the writing, so more of the figure shows (owner 2026-10-25)
+                UiKit.Fade(t).rectTransform.offsetMax = new Vector2(0, -88);
                 c.Border = UiKit.Frame(t, thin: true, Theme.FrameDim, 8);
                 UiKit.Icon(t, ClassIcon(a), 12, 12, 30);
                 var id = a.Id;
@@ -368,17 +371,40 @@ namespace Tavern.Unity.Night
             {
                 // foes as framed cards along the bottom, each with a name plate and an HP gauge
                 var foes = combat.Foes.Where(f => !f.Left && !f.Killed).ToList();
-                var w = Mathf.Min(150, 800f / Mathf.Max(1, foes.Count));
-                var h = Mathf.Min(150, w * 1.3f);
+                // a boss stands in the middle, larger, under a red glow and a tag; its first sight gets an entrance (owner 2026-10-25)
+                var big = foes.Any(f => f.Boss);
+                if (big)
+                {
+                    var rest = foes.Where(f => !f.Boss).ToList();
+                    foes = rest.Take(rest.Count / 2).Concat(foes.Where(f => f.Boss)).Concat(rest.Skip(rest.Count / 2)).ToList();
+                }
+                const float BossW = 196, BossH = 262;
+                var bosses = big ? foes.Count(f => f.Boss) : 0;
+                var w = Mathf.Min(150, (800f - bosses * BossW) / Mathf.Max(1, foes.Count - bosses));
+                var h = Mathf.Min(190, w * 1.3f);   // tall enough that the art keeps its lower part
+                var fx = big ? (808 - bosses * BossW - (foes.Count - bosses) * w) / 2 : 0;
                 for (int i = 0; i < foes.Count; i++)
                 {
                     var f = foes[i];
                     var art = Enemies(f.Source)?.Art ?? f.Art;
-                    var card = PersonCard(_enemyRow, ArtLibrary.Get(art), i * w + 4, 210 - h - 48, w - 8, h, f.Boss ? Theme.Hex("e0583f") : Theme.Hex("a8463a"));
+                    var boss = big && f.Boss;
+                    var (cw, ch) = boss ? (BossW, BossH) : (w, h);
+                    var y = 210 - ch - 48;
+                    if (boss) UiKit.Soft(UiKit.Rect("Glow", _enemyRow).Place(fx - 18, y - 18, cw + 36, ch + 36), new Color(0.85f, 0.18f, 0.08f, 0.55f), 0, 26);
+                    var card = PersonCard(_enemyRow, ArtLibrary.Get(art), fx + 4, y, cw - 8, ch, boss ? Theme.Hex("f2c45a") : f.Boss ? Theme.Hex("e0583f") : Theme.Hex("a8463a"));
                     if (f.Down) card.color = new Color(0.3f, 0.3f, 0.3f, 0.7f);
-                    NamePlate(_enemyRow, f.Name, i * w, 210 - 46, w, Theme.Hex("ffc4b6"));
-                    var bar = UiKit.Bar(_enemyRow, i * w + 8, 210 - 20, w - 16, 12, Theme.Red);
+                    if (boss)
+                    {
+                        UiKit.Frame(card.transform.parent, thin: false, Theme.Hex("b8321e"), 12);
+                        var tag = UiKit.Box(_enemyRow, "BossTag", new Color(0.5f, 0.07f, 0.04f, 0.96f), frame: true);
+                        tag.rectTransform.Place(fx + cw / 2 - 46, y - 16, 92, 30);
+                        UiKit.Title(tag.transform, "ボス", 18, Theme.GoldLight, 0, 2, 92, 26, TextAnchor.UpperCenter);
+                    }
+                    NamePlate(_enemyRow, f.Name, fx, 210 - 46, cw, boss ? Theme.GoldLight : Theme.Hex("ffc4b6"));
+                    var bar = UiKit.Bar(_enemyRow, fx + 8, 210 - 20, cw - 16, boss ? 16 : 12, Theme.Red);
                     bar.fillAmount = f.MaxHp == 0 ? 0 : (float)f.Hp / f.MaxHp;
+                    fx += cw;
+                    if (boss && _bossSeen.Add(f.Id) && !AppMain.Flag("-nocutin")) ShowBossEntrance(f, art);
                 }
                 var due = combat.BigMoveDue.Select(id => combat.Find(id)?.Creature).FirstOrDefault(c => c?.BigMove != null);
                 _warn.SetActive(due != null);
@@ -388,6 +414,28 @@ namespace Tavern.Unity.Night
         }
 
         EnemyDef? Enemies(string id) => _n.Enemies.Has(id) ? _n.Enemies[id] : null;
+
+        /// <summary>A boss's entrance: its picture large over the darkened scene, its name on a red band; a click or a few seconds closes it.</summary>
+        async void ShowBossEntrance(Creature foe, string art)
+        {
+            var layer = UiKit.Box(_sceneBox, "BossEntrance", new Color(0.02f, 0.01f, 0.01f, 0.8f));
+            layer.rectTransform.Fill();
+            var band = UiKit.Box(layer.transform, "Band", new Color(0.42f, 0.06f, 0.04f, 0.92f));
+            band.rectTransform.Place(0, 200, 820, 132);
+            UiKit.Frame(band.transform, thin: true, Theme.Hex("f2c45a"), 6);
+            UiKit.Soft(UiKit.Rect("Glow", layer.transform).Place(36, 22, 316, 490), new Color(0.9f, 0.2f, 0.08f, 0.6f), 0, 30);
+            var card = PersonCard(layer.transform, ArtLibrary.Get(art), 60, 46, 268, 442, Theme.Hex("f2c45a"));
+            UiKit.Frame(card.transform.parent, thin: false, Theme.Hex("b8321e"), 14);
+            UiKit.Label(layer.transform, "― 立ちはだかる者 ―", 18, Theme.Hex("ffc4b6"), 360, 214, 440, 28, serif: true);
+            var name = UiKit.Title(layer.transform, foe.Name, 48, Theme.GoldLight, 360, 246, 450, 64);
+            name.gameObject.AddComponent<Shadow>();
+            var go = layer.gameObject;
+            var click = go.AddComponent<Button>();
+            click.transition = Selectable.Transition.None;
+            click.onClick.AddListener(() => UnityEngine.Object.Destroy(go));
+            await Task.Delay(4000);
+            if (go != null) UnityEngine.Object.Destroy(go);
+        }
 
         void RefreshTabs()
         {

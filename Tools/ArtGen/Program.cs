@@ -122,6 +122,12 @@ static class Style
                  "warm sepia and dark brown ink linework with soft hand-coloured washes of muted green, ochre and slate blue; " +
                  "mountains, hills, forests and towns drawn as small inked pictograms, the sea shown with gentle wave lines and hatching along the coastline, " +
                  $"land and sea lying on the same flat page with no relief, no cliffs, no perspective and no three-dimensional terrain. {NoText}",
+        // the title screen's own picture (owner 2026-10-25): wide key art whose middle stays calm under the title and the menu
+        "title" => $"Subject: {subject} Style: {Bible} A wide panoramic painting composed to sit behind a title: " +
+                   $"the middle of the picture is calm, open and darker, the detail and the light gathered towards the left and right sides. {Anatomy} {NoText}",
+        // the application icon: one bold emblem that still reads at 32 pixels
+        "icon" => $"Subject: {subject} Style: {Bible} A single bold emblem for an application icon: one object, centred, filling most of the square, " +
+                  $"a simple strong silhouette with clear warm highlights that still reads when very small, on a plain dark background with nothing else. {NoText}",
         "creature" => $"Subject: {subject} Style: {Bible} The creature is fully visible and centred, nothing important touches the edges. {Anatomy} {NoText}",
         "card" => $"Subject: {subject} Style: {Bible} The effect itself is the main subject, centred; any figure is secondary or seen from behind. {Anatomy} {NoText}",
         _ => $"Subject: {subject} Style: {Bible} The figure is centred with the face clearly lit. {Anatomy} {NoText}",

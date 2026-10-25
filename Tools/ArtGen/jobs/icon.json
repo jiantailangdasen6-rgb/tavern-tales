@@ -1,0 +1,10 @@
+[
+  { "id": "icon_tankard", "kind": "icon", "aspect": "1:1",
+    "prompt": "A wooden tankard of foaming ale bound with brass hoops, with a gold twenty-sided die leaning against it." },
+  { "id": "icon_d20", "kind": "icon", "aspect": "1:1",
+    "prompt": "A large gleaming gold twenty-sided die standing on a round dark red disc." },
+  { "id": "icon_lantern", "kind": "icon", "aspect": "1:1",
+    "prompt": "An old brass tavern lantern with a warm bright flame inside its glass." },
+  { "id": "icon_book", "kind": "icon", "aspect": "1:1",
+    "prompt": "An open leather-bound storybook with a small golden flame rising from its pages." }
+]

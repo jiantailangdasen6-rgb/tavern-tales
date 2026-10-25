@@ -218,6 +218,16 @@ namespace Tavern.Unity.Night
             E.Combat = Combat.Start(E.Party, Array.Empty<Creature>(), foes, E.Party.ToDictionary(a => a.Id, a => 10), false, E.Difficulty, _t.Rng);
         }
 
+        /// <summary>Screenshots only (-showdice N): N dice thrown for the party (20, 7, 1, 14), to see the throw without playing to one.</summary>
+        async Task PreviewDice(int count)
+        {
+            await Wait(0.5f);
+            var faces = new[] { 20, 7, 1, 14 };
+            var rolls = Enumerable.Range(0, Mathf.Clamp(count, 1, MaxDice))
+                .Select(i => new RollRequest { Who = E.Party[i % E.Party.Count].Id, Kind = RollKind.Check, For = "（見本）扉をこじ開ける", Target = 12, Bonus = 2 }).ToList();
+            await AnimateDice(rolls, faces.Take(rolls.Count).ToList());
+        }
+
         /// <summary>Screenshots only (-showending): the ending screen with sample facts, without playing the story through.</summary>
         void PreviewEnding()
         {

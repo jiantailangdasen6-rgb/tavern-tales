@@ -29,6 +29,11 @@ namespace Tavern.Unity.Dice
         Mesh _mesh = null!;
         readonly List<(Vector3 normal, Vector3 up)> _faces = new List<(Vector3, Vector3)>();
         Coroutine? _rolling;
+        Vector3 _camHome;
+        Camera _camera = null!;
+        /// <summary>Where the die came to rest in its picture (0..1, y up), for a light behind it.</summary>
+        public Vector2 Spot { get; private set; }
+        float _shake;
         int _index;
 
         // the hidden tray where each throw is played out first
@@ -56,12 +61,14 @@ namespace Tavern.Unity.Dice
             camGo.transform.SetParent(transform, false);
             camGo.transform.localPosition = new Vector3(0, 10.5f, -6.8f);
             _cam = camGo.transform;
+            _camHome = _cam.localPosition;
             camGo.transform.localRotation = Quaternion.LookRotation(new Vector3(0, 0, 0.5f) - camGo.transform.localPosition);
             var cam = camGo.AddComponent<Camera>();
+            _camera = cam;
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0, 0, 0, 0);
             cam.cullingMask = 1 << Layer;
-            cam.fieldOfView = 40;
+            cam.fieldOfView = 44;   // room for a die that rolls to the walls
             cam.targetTexture = Texture;
             camGo.AddComponent<UniversalAdditionalCameraData>().renderPostProcessing = false;
 
@@ -132,7 +139,7 @@ namespace Tavern.Unity.Dice
         {
             var scene = SceneManager.CreateScene("DiceTray" + (_index == 0 ? "" : _index.ToString()), new CreateSceneParameters(LocalPhysicsMode.Physics3D));
             _phys = scene.GetPhysicsScene();
-            var felt = new PhysicsMaterial("tray") { bounciness = 0.3f, dynamicFriction = 0.4f, staticFriction = 0.55f, bounceCombine = PhysicsMaterialCombine.Average };
+            var felt = new PhysicsMaterial("tray") { bounciness = 0.42f, dynamicFriction = 0.2f, staticFriction = 0.32f, bounceCombine = PhysicsMaterialCombine.Average };
             void Box(Vector3 centre, Vector3 size)
             {
                 var b = new GameObject("TrayPart");
@@ -151,7 +158,8 @@ namespace Tavern.Unity.Dice
             var mc = die.AddComponent<MeshCollider>();
             mc.sharedMesh = _mesh; mc.convex = true; mc.sharedMaterial = felt;
             _simDie = die.AddComponent<Rigidbody>();
-            _simDie.mass = 1; _simDie.linearDamping = 0.05f; _simDie.angularDamping = 0.2f;
+            _simDie.mass = 1; _simDie.linearDamping = 0.03f; _simDie.angularDamping = 0.08f;   // a slick tray: the die keeps rolling (owner 2026-10-25)
+            _simDie.maxAngularVelocity = 60;   // the default (7 rad/s) cut every spin short
             SceneManager.MoveGameObjectToScene(die, scene);
         }
 
@@ -258,12 +266,12 @@ namespace Tavern.Unity.Dice
         Throw PlayOut(int face)
         {
             var rb = _simDie;
-            var start = new Vector3(-TrayW / 2 + 1.4f, UnityEngine.Random.Range(1.8f, 2.8f), UnityEngine.Random.Range(-1.4f, 1.4f));
+            var start = new Vector3(-TrayW / 2 + 1.4f, UnityEngine.Random.Range(2.0f, 2.8f), UnityEngine.Random.Range(-1.4f, 1.4f));
             var rot = UnityEngine.Random.rotation;
             rb.transform.SetPositionAndRotation(start, rot);
             rb.position = start; rb.rotation = rot;
-            rb.linearVelocity = new Vector3(UnityEngine.Random.Range(10f, 13f), UnityEngine.Random.Range(-0.5f, 1.5f), UnityEngine.Random.Range(-2.2f, 2.2f));
-            rb.angularVelocity = UnityEngine.Random.onUnitSphere * UnityEngine.Random.Range(14f, 22f);
+            rb.linearVelocity = new Vector3(UnityEngine.Random.Range(11f, 14f), UnityEngine.Random.Range(0.5f, 2f), UnityEngine.Random.Range(-2.6f, 2.6f));   // tossed a little, not slid
+            rb.angularVelocity = UnityEngine.Random.onUnitSphere * UnityEngine.Random.Range(26f, 38f);
             rb.WakeUp();
 
             var t = new Throw { Frames = new List<(Vector3, Quaternion)>(), Bounces = new List<(float, float)>() };
@@ -313,13 +321,13 @@ namespace Tavern.Unity.Dice
             _rolling = StartCoroutine(RollRoutine(PlayOut(Mathf.Clamp(face, 1, 20)), duration, done));
         }
 
-        public void Hide() { if (_rolling != null) StopCoroutine(_rolling); gameObject.SetActive(false); }
+        public void Hide() { if (_rolling != null) StopCoroutine(_rolling); _cam.localPosition = _camHome; gameObject.SetActive(false); }
 
         IEnumerator RollRoutine(Throw t, float duration, Action? done)
         {
             _visual.localRotation = t.Look;
             var length = t.Frames.Count * Step;
-            var speed = Mathf.Max(0.8f, length / Mathf.Max(0.3f, duration));   // long throws are played a little faster
+            var speed = Mathf.Max(1f, length / Mathf.Max(0.3f, duration));   // real time, only very long throws a little faster
             float time = 0;
             int bounce = 0;
             while (true)
@@ -331,10 +339,14 @@ namespace Tavern.Unity.Dice
                 var (p1, r1) = t.Frames[Mathf.Min(i + 1, t.Frames.Count - 1)];
                 var k = at - i;
                 Place(Vector3.Lerp(p0, p1, k), Quaternion.Slerp(r0, r1, k));
-                while (bounce < t.Bounces.Count && t.Bounces[bounce].time <= time) Bounced?.Invoke(t.Bounces[bounce++].strength);
+                while (bounce < t.Bounces.Count && t.Bounces[bounce].time <= time) { var s = t.Bounces[bounce++].strength; Bounced?.Invoke(s); _shake = Mathf.Max(_shake, s); }
+                // a hard landing jolts the view a little
+                _shake = Mathf.Max(0, _shake - Time.deltaTime * 5);
+                _cam.localPosition = _camHome + (_shake > 0.3f ? UnityEngine.Random.insideUnitSphere * 0.09f * _shake : Vector3.zero);
                 if (time >= length) break;
                 yield return null;
             }
+            _cam.localPosition = _camHome;
             yield return Present(t);
             _rolling = null;
             done?.Invoke();
@@ -365,6 +377,7 @@ namespace Tavern.Unity.Dice
             }
             _body.localRotation = to;
             _body.localPosition = pos + Vector3.up * 0.5f;
+            Spot = _camera.WorldToViewportPoint(_body.position);
         }
 
         void Place(Vector3 pos, Quaternion rot)

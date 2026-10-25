@@ -26,7 +26,7 @@ namespace Tavern.Unity.Night
         const int MaxDice = 4;
         const float RollTimeout = 20f;
         static readonly List<DiceRoller> Pool = new List<DiceRoller>();
-        readonly List<(RawImage pic, Text caption)> _diceViews = new List<(RawImage, Text)>();
+        readonly List<DieView> _diceViews = new List<DieView>();
         RectTransform? _dialog;
         TaskCompletionSource<bool>? _rollPressed;
         float _rollDeadline;
@@ -43,13 +43,64 @@ namespace Tavern.Unity.Night
             _diceViews.Clear();
             for (int i = 0; i < MaxDice; i++)
             {
-                var x = 6 + (i % 2) * 410f;
-                var y = 30 + (i / 2) * 250f;
-                var pic = UiKit.Picture(scene, Pool[i].Texture, x, y, 404, 227);
-                var cap = UiKit.Label(scene, "", 16, Theme.GoldLight, x, y + 200, 404, 46, align: TextAnchor.UpperCenter);
+                // a soft light behind the tray (gold for 20, red for 1), the die's picture, and its line under it
+                var glowBox = UiKit.Rect("DieGlow", scene);
+                var glow = UiKit.Picture(glowBox, Radial, 0, 0, 10, 10);
+                glow.rectTransform.Fill();
+                glow.color = Color.clear;
+                var pic = UiKit.Picture(scene, Pool[i].Texture, 0, 0, 404, 227);
+                var cap = UiKit.Label(scene, "", 16, Theme.GoldLight, 0, 0, 404, 46, align: TextAnchor.UpperCenter);
                 cap.gameObject.AddComponent<Outline>().effectColor = Color.black;
-                pic.gameObject.SetActive(false); cap.gameObject.SetActive(false);
-                _diceViews.Add((pic, cap));
+                glowBox.gameObject.SetActive(false); pic.gameObject.SetActive(false); cap.gameObject.SetActive(false);
+                _diceViews.Add(new DieView { Pic = pic, Caption = cap, Glow = glow, GlowBox = glowBox });
+            }
+        }
+
+        static Texture2D? _radial;
+        /// <summary>A round light, bright in the middle and gone at the rim.</summary>
+        static Texture2D Radial
+        {
+            get
+            {
+                if (_radial != null) return _radial;
+                const int n = 64;
+                _radial = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+                for (int y = 0; y < n; y++)
+                    for (int x = 0; x < n; x++)
+                    {
+                        var r = Mathf.Clamp01(new Vector2(x - n / 2f + 0.5f, y - n / 2f + 0.5f).magnitude / (n / 2f));
+                        _radial.SetPixel(x, y, new Color(1, 1, 1, Mathf.SmoothStep(1, 0, r)));
+                    }
+                _radial.Apply();
+                return _radial;
+            }
+        }
+
+        sealed class DieView
+        {
+            public RawImage Pic = null!;
+            public Text Caption = null!;
+            public RawImage Glow = null!;
+            public RectTransform GlowBox = null!;
+            public void Show(bool on) { Pic.gameObject.SetActive(on); Caption.gameObject.SetActive(on); GlowBox.gameObject.SetActive(on); }
+        }
+
+        /// <summary>One die fills the scene; two sit side by side; three or four in a grid.</summary>
+        void LayoutDice(int count)
+        {
+            for (int s = 0; s < count; s++)
+            {
+                var v = _diceViews[s];
+                float w = count == 1 ? 808 : 404, h = w / DiceRoller.Aspect;
+                float x = count == 1 ? 6 : 6 + (s % 2) * 410;
+                float y = count == 1 ? 30 : count == 2 ? 130 : 30 + (s / 2) * 250;
+                v.Pic.rectTransform.Place(x, y, w, h);
+                float cy = y + h - (count == 1 ? 40 : 27), ch = count == 1 ? 60 : 46;
+                var cr = v.Caption.rectTransform.Place(x, cy, w, ch);
+                cr.pivot = new Vector2(0.5f, 0.5f); cr.anchoredPosition = new Vector2(x + w / 2, -(cy + ch / 2));   // swells from its middle
+                v.Caption.fontSize = count == 1 ? 24 : 16;
+                v.Glow.color = Color.clear;
+                v.Caption.transform.localScale = Vector3.one;
             }
         }
 
@@ -150,13 +201,15 @@ namespace Tavern.Unity.Night
             {
                 var batch = Enumerable.Range(start, Math.Min(MaxDice, rolls.Count - start)).ToList();
                 var done = 0;
+                LayoutDice(batch.Count);
                 AudioDirector.Play("dice_roll");
                 foreach (var (i, slot) in batch.Select((i, s) => (i, s)))
                 {
-                    var (pic, cap) = _diceViews[slot];
-                    pic.gameObject.SetActive(true); cap.gameObject.SetActive(true);
-                    cap.text = $"{E.Find(rolls[i].Who)?.Name}: {rolls[i].For}";
-                    Pool[slot].Roll(naturals[i], Auto ? 0.2f : 1.6f, () => done++);
+                    var v = _diceViews[slot];
+                    v.Show(true);
+                    v.Caption.text = $"{E.Find(rolls[i].Who)?.Name}: {rolls[i].For}";
+                    v.Caption.color = Theme.GoldLight;
+                    Pool[slot].Roll(naturals[i], Auto ? 0.2f : 2.8f, () => done++);
                 }
                 while (done < batch.Count) await Task.Yield();
                 foreach (var (i, slot) in batch.Select((i, s) => (i, s)))
@@ -164,18 +217,46 @@ namespace Tavern.Unity.Night
                     var r = rolls[i];
                     var n = naturals[i];
                     var ok = r.Target <= 0 || n == 20 || (n != 1 && n + r.Bonus >= r.Target);
-                    _diceViews[slot].caption.text = $"{E.Find(r.Who)?.Name}: {n}{(r.Bonus != 0 ? $"{r.Bonus:+0;-0} = {n + r.Bonus}" : "")}" +
+                    var v = _diceViews[slot];
+                    v.Caption.text = $"{E.Find(r.Who)?.Name}: {n}{(r.Bonus != 0 ? $"{r.Bonus:+0;-0} = {n + r.Bonus}" : "")}" +
                         (r.Kind == RollKind.Fate ? "" : r.Target > 0 ? (n == 20 ? "　大成功" : n == 1 ? "　大失敗" : ok ? "　成功" : "　失敗") : "");
+                    // the result in the colour of how it went: gold for 20, red for 1 or a miss
+                    var judged = r.Kind != RollKind.Fate && r.Target > 0;
+                    v.Caption.color = n == 20 ? Theme.Hex("ffd75e") : n == 1 || (judged && !ok) ? Theme.Hex("ff8a70") : judged ? Theme.Hex("bfe58a") : Theme.GoldLight;
                     if (n == 20) AudioDirector.Play("crit"); else if (n == 1) AudioDirector.Play("fumble");
+                    PlaceGlow(v, Pool[slot].Spot, batch.Count == 1 ? 380 : 220);
+                    if (!Auto) _ = PopResult(v, n == 20 ? new Color(1f, 0.8f, 0.3f, 0.75f) : n == 1 ? new Color(0.9f, 0.15f, 0.08f, 0.75f) : Color.clear);
                 }
-                await Wait(Auto ? 0.1f : 1.4f);
+                await Wait(Auto ? 0.1f : 1.8f);
                 foreach (var slot in Enumerable.Range(0, batch.Count))
                 {
-                    _diceViews[slot].pic.gameObject.SetActive(false);
-                    _diceViews[slot].caption.gameObject.SetActive(false);
+                    _diceViews[slot].Show(false);
                     Pool[slot].Hide();
                 }
             }
+        }
+
+        /// <summary>A round light of this size centred on where the die came to rest in its picture.</summary>
+        static void PlaceGlow(DieView v, Vector2 spot, float size)
+        {
+            var pic = v.Pic.rectTransform;
+            float x = pic.anchoredPosition.x + spot.x * pic.sizeDelta.x, y = -pic.anchoredPosition.y + (1 - spot.y) * pic.sizeDelta.y;
+            v.GlowBox.Place(x - size / 2, y - size / 2, size, size);
+        }
+
+        /// <summary>The result line swells and settles; a 20 or a 1 also lights the tray behind the die.</summary>
+        async Task PopResult(DieView v, Color glow)
+        {
+            for (float t = 0; t < 1; t += Time.deltaTime / 0.35f)
+            {
+                if (v.Caption == null) return;
+                v.Caption.transform.localScale = Vector3.one * (1 + 0.35f * Mathf.Sin(t * Mathf.PI) * (1 - t * 0.4f));
+                v.Glow.color = glow * new Color(1, 1, 1, Mathf.SmoothStep(0, 1, t));
+                await Task.Yield();
+            }
+            if (v.Caption == null) return;
+            v.Caption.transform.localScale = Vector3.one;
+            v.Glow.color = glow;
         }
 
         static string Odds(RollRequest r)
