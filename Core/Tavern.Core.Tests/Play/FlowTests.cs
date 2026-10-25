@@ -204,6 +204,19 @@ namespace Tavern.Core.Tests.Play
         }
 
         [Test]
+        public async Task TheClientWaitsInTheTavern_AndGoesHomeWhenThePartyLeaves()
+        {
+            var (t, llm, e) = New("tavern");
+            Assert.That(e.PeopleAt("tavern").Select(p => p.Id), Does.Contain("elder"), "the opening has him walk into the tavern");
+            e.World.Move("rocco", "village");   // gone ahead
+            llm.Tool(Classifier.ToolName, Cls(@"{""who"": ""gareth"", ""steps"": [{""text"": ""村へ行く"", ""sort"": ""auto"", ""move_to"": ""village""}]}"))
+               .Tool(Narrator.ToolName, Ok);
+            await t.ExploreAsync(D(("gareth", "村へ行く")));
+            Assert.That(e.PlaceOf(e.Find("gareth")!), Is.EqualTo("village"));
+            Assert.That(e.World.Cast.Find("elder")!.Location, Is.EqualTo("village"));
+        }
+
+        [Test]
         public async Task LongStory_PlacesOpenOneActAhead()
         {
             var (t, llm, e) = New("village", 1);

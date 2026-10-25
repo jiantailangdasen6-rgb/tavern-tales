@@ -113,7 +113,7 @@
     { "id": "logbook", "name": "白鳥号の航海日誌", "kind": "Story", "at": "hold", "note": "最後の頁に「返すべきだ。海の底へ」" }
   ],
   "people": [
-    { "id": "harlan", "name": "老水夫ハーラン", "portrait": "pt_sailor", "at": "village", "role": "依頼人", "attitude": "Friendly",
+    { "id": "harlan", "opening": true, "name": "老水夫ハーラン", "portrait": "pt_sailor", "at": "village", "role": "依頼人", "attitude": "Friendly",
       "voice": "潮で嗄れた声。昔の船乗りの言い回し", "wants": "白鳥号の仲間の供養", "fears": "海",
       "secret": "白鳥号のただ一人の生き残り", "lie": "聞かれるまで言わない",
       "clues": [ "c1_1", "c4_2" ], "joins": "Conditional", "joinWhen": { "person": "harlan", "attitude": "Trusting" },

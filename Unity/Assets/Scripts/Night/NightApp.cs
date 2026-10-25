@@ -221,8 +221,9 @@ namespace Tavern.Unity.Night
         }
 
         /// <summary>A friend: the evening is over; their own adventurer goes to their roster, the story to their chronicle.</summary>
-        public void OnGuestEnd(EndMsg m)
+        public async void OnGuestEnd(EndMsg m)
         {
+            var reading = _guest;   // the table still on screen: the friend finishes the last narration first
             var t = Mirror(m.Save, new TableView(this));
             if (t == null) return;
             t.Ending = m.Ending;
@@ -230,6 +231,7 @@ namespace Tavern.Unity.Night
             Room?.Close();   // the evening is over: the host closing the room later is no surprise
             Room = null;
             _guest = null;
+            if (reading != null && _screen == "table") await reading.ReadyForEndingAsync();
             ShowEnding(t, m.Chronicle);
         }
 

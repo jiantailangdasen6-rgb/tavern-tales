@@ -151,6 +151,8 @@ namespace Tavern.Core.Story
         /// <summary>For conditional joining.</summary>
         public When JoinWhen { get; set; } = When.Always;
         public string JoinNote { get; set; } = "";
+        /// <summary>Comes to the start place in the opening (the client in the tavern) and goes home to At once the party leaves it.</summary>
+        public bool Opening { get; set; }
         /// <summary>Someone the party escorts (rescued people): does not fight and does not count as a companion.</summary>
         public bool Escort { get; set; }
         public Build Build { get; set; } = Build.Weak;

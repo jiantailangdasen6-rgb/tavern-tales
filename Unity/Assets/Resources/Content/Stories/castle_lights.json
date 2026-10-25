@@ -117,7 +117,7 @@
     { "id": "signet", "name": "ヴォルク家の指輪", "kind": "Treasure", "at": "study", "note": "杯を抱いた蝙蝠の紋章" }
   ],
   "people": [
-    { "id": "seraphina", "name": "司祭見習いセラフィナ", "portrait": "pt_priestess", "at": "village", "role": "依頼人", "attitude": "Friendly",
+    { "id": "seraphina", "opening": true, "name": "司祭見習いセラフィナ", "portrait": "pt_priestess", "at": "village", "role": "依頼人", "attitude": "Friendly",
       "voice": "丁寧だが張りつめた声。祈りの言葉を口癖のように挟む", "wants": "妹エマが目覚めること", "fears": "自分の祈りが届かないこと",
       "joins": "Conditional", "joinWhen": { "person": "seraphina", "attitude": "Friendly" },
       "joinNote": "礼拝堂まで同行する。古城には怖くて入れない", "build": "Weak", "combatRole": "Heal" },

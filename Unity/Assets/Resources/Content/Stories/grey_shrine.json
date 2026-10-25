@@ -121,7 +121,7 @@
     { "id": "grave_dagger", "name": "宝石の短剣", "kind": "Treasure", "at": "crypt", "note": "副葬品" }
   ],
   "people": [
-    { "id": "elder", "name": "村長オズリック", "portrait": "pt_elder", "at": "village", "role": "依頼人", "attitude": "Friendly",
+    { "id": "elder", "opening": true, "name": "村長オズリック", "portrait": "pt_elder", "at": "village", "role": "依頼人", "attitude": "Friendly",
       "voice": "穏やかで、少し言葉が多い老人", "wants": "若者の無事", "fears": "森の祠",
       "secret": "若いころ、自分も燭台に手を出しかけてエルダの祖母に止められた", "lie": "祠のことを聞かれても濁す",
       "joins": "Never", "joinNote": "足が悪い", "build": "Weak" },

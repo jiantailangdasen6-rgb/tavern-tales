@@ -18,6 +18,24 @@ namespace Tavern.Unity.Night
     {
         static readonly string[] ClassIds = { "warrior", "mage", "thief", "priest" };
 
+        // "おまかせ" (owner 2026-10-25): a name for the look and a background from the class's origins and a temperament
+        static readonly string[] MaleNames = { "ガレス", "ロッコ", "アルド", "ベルン", "カスパル", "ディルク", "エドガー", "フーゴ", "ローラン", "マティス", "オスカー", "セドリック" };
+        static readonly string[] FemaleNames = { "エリス", "ミーナ", "アニカ", "ブリギット", "クララ", "ダリア", "フレヤ", "イルザ", "リゼット", "マルタ", "ノーラ", "シルヴィア" };
+        static readonly Dictionary<string, string[]> Origins = new Dictionary<string, string[]>
+        {
+            ["warrior"] = new[] { "没落した騎士の家の末っ子", "辺境の砦で育った元傭兵", "鍛冶屋の家に生まれ、自分の打った剣を振るう", "闘技場で名を上げた元剣闘士", "村の自警団をまとめていた", "戦で主君を失った従士" },
+            ["mage"] = new[] { "王都の学院を追い出された見習い魔術師", "森の賢者に拾われて育った", "古書店の奥で禁書を読みふけっていた", "星を読む一族の生まれ", "師の遺した杖を受け継いだ", "火の魔法で村を焼きかけた過去がある" },
+            ["thief"] = new[] { "港町の裏路地で育った", "盗賊ギルドを抜けた元鍵師", "旅の一座で軽業を覚えた", "貴族の屋敷に忍び込むのが趣味だった", "兄の借金を返すために腕を磨いた", "宝の地図を集めている" },
+            ["priest"] = new[] { "太陽神の神殿で育った孤児", "疫病の村で人を看取り続けた", "巡礼の途中で酒場に流れ着いた", "破門された元司祭", "癒やしの手を持つ村娘として知られていた", "亡き師の墓守をしていた" },
+        };
+        static readonly string[] Tempers = { "口は悪いが面倒見がいい", "無口で、甘いものに目がない", "陽気で、歌うのが好き", "臆病だが、仲間のためなら踏みとどまる", "几帳面で、宿代の計算に厳しい", "お人好しで、頼まれると断れない", "皮肉屋だが、約束は必ず守る", "好奇心が強く、古い遺跡に目がない" };
+        static readonly string[] Wishes = { "家名を取り戻したい", "名を上げて故郷に錦を飾りたい", "行方知れずの家族を捜している", "いつか自分の店を持ちたい", "過去の過ちを償いたい", "まだ見ぬ竜をこの目で見たい" };
+
+        static string Pick(string[] from) => from[UnityEngine.Random.Range(0, from.Length)];
+
+        static (string name, string background) Suggest(string classId, bool female) =>
+            (Pick(female ? FemaleNames : MaleNames), $"{Pick(Origins[classId])}。{Pick(Tempers)}。{Pick(Wishes)}。");
+
         /// <summary>Opens the form over root; saved gets the new roster entry (already stored), cancelled the "やめる".</summary>
         public static void Show(NightApp n, Transform root, Action<RosterEntry> saved, Action? cancelled = null)
         {
@@ -48,6 +66,12 @@ namespace Tavern.Unity.Night
             UiKit.Label(panel, "生い立ち・性格（自由に。語り部が冒険の中で拾います）", 17, Theme.Dim, 40, 572, 900, 26);
             var background = UiKit.Input(panel, "例: 没落した騎士の家の三男。家名を取り戻したい", 40, 600, 1000, 140, 18, multiline: true);
             background.characterLimit = 300;
+            UiKit.Button(panel, "おまかせで書く", () =>
+            {
+                var (n2, b2) = Suggest(classId, female);
+                name.text = n2; background.text = b2;
+            }, 480, 506, 220, 48, 18);
+            UiKit.Label(panel, "名前と生い立ちを、職業と見た目に合わせて適当に埋めます（書き換えてかまいません）", 15, Theme.Dim, 714, 512, 330, 44);
             var note = UiKit.Label(panel, "", 18, Theme.Warn, 40, 756, 1000, 30);
 
             UiKit.Button(panel, "やめる", () => { UnityEngine.Object.Destroy(layer.gameObject); cancelled?.Invoke(); }, 40, 840, 220, 62, 22);

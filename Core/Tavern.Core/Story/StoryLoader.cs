@@ -175,6 +175,7 @@ namespace Tavern.Core.Story
                 Joins = Enum<JoinWillingness>(Str(p, "joins", "Never"), $"person {id}"),
                 JoinWhen = ReadWhen(p["joinWhen"], $"person {id} join"), JoinNote = Str(p, "joinNote"),
                 Escort = (bool?)p["escort"] ?? false,
+                Opening = (bool?)p["opening"] ?? false,
                 Build = Enum<Build>(Str(p, "build", "Weak"), $"person {id}"),
                 CombatRole = Enum<CompanionRole>(Str(p, "combatRole", "Attack"), $"person {id}"),
                 Enemy = Str(p, "enemy"), Mastermind = (bool?)p["mastermind"] ?? false, OnDeath = Str(p, "onDeath"),

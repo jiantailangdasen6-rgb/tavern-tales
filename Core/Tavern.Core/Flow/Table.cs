@@ -859,6 +859,12 @@ namespace Tavern.Core.Flow
                 foreach (var sol in Story.Climax.Solutions)
                     if (sol.When.Holds(W)) { RunActions(sol.Then, report, changes); SolveClimax(sol.Id, report, changes); break; }
 
+            // whoever came to the tavern in the opening goes home once the party has left it (owner 2026-10-25: the client was told of
+            // but not drawn, being placed at home from the start)
+            if (!E.At(Story.Start).Any())
+                foreach (var p in Story.People.Where(p => p.Opening && p.At != Story.Start))
+                    if (W.Cast.Find(p.Id) is Npc n && n.Location == Story.Start && !n.WithParty) n.Location = p.At;
+
             // hints and tension
             E.Hints.Turn(progress, E.Difficulty);
             if (E.Tension.On) E.Tension.Turn();

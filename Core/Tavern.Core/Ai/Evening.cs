@@ -52,7 +52,7 @@ namespace Tavern.Core.Ai
             foreach (var p in story.People)
                 e.World.Cast.People.Add(new Npc
                 {
-                    Id = p.Id, Name = p.Name, Portrait = p.Portrait, Location = p.At, Attitude = p.Attitude, Build = p.Build,
+                    Id = p.Id, Name = p.Name, Portrait = p.Portrait, Location = p.Opening ? story.Start : p.At, Attitude = p.Attitude, Build = p.Build,
                     Role = p.CombatRole, Joins = p.Joins, Escort = p.Escort,
                 });
             foreach (var i in story.Items)

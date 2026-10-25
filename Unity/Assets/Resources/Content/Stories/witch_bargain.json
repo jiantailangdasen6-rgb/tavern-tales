@@ -115,7 +115,7 @@
     { "id": "mead", "name": "村の蜂蜜酒", "kind": "Consumable", "uses": 1, "at": "npc:agnes", "note": "報酬の一部" }
   ],
   "people": [
-    { "id": "agnes", "name": "村長の妻アグネス", "portrait": "pt_villager_woman", "at": "village", "role": "依頼人", "attitude": "Friendly",
+    { "id": "agnes", "opening": true, "name": "村長の妻アグネス", "portrait": "pt_villager_woman", "at": "village", "role": "依頼人", "attitude": "Friendly",
       "voice": "しっかり者で、言葉の端々に疲れがにじむ", "wants": "子どもたち", "fears": "冬", "joins": "Never", "build": "Weak" },
     { "id": "child", "name": "咳をする村の子", "portrait": "pt_child", "at": "village", "role": "冬に弱った子ども", "attitude": "Friendly",
       "voice": "咳まじりの小さな声", "wants": "外で遊ぶこと", "fears": "寒さ", "joins": "Never", "build": "Weak" },

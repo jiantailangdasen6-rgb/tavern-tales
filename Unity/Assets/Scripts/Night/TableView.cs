@@ -122,6 +122,7 @@ namespace Tavern.Unity.Night
             if (AppMain.Flag("-showending")) { PreviewEnding(); return; }
             if (AppMain.Flag("-showfight")) PreviewFight();
             if (AppMain.Flag("-showdice")) _ = PreviewDice(int.Parse(AppMain.Arg("-showdice") ?? "1"));
+            if (AppMain.Flag("-showtoending")) _ = ReadyForEndingAsync();   // screenshots: the button that leads to the ending
             RefreshAll();
             BroadcastState();
         }
@@ -630,7 +631,26 @@ namespace Tavern.Unity.Night
             }
             catch (Exception e) { Debug.LogWarning("[Night] wrap up: " + e); }
             SendEnd(chronicle);
+            await ReadyForEndingAsync();
             _n.ShowEnding(_t, chronicle);
+        }
+
+        /// <summary>
+        /// The last narration stays on the table until the player moves on (owner 2026-10-25: the result screen came by itself and
+        /// the ending could not be read). A button over the declaration panel; screenshots and autoplay go on by themselves.
+        /// </summary>
+        public async Task ReadyForEndingAsync()
+        {
+            _ending = true;
+            while (_typing != null || _pending.Count > 0) await Task.Yield();
+            if ((Auto && !AppMain.Flag("-showtoending")) || AppMain.Flag("-showending")) return;
+            var go = new TaskCompletionSource<bool>();
+            var plate = UiKit.Box(_root, "ToEnding", new Color(0.05f, 0.035f, 0.025f, 1f), frame: true);
+            plate.rectTransform.Place(294, 658, 820, 400);   // over the whole declaration panel
+            UiKit.Title(plate.transform, "物語は幕を閉じた", 34, Theme.FrameGold, 0, 96, 820, 48, TextAnchor.UpperCenter);
+            UiKit.Label(plate.transform, "右の語り部の書を読み終えたら、結末へ進んでください。", 20, Theme.Ink, 0, 156, 820, 32, serif: true, align: TextAnchor.UpperCenter);
+            UiKit.Button(plate.transform, "結末を見る", () => go.TrySetResult(true), 260, 230, 300, 70, 26, gold: true);
+            await go.Task;
         }
 
         void AskToStopForTonight()

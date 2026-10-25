@@ -114,7 +114,7 @@
     { "id": "ledger", "name": "ダリオの帳簿", "kind": "Story", "at": "hideout", "note": "王都の好事家との取り引きが書かれている" }
   ],
   "people": [
-    { "id": "borg", "name": "鍛冶屋ボルグ", "portrait": "pt_blacksmith", "at": "village", "role": "依頼人", "attitude": "Friendly",
+    { "id": "borg", "opening": true, "name": "鍛冶屋ボルグ", "portrait": "pt_blacksmith", "at": "village", "role": "依頼人", "attitude": "Friendly",
       "voice": "無骨で短い言葉。火と鉄の話になると饒舌", "wants": "村を守る", "fears": "炉の火が消えること",
       "clues": [ "c3_1", "c4_1" ], "joins": "Conditional", "joinWhen": { "person": "borg", "attitude": "Trusting" },
       "joinNote": "信頼すれば峠まで同行する", "build": "Strong", "combatRole": "Attack" },
