@@ -1,6 +1,8 @@
 # 開発ログ（再開するときはここから）
 
 ## いまの到達点と次の一手（2026-10-25 夜、画面の作り直しと AI の選択）
+- **効果音の選び直し**（オーナー 2026-10-25、効果音のページ）: ボタン・ダイス（振る・当たる）・手がかりと成長・ダメージ・かわす・予告・語りのページを Kenney の素材に替えた（`music.json` の sfx、音量は `Logs/audio-levels.txt` から）。
+  大成功・大失敗・戦闘開始・勝利は 2 回目の候補（Little Robot Sound Factory・Fupi・Spring Spring・Eldritch Grim・Kevin MacLeod）からオーナーが選ぶ前で、合成の仮の音のまま。
 - **タイトル画面・アイコン・緊迫**（オーナー 2026-10-25）: タイトルは専用の絵 B（谷を見下ろす一行、`bg_title_valley`）にして、題字とメニューを左へ（左ほど暗くした影の上）。
   exe のアイコンは金の 20 面ダイス（`Assets/Icon/app_icon.png`、`ProjectSetup.SetupIcon`）。緊迫の曲は緊迫の 3 手のあいだだけ（★ の場所にいるあいだずっと、をやめた）。
   戦闘中に仲間が倒れたら、緊迫は戦闘が終わった直後から（`Tension.AfterFight`、セーブにも残る）。曲はオーナーが曲のページで選んだもの: タイトルは PeriTune「Nostalgic Jig」（新しい鍵 `title`、酒場は Harvest のまま）、緊迫は Kevin MacLeod「Satiate（弦のみ）」（CC BY 4.0、クレジットに表記）。

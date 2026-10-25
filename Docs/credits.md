@@ -21,7 +21,7 @@
 - **Juhani Junkala**（OpenGameArt, CC0）— Epic Boss Battle
 - **Pro Sensory**（OpenGameArt, CC0）— Boss Battle (loop)
 - **BlackCortex**（OpenGameArt, CC0）— Determined Pursuit (Epic Orchestra Loop)
-- **Kenney**（https://kenney.nl/, CC0）— Casino Audio、RPG Audio
+- **Kenney**（https://kenney.nl/, CC0）— Casino Audio、RPG Audio、Interface Sounds、Impact Sounds、Music Jingles、UI Audio（効果音の選び直し、オーナー 2026-10-25）
 - **rubberduck**（OpenGameArt, CC0）— 80 CC0 RPG SFX
 - **JaggedStone**（OpenGameArt, CC0）— Magic Spell SFX
 - **PagDev**（OpenGameArt, CC0）— Fireplace Sound loop

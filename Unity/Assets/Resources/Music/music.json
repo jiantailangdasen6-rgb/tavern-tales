@@ -23,10 +23,15 @@
     "bg_shrine_inside": "ritual"
   },
   "sfx": {
-    "dice_roll": "Sfx/dice_roll_kenney",
-    "hit": "Sfx/hit_blade",
+    "click": "Sfx/click_kenney_iface_005",
+    "dice_roll": "Sfx/dice_roll_kenney_die_throw_3",
+    "dice_land": "Sfx/dice_land_kenney_wood_light_002",
+    "growth": "Sfx/growth_kenney_pizzi16",
+    "hit": "Sfx/hit_kenney_plate_medium_000",
+    "miss": "Sfx/miss_kenney_cloth1",
+    "warn": "Sfx/warn_kenney_bell_heavy_001",
     "spell": "Sfx/spell_magical",
-    "page": "Sfx/page_bookflip"
+    "page": "Sfx/page_kenney_bookflip2"
   },
   "ambience": "Sfx/ambience_fireplace",
   "_gain": "Loudness correction per file, from Logs/audio-levels.txt (Tavern.Unity.Editor.AudioLevels.Report): music to about -19 dBFS RMS like the synthesized tracks; short sounds at most x1.4 so loud peaks do not clip at the loudest level (x2 for quiet ones).",
@@ -42,10 +47,15 @@
     "Music/boss_junkala_epic_boss_battle": 0.3,
     "Music/ending_peritune_minstrel": 0.51,
     "Music/ending_randommind_defeat": 0.51,
-    "Sfx/dice_roll_kenney": 1.4,
-    "Sfx/hit_blade": 1.4,
+    "Sfx/click_kenney_iface_005": 0.5,
+    "Sfx/growth_kenney_pizzi16": 0.8,
+    "Sfx/dice_land_kenney_wood_light_002": 1.2,
+    "Sfx/warn_kenney_bell_heavy_001": 1.4,
+    "Sfx/miss_kenney_cloth1": 1.4,
+    "Sfx/hit_kenney_plate_medium_000": 1.4,
+    "Sfx/dice_roll_kenney_die_throw_3": 1.4,
+    "Sfx/page_kenney_bookflip2": 2.0,
     "Sfx/spell_magical": 2.0,
-    "Sfx/page_bookflip": 1.4,
     "Sfx/ambience_fireplace": 6.0
   }
 }
