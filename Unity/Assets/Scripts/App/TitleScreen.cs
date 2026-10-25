@@ -14,7 +14,7 @@ namespace Tavern.Unity.App
 
         public void Build(Transform root)
         {
-            AudioDirector.Music("tavern");
+            AudioDirector.Music("title");   // its own tune (owner 2026-10-25: Nostalgic Jig); the tavern keeps Harvest
             // the title's own picture (owner 2026-10-25: the party over the valley); the menu sits on the left, over the open sky and hills
             var bg = ArtLibrary.Get("bg_title_valley");
             var pic = UiKit.Picture(root, bg, 0, 0, 1920, 1080);

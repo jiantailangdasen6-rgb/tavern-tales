@@ -1,7 +1,7 @@
 # クレジット（音・画面の部品・文字の素材）
 
 ゲームのタイトル画面の「クレジット」と、配布用 zip の「はじめに.txt」にも同じ内容を載せる。
-表記が必須なのは CC BY 系（Tabletop Audio）だけ。CC0 と PeriTune は任意だが、感謝を込めて載せる。
+表記が必須なのは CC BY 系（Tabletop Audio・Kevin MacLeod）だけ。CC0 と PeriTune は任意だが、感謝を込めて載せる。
 ダウンロードした元のファイルは `Logs/audio-src/`（git に入れない）。ゲームに使う分だけを `Unity/Assets/Resources/Music`・`Sfx` に取り込む
 （今使っているものはゲーム内の `Resources/Music/credits.txt` に載せる）。
 
@@ -10,6 +10,8 @@
   非営利でのみ使う。曲を切る・つなぐなどの加工はしない（そのまま再生する）。
   - Tavern Celebration / The Hearth Inn / Halfling Lodge / Sun Dappled Trail / Through the Woods / The Verdant Dark /
     Tomb Guardians / Whispering Caverns / Necropolis / Fog of War / Village Raid / Druid Hilltop / Summoning
+- **Kevin MacLeod**（https://incompetech.com/）— CC BY 4.0（https://creativecommons.org/licenses/by/4.0/）
+  - Satiate（弦のみ、Satiate Strings）: 緊迫の曲（オーナー 2026-10-25）
 
 ## 表記は任意
 - **PeriTune**（https://peritune.com/）— Celtic and Medieval、Battle Tracks（itch.io。商用可・改変可・非営利の再配布可、クレジット任意）
@@ -27,7 +29,7 @@
 
 ## 見送ったもの
 - Freesound のサイコロの音（CC0）: ダウンロードにアカウントが要るため。
-- 魔王魂・OpenTracks（旧 DOVA-SYNDROME）・効果音ラボ・Kevin MacLeod: 具体的な曲をまだ選んでいない。
+- 魔王魂・OpenTracks（旧 DOVA-SYNDROME）・効果音ラボ: 具体的な曲をまだ選んでいない。
   魔王魂は「音楽：魔王魂」の表記が必要、OpenTracks と効果音ラボは素材のファイルを公開の場（公開リポジトリ）に置けない。
 
 ## 文字（ブラウザ版）

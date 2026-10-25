@@ -2,8 +2,11 @@
 Tabletop Audio（https://tabletopaudio.com/）
   「Whispering Caverns」「Tomb Guardians」「Summoning」
   ライセンス: CC BY-NC-ND 4.0（https://creativecommons.org/licenses/by-nc-nd/4.0/）
+Kevin MacLeod（https://incompetech.com/）
+  「Satiate」（Satiate Strings）
+  ライセンス: CC BY 4.0（https://creativecommons.org/licenses/by/4.0/）
 PeriTune（https://peritune.com/）
-  「Harvest」「Minstrel」
+  「Harvest」「Minstrel」「Nostalgic Jig」
 Juhani Junkala「Epic Boss Battle」（OpenGameArt、CC0）
 RandomMind「Medieval: Exploration」「Medieval: Battle」「Medieval: Defeat Theme」（OpenGameArt、CC0）
 

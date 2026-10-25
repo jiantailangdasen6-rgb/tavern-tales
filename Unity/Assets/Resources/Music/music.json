@@ -1,12 +1,13 @@
 {
   "_about": "Which file plays where. Paths are under Resources (no extension). A scene or sound left out falls back to the synthesized audio (Tools/AudioGen). Credits: Docs/credits.md.",
   "music": {
+    "title": "Music/title_peritune_nostalgic_jig",
     "tavern": "Music/tavern_peritune_harvest",
     "explore": "Music/explore_randommind_exploration",
     "cave": "Music/cave_tta_whispering_caverns",
     "crypt": "Music/crypt_tta_tomb_guardians",
     "ritual": "Music/ritual_tta_summoning",
-    "tense": "Music/ritual_tta_summoning",
+    "tense": "Music/tense_incompetech_satiate_strings",
     "battle": "Music/battle_randommind_battle",
     "boss": "Music/boss_junkala_epic_boss_battle",
     "ending_success": "Music/ending_peritune_minstrel",
@@ -30,11 +31,13 @@
   "ambience": "Sfx/ambience_fireplace",
   "_gain": "Loudness correction per file, from Logs/audio-levels.txt (Tavern.Unity.Editor.AudioLevels.Report): music to about -19 dBFS RMS like the synthesized tracks; short sounds at most x1.4 so loud peaks do not clip at the loudest level (x2 for quiet ones).",
   "gain": {
+    "Music/title_peritune_nostalgic_jig": 0.36,
     "Music/tavern_peritune_harvest": 0.48,
     "Music/explore_randommind_exploration": 1.93,
     "Music/cave_tta_whispering_caverns": 0.79,
     "Music/crypt_tta_tomb_guardians": 0.79,
     "Music/ritual_tta_summoning": 0.99,
+    "Music/tense_incompetech_satiate_strings": 1.1,
     "Music/battle_randommind_battle": 0.72,
     "Music/boss_junkala_epic_boss_battle": 0.3,
     "Music/ending_peritune_minstrel": 0.51,
