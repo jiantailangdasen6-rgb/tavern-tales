@@ -3,7 +3,7 @@ Tabletop Audio（https://tabletopaudio.com/）
   「Whispering Caverns」「Tomb Guardians」「Summoning」
   ライセンス: CC BY-NC-ND 4.0（https://creativecommons.org/licenses/by-nc-nd/4.0/）
 Kevin MacLeod（https://incompetech.com/）
-  「Satiate」（Satiate Strings）
+  「Satiate」（Satiate Strings）、効果音に「Danse Macabre - Big Hit 2」（一部を切り出して使用）
   ライセンス: CC BY 4.0（https://creativecommons.org/licenses/by/4.0/）
 PeriTune（https://peritune.com/）
   「Harvest」「Minstrel」「Nostalgic Jig」
@@ -11,6 +11,10 @@ Juhani Junkala「Epic Boss Battle」（OpenGameArt、CC0）
 RandomMind「Medieval: Exploration」「Medieval: Battle」「Medieval: Defeat Theme」（OpenGameArt、CC0）
 
 ■ 効果音
+Little Robot Sound Factory「Fantasy Sound Effects Library」（OpenGameArt、https://opengameart.org/content/fantasy-sound-effects-library）
+  ライセンス: CC BY 3.0（https://creativecommons.org/licenses/by/3.0/）
+Fupi「Win Jingle」（OpenGameArt、CC0）
+Eldritch Grim「War Horns」（OpenGameArt、CC0）
 Kenney（https://kenney.nl/、CC0）「Casino Audio」「RPG Audio」「Interface Sounds」「Impact Sounds」「Music Jingles」
 JaggedStone「Magic Spell SFX」（OpenGameArt、CC0）
 PagDev「Fireplace Sound loop」（OpenGameArt、CC0）

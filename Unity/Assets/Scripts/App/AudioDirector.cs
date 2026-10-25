@@ -17,6 +17,7 @@ namespace Tavern.Unity.App
         AudioSource _musicA = null!, _musicB = null!, _ambience = null!;
         readonly List<AudioSource> _sfx = new List<AudioSource>();
         readonly Dictionary<string, AudioClip?> _clips = new Dictionary<string, AudioClip?>();
+        readonly Dictionary<string, float> _lastPlayed = new Dictionary<string, float>();
         string _music = "";
         bool _aPlaying;
         float _fade = 1;
@@ -96,6 +97,9 @@ namespace Tavern.Unity.App
             if (a == null) return;
             var clip = a.SfxClip(name);
             if (clip == null) return;
+            // a jingle (a 20, a won fight) is called from both the dice and the log line: let it play once
+            if (clip.length > 1f && a._lastPlayed.TryGetValue(name, out var at) && Time.unscaledTime - at < clip.length) return;
+            a._lastPlayed[name] = Time.unscaledTime;
             var src = a._sfx.Find(s => !s.isPlaying) ?? a._sfx[0];
             src.pitch = 1 + Random.Range(-0.03f, 0.03f);
             src.PlayOneShot(clip, volume * SfxBase * LevelScale * a.Gain(clip));

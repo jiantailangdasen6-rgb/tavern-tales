@@ -1,7 +1,7 @@
 # クレジット（音・画面の部品・文字の素材）
 
 ゲームのタイトル画面の「クレジット」と、配布用 zip の「はじめに.txt」にも同じ内容を載せる。
-表記が必須なのは CC BY 系（Tabletop Audio・Kevin MacLeod）だけ。CC0 と PeriTune は任意だが、感謝を込めて載せる。
+表記が必須なのは CC BY 系（Tabletop Audio・Kevin MacLeod・Little Robot Sound Factory）だけ。CC0 と PeriTune は任意だが、感謝を込めて載せる。
 ダウンロードした元のファイルは `Logs/audio-src/`（git に入れない）。ゲームに使う分だけを `Unity/Assets/Resources/Music`・`Sfx` に取り込む
 （今使っているものはゲーム内の `Resources/Music/credits.txt` に載せる）。
 
@@ -12,6 +12,9 @@
     Tomb Guardians / Whispering Caverns / Necropolis / Fog of War / Village Raid / Druid Hilltop / Summoning
 - **Kevin MacLeod**（https://incompetech.com/）— CC BY 4.0（https://creativecommons.org/licenses/by/4.0/）
   - Satiate（弦のみ、Satiate Strings）: 緊迫の曲（オーナー 2026-10-25）
+  - Danse Macabre - Big Hit 2: 大失敗の効果音（2.6 秒に切り出し）
+- **Little Robot Sound Factory**（OpenGameArt「Fantasy Sound Effects Library」、https://opengameart.org/content/fantasy-sound-effects-library）— CC BY 3.0
+  - Jingle_Achievement: 大成功の効果音
 
 ## 表記は任意
 - **PeriTune**（https://peritune.com/）— Celtic and Medieval、Battle Tracks（itch.io。商用可・改変可・非営利の再配布可、クレジット任意）
@@ -24,6 +27,8 @@
 - **Kenney**（https://kenney.nl/, CC0）— Casino Audio、RPG Audio、Interface Sounds、Impact Sounds、Music Jingles、UI Audio（効果音の選び直し、オーナー 2026-10-25）
 - **rubberduck**（OpenGameArt, CC0）— 80 CC0 RPG SFX
 - **JaggedStone**（OpenGameArt, CC0）— Magic Spell SFX
+- **Fupi**（OpenGameArt, CC0）— Win Jingle（WinBrass を勝利の効果音に）
+- **Eldritch Grim**（OpenGameArt, CC0）— War Horns（出だし 4 秒を戦闘開始の効果音に）
 - **PagDev**（OpenGameArt, CC0）— Fireplace Sound loop
 - **AntumDeluge**（OpenGameArt, CC0）— Fire Crackling
 
