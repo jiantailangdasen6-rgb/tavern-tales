@@ -74,6 +74,21 @@ namespace Tavern.Unity.Night
             NetSession.On(NightMsg.Clue, OnClue);
             room.Left += OnFriendLeft;
             room.Back += OnFriendBack;
+            room.Reopened += OnRoomReopened;
+        }
+
+        /// <summary>The room was lost and opened again: the friends need the new code (or the host reopens it by hand).</summary>
+        void OnRoomReopened(string? code)
+        {
+            if (_n.Room == null || !OnScreen) return;
+            if (code != null)
+            {
+                AddLine($"（部屋の接続が切れたので、新しい部屋を開き直した。友人には新しいコード {code} を伝えてください。同じ名前で入れば、自分の冒険者に戻れます）", Theme.Warn, 16);
+                GUIUtility.systemCopyBuffer = App.InviteLink.For(code);
+                AddLine("（新しい招待リンクをコピーした。そのまま友人に貼り付けて送れます）", Theme.Dim, 15);
+            }
+            else AddLine("（部屋の接続が切れ、開き直せなかった。「酒場へ戻る」で区切り、タイトルの「続きから」で部屋を開き直してください）", Theme.Warn, 16);
+            RefreshAll();
         }
 
         // ================================================================ host

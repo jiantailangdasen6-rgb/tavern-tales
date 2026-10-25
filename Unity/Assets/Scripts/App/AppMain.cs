@@ -149,6 +149,24 @@ namespace Tavern.Unity.App
                 code = File.ReadAllText(file).Trim();
             }
             OpenRoom(code, name, preset[index]);
+            // -droprejoin N: the connection drops after N seconds and the friend joins again from the same running game (as a friend
+            // would after a network hiccup), five seconds later
+            if (code != null && float.TryParse(Arg("-droprejoin"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var drop))
+            {
+                yield return new WaitForSeconds(drop);
+                Debug.Log("[Online] test: dropping the connection");
+                Tavern.Unity.Net.NetSession.SimulateDrop();
+                yield return new WaitForSeconds(5);
+                Debug.Log("[Online] test: joining again");
+                OpenRoom(File.ReadAllText(Arg("-onlinejoinfile")!).Trim(), name, preset[index]);   // the code may be new (-droproom)
+            }
+            // -droproom N (host): the room stops after N seconds as if its Relay connection were lost, and opens again
+            if (code == null && float.TryParse(Arg("-droproom"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var lose))
+            {
+                yield return new WaitForSeconds(lose);
+                Debug.Log("[Online] test: losing the room");
+                Tavern.Unity.Net.NetSession.SimulateRoomLoss();
+            }
         }
 
         async void OpenRoom(string? code, string name, Tavern.Core.Play.Adventurer mine)

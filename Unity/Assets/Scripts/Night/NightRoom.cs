@@ -36,6 +36,8 @@ namespace Tavern.Unity.Night
         /// <summary>Host: a friend left (their player name) or came back to their seat (name, client id).</summary>
         public event Action<string>? Left;
         public event Action<string, ulong>? Back;
+        /// <summary>Host: the room was lost and opened again under a new code (or null: it could not be opened).</summary>
+        public event Action<string?>? Reopened;
 
         NightRoom(NightApp n, bool host, string me, SavedAdventurer mine) { _n = n; Host = host; Me = me; _mine = mine; }
 
@@ -86,6 +88,7 @@ namespace Tavern.Unity.Night
                     if (PlayerOf(from) is RoomPlayer p) { Pins[p.PlayerName] = OnlineView.Read<PinMsg>(json).StoryId; Send(); }
                 });
                 NetSession.ClientLeft += OnLeft;
+                NetSession.RoomLost += OnRoomLost;
             }
             else
             {
@@ -97,11 +100,36 @@ namespace Tavern.Unity.Night
             }
         }
 
+        /// <summary>
+        /// Host: the room stopped by itself (owner 2026-10-25: a friend dropped and could not get back in, the host's Relay connection
+        /// having gone). Everyone else is away; a new room opens under a new code, and the seats wait for their players as before.
+        /// </summary>
+        async void OnRoomLost()
+        {
+            if (_n.Room != this) return;
+            foreach (var p in Players.Where(p => !p.Host && p.Connected).ToList()) { p.Connected = false; Left?.Invoke(p.PlayerName); }
+            for (int attempt = 1; attempt <= 3; attempt++)
+            {
+                try
+                {
+                    Code = await NetSession.HostAsync();
+                    if (Players.FirstOrDefault(p => p.Host) is RoomPlayer me) me.Id = NetSession.LocalId;
+                    Debug.Log("[Online] room opened again: " + Code);
+                    if (App.AppMain.Arg("-codefile") is string file) System.IO.File.WriteAllText(file, Code);   // tests
+                    Changed?.Invoke();
+                    Reopened?.Invoke(Code);
+                    return;
+                }
+                catch (Exception e) { Debug.LogWarning($"[Online] reopening the room (try {attempt}): {e.Message}"); await Awaitable.WaitForSecondsAsync(3); }
+            }
+            Reopened?.Invoke(null);
+        }
+
         void OnDisconnected()
         {
             if (_n.Room != this) return;
             Close();
-            _n.ShowError($"ホストとの接続が切れました。部屋のコード {Code} でもう一度入れば、自分の冒険者に戻れます");
+            _n.ShowError($"ホストとの接続が切れました。部屋のコード {Code} か、ホストが開き直した新しいコードで、同じ名前で入れば自分の冒険者に戻れます");
         }
 
         void OnHello(ulong from, string json)
@@ -239,6 +267,7 @@ namespace Tavern.Unity.Night
         public void Close()
         {
             NetSession.ClientLeft -= OnLeft;
+            NetSession.RoomLost -= OnRoomLost;
             NetSession.Disconnected -= OnDisconnected;
             NetSession.ClearHandlers();
             NetSession.Leave();

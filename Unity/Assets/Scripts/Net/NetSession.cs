@@ -41,6 +41,9 @@ namespace Tavern.Unity.Net
         /// <summary>Host: someone joined / left (client id). Client: the connection to the host ended.</summary>
         public static event Action<ulong>? ClientJoined, ClientLeft;
         public static event Action? Disconnected;
+        /// <summary>Host: the room stopped by itself (the Relay connection was lost), not by Leave. The room can be opened again.</summary>
+        public static event Action? RoomLost;
+        static bool _leaving;
 
         /// <summary>Online needs the build linked to a Unity Cloud project with Relay (ProjectSettings cloudProjectId).</summary>
         public static bool Available => !string.IsNullOrEmpty(Application.cloudProjectId);
@@ -69,6 +72,17 @@ namespace Tavern.Unity.Net
             {
                 if (_nm.IsHost) { if (id != NetworkManager.ServerClientId) ClientLeft?.Invoke(id); }
                 else Disconnected?.Invoke();
+            };
+            Application.quitting += () => _leaving = true;   // the game closing is not a lost room
+            _nm.OnTransportFailure += () => Debug.LogWarning("[Online] transport failure: " + _nm.DisconnectReason);
+            _nm.OnServerStopped += async _ =>
+            {
+                if (_leaving) return;
+                await Awaitable.NextFrameAsync();   // the game closing stops the room too: that frame never comes
+                if (_leaving || !Application.isPlaying) return;
+                Debug.LogWarning("[Online] the room stopped by itself");
+                JoinCode = null;
+                RoomLost?.Invoke();
             };
             return _nm;
         }
@@ -100,6 +114,7 @@ namespace Tavern.Unity.Net
             var allocation = await RelayService.Instance.CreateAllocationAsync(MaxPlayers - 1);
             var code = await RelayService.Instance.GetJoinCodeAsync(allocation.AllocationId);
             nm.GetComponent<UnityTransport>().SetRelayServerData(allocation.ToRelayServerData(RelayKind));
+            _leaving = false;
             if (!nm.StartHost()) throw new InvalidOperationException("部屋を作れなかった");
             RegisterHandlers();
             JoinCode = code;
@@ -127,15 +142,27 @@ namespace Tavern.Unity.Net
                 if (done == connected.Task) break;
                 Leave();
                 Debug.LogWarning($"[Online] join attempt {attempt} timed out");
-                if (attempt >= 3) throw new TimeoutException("部屋に入れなかった（コードを確かめてください）");
+                if (attempt >= 3) throw new TimeoutException("ホストの部屋につながらなかった（コードが合っているか、ホストの部屋が開いているか確かめてください。ホストが「酒場へ戻る」→「続きから」で開き直すと、新しいコードで入れます）");
                 await Delay(1.5f);
             }
             RegisterHandlers();
             JoinCode = code;
         }
 
+        /// <summary>Tests (-droproom): the host's room stops as if its Relay connection were lost.</summary>
+        public static void SimulateRoomLoss() { if (_nm != null && _nm.IsHost) { _leaving = false; _nm.Shutdown(); } }
+
+        /// <summary>Tests (-droprejoin): the connection ends as if the network dropped (no goodbye to the host).</summary>
+        public static void SimulateDrop()
+        {
+            if (_nm == null || !_nm.IsClient || _nm.IsHost) return;
+            _nm.Shutdown();
+            Disconnected?.Invoke();
+        }
+
         public static void Leave()
         {
+            _leaving = true;
             if (_nm != null && (_nm.IsHost || _nm.IsClient)) _nm.Shutdown();
             Registered.Clear();   // a new session gets a new messaging manager
             JoinCode = null;
@@ -148,11 +175,13 @@ namespace Tavern.Unity.Net
         public static void ClearHandlers() => Handlers.Clear();
 
         static readonly HashSet<string> Registered = new HashSet<string>();
+        static object? _registeredOn;
         static readonly string[] Names = Tavern.Core.Flow.NightMsg.All.ToArray();
 
         static void RegisterHandlers()
         {
             var cm = _nm!.CustomMessagingManager;
+            if (cm != _registeredOn) { Registered.Clear(); _registeredOn = cm; }   // a new session (also after a lost room) has a new messaging manager
             foreach (var name in Names)
             {
                 if (!Registered.Add(name)) continue;
