@@ -10,7 +10,7 @@ namespace Tavern.Core.Flow
     // draw the state the host sends them, cut to what that person may see. All messages are JSON (NetSession zips them).
 
     /// <summary>The version a room checks: host and friends must match (stories, art and messages travel with it).</summary>
-    public static class GameVersion { public const string Current = "0.2.0"; }
+    public static class GameVersion { public const string Current = "0.3.0"; }
 
     /// <summary>A friend's PC never calls the AI; its mirrored table gets this.</summary>
     public sealed class NoLlm : Tavern.Core.Gm.ILlmClient

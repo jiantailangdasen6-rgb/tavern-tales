@@ -26,6 +26,7 @@ namespace Tavern.Unity.Editor
         {
             PlayerSettings.companyName = "tavern-tales";
             PlayerSettings.productName = "酒場の語り部";
+            PlayerSettings.bundleVersion = Tavern.Core.Flow.GameVersion.Current;   // the exe shows the same version the rooms compare
             PlayerSettings.defaultScreenWidth = 1920;
             PlayerSettings.defaultScreenHeight = 1080;
             PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
